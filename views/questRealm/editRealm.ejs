@@ -1,0 +1,87 @@
+
+<script type="text/javascript" src="/js/realmEditor.js"></script>
+<script type="text/javascript" src="/mixins/sails.io.js"></script>
+
+<h1>Quest of Realms</h1>
+Realm Designer
+
+<h2>Editing realm <%= realm.name %></h2>
+<input type="hidden" id="realmId" value="<%= realm.id %>" />
+
+<link rel="stylesheet" href="//code.jquery.com/ui/1.10.4/themes/smoothness/jquery-ui.css">
+<link rel="stylesheet" href="/styles/editRealm.css">
+
+<div id="workArea">
+    <div id="toolsPanel" style="float:left; margin-right:5px;">
+        <div id="palettePanel" style="clear:both;">
+            <div id="tabs" style="width:300px; font-family: arial, sans-serif; font-size: 12px;">
+                <ul>
+                    <li><a href="#tabs-environment">Environment</a></li>
+                    <li><a href="#tabs-items">Items</a></li>
+                    <li><a href="#tabs-characters">Characters</a></li>
+                </ul>
+                <div id="tabs-environment">
+                    <!-- Will be dynamically populated. -->
+                </div>
+                <div id="tabs-items">
+                    <!-- Will be dynamically populated. -->
+                </div>
+                <div id="tabs-characters">
+                    <p>Characters</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="propertiesPanel" style="margin-top: 10px; border: solid gray 1px; height: 200px; width: 300px; padding: 2px;">
+            <div id="propertiesPanelTitle" style="border-bottom: solid gray 1px;">Properties</div>
+            <div id="paletteItemPropertiesPanel" style="display: none">
+                <div>
+                    <table>
+                        <tr>
+                            <th style="text-align: right;">Name:</th><td><label id="paletteItemName" value="" /></td></td>
+                        </tr>
+                        <tr>
+                            <th style="text-align: right;">Description:</th><td><label id="paletteItemDescription" value="" /></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <div id="locationPropertiesPanel" style="display: none">
+                <div>
+                    <table>
+                        <tr>
+                            <th style="text-align: right;">Name:</th><td><input type="text" id="locationName" /></td>
+                        </tr>
+                        <tr>
+                            <th style="text-align: right;">Environment:</th><td><label id="envType" value="" /></td>
+                        </tr>
+                        <tr>
+                            <th style="text-align: right;">Characters:</th><td></td>
+                        </tr>
+                        <tr>
+                            <th style="text-align: right;">Items:</th><td></td>
+                        </tr>
+                    </table>
+                </div>
+                <div style="margin-top: 50px;"><img id="save" src="images/save.png" /></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="workPanel">
+        <div id="mapPanel">
+            <div>
+                <input type="hidden" id="realmWidth" value="<%= realm.width %>" />
+                <input type="hidden" id="realmHeight" value="<%= realm.height %>" />
+                <div id = "mapContainer">
+                    <table id="mapTable" border="1">
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="droppable" id="wastebasket"><img src="images/wastebasket.png" /></div>
+    </div>
+</div>
+
+
