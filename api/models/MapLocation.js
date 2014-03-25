@@ -13,6 +13,7 @@ module.exports = {
         y: 'INT',
         terrain: 'STRING',
         weather: 'STRING',
+        items: 'ARRAY',
         characters: 'ARRAY'
     }
 

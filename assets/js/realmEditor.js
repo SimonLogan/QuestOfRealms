@@ -60,7 +60,6 @@ $(document).ready(function() {
                 this.socket = io.connect();
                 this.socket.on("connect", _.bind(function(){
                     this.socket.request("/" + this.questCollection, where, _.bind(function(maplocation){
-                    //this.socket.request("/mapLocation?realmId=1", where, _.bind(function(maplocation){
                         // Let's not populate the collection initially.
                         // Use it only for updates.
                         this.set(maplocation);
@@ -169,20 +168,40 @@ $(document).ready(function() {
             }
             else {
                 console.log("Dropped item onto map");
+                var existingLocationItem = locations.where({
+                    x: target.attr('data-x'), y:target.attr('data-y')});
 
-                // Create the new item.
-                var environment = droppedItem.attr('data-env');
-                // The message is an instance of models/MapLocation
-                locations.create({realmId: realmId,
-                                  x: target.attr('data-x'),
-                                  y: target.attr('data-y'),
-                                  environment: environment,
-                                  items: [],
-                                  characters: []}, {wait: true});
+                if (existingLocationItem.length === 0) {
+                    console.log("create new item");
+                    // Create the new item if dragging an environment.
+                    if ((droppedPaletteItem && droppedItem.attr('data-category') === "environment") ||
+                        droppedMapItem) {
 
-                // If dragging an exisdting map item, treat this as a move.
-                if (droppedItem.is('.mapItem'))
-                    removeMapItem(locations, droppedItem.attr('data-x'), droppedItem.attr('data-y'));
+                            var environment = (droppedPaletteItem ? droppedItem.attr('data-name') :
+                                                                    droppedItem.attr('data-env'));
+
+                            // The message is an instance of models/MapLocation
+                            locations.create({realmId: realmId,
+                                              x: target.attr('data-x'),
+                                              y: target.attr('data-y'),
+                                              environment: environment,
+                                              items: [],
+                                              characters: []}, {wait: true});
+
+                            // If dragging an existing map item, treat this as a move.
+                            if (droppedItem.is('.mapItem'))
+                                removeMapItem(locations, droppedItem.attr('data-x'), droppedItem.attr('data-y'));
+
+                        } else {
+                            console.error("can't drop item category '" +
+                                          droppedItem.attr('data-category') +
+                                          "' onto empty map location.");
+                        }
+                } else {
+                    console.log("edit existing item");
+                    existingLocationItem[0].attributes.items.push(droppedItem.attr('data-name'));
+                    existingLocationItem[0].save();
+                }
             }
         }
     });
@@ -342,6 +361,8 @@ function populateLocationDetails(locationCollection, location, allDetails)
         $('#locationName').val(thisCell[0].attributes.name);
 
     $('#envType').text(thisCell[0].attributes.environment);
+    $('#characterSummary').text(thisCell[0].attributes.characters.length);
+    $('#itemSummary').text(thisCell[0].attributes.items.length);
 }
 
 function clearLocationDetails()
@@ -371,9 +392,11 @@ function loadEnvPalette() {
 
             data.forEach(function(item) {
                 var container = $("<div style='display: inline-block; padding: 2px;'></div>");
-                var html = "<div class='paletteItem draggable ui-widget-content' id='" +
-                           item.name + "' data-name='" +
-                           item.name + "'><img src='" + item.image + "'/>";
+                var html = "<div class='paletteItem draggable ui-widget-content' " +
+                           "id='" + item.name + "' " +
+                           "data-name='" + item.name + "' " +
+                           "data-category='environment' " +
+                           "><img src='" + item.image + "'/>";
                 html += "</div>";
                 var paletteItem = $(html);
                 paletteItem.draggable({helper: 'clone', revert: 'invalid'});
@@ -394,7 +417,7 @@ function loadEnvPalette() {
         // response === {success: true, message: 'hi there!'}
     });
     */
-};
+}
 
 
 function loadItemsPalette() {
@@ -406,9 +429,11 @@ function loadItemsPalette() {
 
             data.forEach(function(item) {
                 var container = $("<div style='display: inline-block; padding: 2px;'></div>");
-                var html = "<div class='paletteItem draggable ui-widget-content' id='" +
-                    item.name + "' data-name='" +
-                    item.name + "'><img src='" + item.image + "'/>";
+                var html = "<div class='paletteItem draggable ui-widget-content' " +
+                           "id='" + item.name + "' " +
+                           "data-name='" + item.name + "' " +
+                           "data-category='item' " +
+                           "><img src='" + item.image + "'/>";
                 html += "</div>";
                 var paletteItem = $(html);
                 paletteItem.draggable({helper: 'clone', revert: 'invalid'});
@@ -429,4 +454,4 @@ function loadItemsPalette() {
         // response === {success: true, message: 'hi there!'}
     });
     */
-};
+}
