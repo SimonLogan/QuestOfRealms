@@ -1,0 +1,1 @@
+"C:\Program Files\MongoDB 2.6 Standard\bin\mongod.exe" --dbpath "{path_to_project}\QuestOfRealms\game-data"

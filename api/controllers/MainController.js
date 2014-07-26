@@ -87,7 +87,6 @@ var MainController = {
    */
   _config: {}
 
-  
 };
 
 module.exports = MainController;

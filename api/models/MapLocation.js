@@ -9,6 +9,7 @@
 module.exports = {
 
     attributes	: {
+        realmId: 'STRING',
         x: 'INT',
         y: 'INT',
         terrain: 'STRING',

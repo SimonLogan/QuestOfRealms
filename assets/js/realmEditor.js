@@ -3,7 +3,6 @@
  */
 
 // Constants
-var PALETTE_TABLE_COLS = 4;
 
 // Global data
 var envData;
@@ -19,8 +18,9 @@ var selectedCell = null;
 $(document).ready(function() {
     var realmWidth = parseInt($('#realmWidth').val());
     var realmHeight = parseInt($('#realmHeight').val());
-    var realmId = parseInt($('#realmId').val());
+    var realmId = $('#realmId').val();
 
+    // Draw an empty map grid.
     var mapTable = $('#mapTable');
     var tableContents = '';
     for (var y = 0; y < realmHeight; y++) {
@@ -35,8 +35,10 @@ $(document).ready(function() {
     }
     mapTable.html(tableContents);
 
+    // Create the tabbed panels and load the data.
     $(function() {
-        $( "#tabs" ).tabs();
+        $("#palette").tabs();
+        $("#propertiesPanel").tabs();
     });
 
     envData = loadEnvPalette();
@@ -45,6 +47,7 @@ $(document).ready(function() {
     var MapLocationModel = Backbone.Model.extend({
             urlRoot: '/maplocation'
         });
+
     var QuestCollection = Backbone.Collection.extend({
         questCollection: "",
         socket: null,
@@ -84,6 +87,7 @@ $(document).ready(function() {
             }
         }
     });
+
     var MapLocationCollection = QuestCollection.extend({
             questCollection: 'maplocation',
             model: MapLocationModel
@@ -92,12 +96,12 @@ $(document).ready(function() {
     var locations = new MapLocationCollection();
     // Load the existing data. We may choose not to do this if we are going to provide
     // a /loadData API.
-    //locations.fetch();
-    locations.fetch({ where: { realmId: 1 } });
+    locations.fetch({ where: { realmId: realmId } });
 
     _.templateSettings = {
         interpolate : /\{\{(.+?)\}\}/g
     };
+
     var LocationsView = Backbone.View.extend({
         initialize: function () {
             this.collection.on('add', this.render, this);
@@ -106,8 +110,8 @@ $(document).ready(function() {
         },
         render: function(item) {
             if (item != undefined) {
-                console.log("in view.render, received new " + item.attributes.x, ", " + item.attributes.y +
-                    ", " + item.attributes.environment);
+                //console.log("in view.render, received new " + item.attributes.x, ", " + item.attributes.y +
+                //    ", " + item.attributes.environment);
 
                 // Update the local display with the message data.
                 var target = $('#mapTable td[id="cell_' + item.attributes.y + '_' + item.attributes.x + '"]').find('DIV');
@@ -123,7 +127,7 @@ $(document).ready(function() {
             }
         },
         remove: function(item) {
-            console.log("in view.remove");
+            //console.log("in view.remove");
             var target = $('#mapTable td[id="cell_' + item.attributes.y + '_' + item.attributes.x + '"]').find('DIV');
             target.html('');
 
@@ -137,10 +141,9 @@ $(document).ready(function() {
 
     var mView = new LocationsView({collection: locations});
 
-
     // Handle and item that was dragged and dropped. This could be:
     // 1. An item from the palette dropped onto the grid.
-    // 2. An item oved in the grid.
+    // 2. An item moved in the grid.
     // 3. An item (from palette or grid) dropped onto the wastebasket.
     $('.droppable').droppable({
         drop: function (event, ui) {
@@ -176,7 +179,6 @@ $(document).ready(function() {
                     // Create the new item if dragging an environment.
                     if ((droppedPaletteItem && droppedItem.attr('data-category') === "environment") ||
                         droppedMapItem) {
-
                             var environment = (droppedPaletteItem ? droppedItem.attr('data-name') :
                                                                     droppedItem.attr('data-env'));
 
@@ -192,15 +194,29 @@ $(document).ready(function() {
                             if (droppedItem.is('.mapItem'))
                                 removeMapItem(locations, droppedItem.attr('data-x'), droppedItem.attr('data-y'));
 
-                        } else {
-                            console.error("can't drop item category '" +
-                                          droppedItem.attr('data-category') +
-                                          "' onto empty map location.");
-                        }
+                    } else {
+                        console.error("can't drop item category '" +
+                                      droppedItem.attr('data-category') +
+                                      "' onto empty map location.");
+                    }
                 } else {
                     console.log("edit existing item");
-                    existingLocationItem[0].attributes.items.push(droppedItem.attr('data-name'));
-                    existingLocationItem[0].save();
+                     $.post(
+                         '/createItem',
+                         {
+                             type: droppedItem.attr('data-name'),
+                             name: '',
+                             description: '',
+                             image: droppedItem.attr('data-image'),
+                             locationId: existingLocationItem[0].id
+                         },
+                         function (data) {
+                             existingLocationItem[0].attributes.items.push({"id": data.id});
+                             existingLocationItem[0].save();
+                         }
+                     ).fail(function(res){
+                         alert("Error: " + res.getResponseHeader("error"));
+                     });
                 }
             }
         }
@@ -209,6 +225,7 @@ $(document).ready(function() {
     // Show palette properties
     $(document).on ('mouseover', '#palettePanel', function() {
         if (selectedCell === null) {
+            $('#propertiesPanel').tabs({disabled:[1,2]})
             $('#propertiesPanelTitle').text("Palette item properties");
             $('#locationPropertiesPanel').hide();
             $('#paletteItemPropertiesPanel').show();
@@ -228,7 +245,7 @@ $(document).ready(function() {
 
         if (selectedCell === null) {
             var tabData = envData;
-            if ($('#tabs').tabs('option', 'active') === 1) tabData = itemData;
+            if ($('#palette').tabs('option', 'active') === 1) tabData = itemData;
 
             var paletteItem = findPaletteItemByName(tabData, $(this).prop('id'));
             populatePaletteDetails(paletteItem);
@@ -243,6 +260,7 @@ $(document).ready(function() {
 
     // Show / edit map locations
     $(document).on ('mouseover', '#mapPanel', function() {
+        $('#propertiesPanel').tabs({disabled:[]})
         $('#propertiesPanelTitle').text("Location properties");
         $('#locationPropertiesPanel').show();
         $('#paletteItemPropertiesPanel').hide();
@@ -286,14 +304,35 @@ $(document).ready(function() {
                 populateLocationDetails(locations, selectedCell, false);
             }
         } else if ($(this).attr('data-x') === selectedCell.attr('data-x') &&
-            $(this).attr('data-y') === selectedCell.attr('data-y')){
-            // Click again to cancel edit mode.
+                   $(this).attr('data-y') === selectedCell.attr('data-y')) {
+            // Click again in the selected cell to cancel edit mode.
             $('#currentCell').val('');
             $('#envType').text('');
             selectedCell.closest('td').css('border-color', '');
             selectedCell = null;
             $('#propertiesPanelTitle').text("Properties");
             clearLocationDetails();
+        } else if ($(this).attr('data-x') !== selectedCell.attr('data-x') ||
+                   $(this).attr('data-y') !== selectedCell.attr('data-y')) {
+            // Click in a different cell to edit it.
+
+            // First deselect the current edit cell.
+            console.log("1");
+            $('#currentCell').val('');
+            $('#envType').text('');
+            selectedCell.closest('td').css('border-color', '');
+            selectedCell = null;
+            $('#propertiesPanelTitle').text("Properties");
+            clearLocationDetails();
+            console.log("2");
+
+            // Then activate the new edit cell.
+            $(this).closest('td').css('border-color', 'red');
+            mapMode = "edit";
+            selectedCell = $(this);
+            $('#propertiesPanelTitle').text("Edit location properties");
+            populateLocationDetails(locations, selectedCell, false);
+            console.log("3");
         }
     });
 
@@ -363,7 +402,11 @@ function populateLocationDetails(locationCollection, location, allDetails)
     $('#envType').text(thisCell[0].attributes.environment);
     $('#characterSummary').text(thisCell[0].attributes.characters.length);
     $('#itemSummary').text(thisCell[0].attributes.items.length);
+
+    // Can we get these directly from the current cell's items[] collection?
+    displayLocationItems(thisCell[0]);
 }
+
 
 function clearLocationDetails()
 {
@@ -387,7 +430,7 @@ function loadEnvPalette() {
     $.get(
         '/loadEnvPalette',
         function (data) {
-            var target = $('#tabs-environment');
+            var target = $('#palette-environment');
             envData = data;
 
             data.forEach(function(item) {
@@ -407,16 +450,6 @@ function loadEnvPalette() {
     ).fail(function(res){
         alert("Error: " + res.getResponseHeader("error"));
     });
-
-    // socket is globalized by sails
-    /*
-    socket.get('/echo', {
-        message: 'hi there!'
-    }, function (response) {
-        console.log("response: " + response);
-        // response === {success: true, message: 'hi there!'}
-    });
-    */
 }
 
 
@@ -424,7 +457,7 @@ function loadItemsPalette() {
     $.get(
         '/loadItemsPalette',
         function (data) {
-            var target = $('#tabs-items');
+            var target = $('#palette-items');
             itemData = data;
 
             data.forEach(function(item) {
@@ -433,6 +466,7 @@ function loadItemsPalette() {
                            "id='" + item.name + "' " +
                            "data-name='" + item.name + "' " +
                            "data-category='item' " +
+                           "data-image='" + item.image + "' " +
                            "><img src='" + item.image + "'/>";
                 html += "</div>";
                 var paletteItem = $(html);
@@ -444,14 +478,35 @@ function loadItemsPalette() {
     ).fail(function(res){
         alert("Error: " + res.getResponseHeader("error"));
     });
+}
 
-    // socket is globalized by sails
-    /*
-    socket.get('/echo', {
-        message: 'hi there!'
-    }, function (response) {
-        console.log("response: " + response);
-        // response === {success: true, message: 'hi there!'}
+
+function displayLocationItems(location)
+{
+    $.get(
+        '/fetchItemsInLocation',
+        { "id": location.id },
+        function (data) {
+            var target = $('#properties-items').html("");
+
+            data.forEach(function(item) {
+                var container = $("<div style='display: inline-block; padding: 2px;'></div>");
+                var html = "<div class='paletteItem draggable ui-widget-content' " +
+                    "id='" + item.id + "' " +
+                    "data-name='" + item.name + "' " +
+                    "data-category='item' " +
+                    "><img src='" + item.image + "'/>";
+                html += "</div>";
+                var paletteItem = $(html);
+                paletteItem.draggable({helper: 'clone', revert: 'invalid'});
+                paletteItem.appendTo(container);
+                container.appendTo(target);
+            });
+
+
+        }
+    ).fail(function(res){
+        alert("Error: " + res.getResponseHeader("error"));
     });
-    */
+
 }

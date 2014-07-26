@@ -61,19 +61,11 @@ var QuestRealmController = {
                         }
                     });
                 } else {
-                    sails.log.info("in QuestRealm.findByname() callback, realm in null.");
+                    sails.log.info("in QuestRealm.findByname() callback, realm is null.");
                     res.send(404, { error: "realm not Found" });
                 }
             }
         });
-    },
-
-    setCellProperties: function(req, res) {
-        var realmName = req.param("name");
-        var cellData = req.param("cellData");
-        sails.log.info("in QuestRealm.setCellProperties. name = " + realmName +
-                       ", data = " + cellData);
-
     },
 
   /**
@@ -81,8 +73,6 @@ var QuestRealmController = {
    * (specific to QuestRealmController)
    */
   _config: {}
-
-  
 };
 
 module.exports = QuestRealmController;
