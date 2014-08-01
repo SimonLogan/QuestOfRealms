@@ -9,12 +9,6 @@ var envData;
 var itemData;
 var selectedCell = null;
 
-/*
- http://stackoverflow.com/questions/2465452/jqueryui-drag-element-from-dialog-and-drop-onto-main-page
- http://jqueryui.com/draggable/
- http://stackoverflow.com/questions/18147632/jqueryui-draggable-droppable-identify-the-drop-target-when-the-drop-is-invalid
- */
-
 $(document).ready(function() {
     var realmWidth = parseInt($('#realmWidth').val());
     var realmHeight = parseInt($('#realmHeight').val());
@@ -45,9 +39,11 @@ $(document).ready(function() {
     itemData = loadItemsPalette();
 
     var MapLocationModel = Backbone.Model.extend({
-            urlRoot: '/maplocation'
-        });
+        urlRoot: '/maplocation'
+    });
 
+    // Maintain a local collection of map locations.
+    // Backbone automatically synchronizes this with the server.
     var QuestCollection = Backbone.Collection.extend({
         questCollection: "",
         socket: null,
@@ -59,7 +55,7 @@ $(document).ready(function() {
                 }
             }
 
-            if(typeof this.questCollection === "string" && this.questCollection !== "") {
+            if (typeof this.questCollection === "string" && this.questCollection !== "") {
                 this.socket = io.connect();
                 this.socket.on("connect", _.bind(function(){
                     this.socket.request("/" + this.questCollection, where, _.bind(function(maplocation){
@@ -102,6 +98,7 @@ $(document).ready(function() {
         interpolate : /\{\{(.+?)\}\}/g
     };
 
+    // Display incoming updates to the Backbone collection.
     var LocationsView = Backbone.View.extend({
         initialize: function () {
             this.collection.on('add', this.render, this);
@@ -141,6 +138,7 @@ $(document).ready(function() {
 
     var mView = new LocationsView({collection: locations});
 
+
     // Handle and item that was dragged and dropped. This could be:
     // 1. An item from the palette dropped onto the grid.
     // 2. An item moved in the grid.
@@ -179,7 +177,7 @@ $(document).ready(function() {
                     // Create the new item if dragging an environment.
                     if ((droppedPaletteItem && droppedItem.attr('data-category') === "environment") ||
                         droppedMapItem) {
-                            var environment = (droppedPaletteItem ? droppedItem.attr('data-name') :
+                            var environment = (droppedPaletteItem ? droppedItem.attr('data-type') :
                                                                     droppedItem.attr('data-env'));
 
                             // The message is an instance of models/MapLocation
@@ -204,7 +202,7 @@ $(document).ready(function() {
                      $.post(
                          '/createItem',
                          {
-                             type: droppedItem.attr('data-name'),
+                             type: droppedItem.attr('data-type'),
                              name: '',
                              description: '',
                              image: droppedItem.attr('data-image'),
@@ -223,57 +221,44 @@ $(document).ready(function() {
     });
 
     // Show palette properties
-    $(document).on ('mouseover', '#palettePanel', function() {
-        if (selectedCell === null) {
-            $('#propertiesPanel').tabs({disabled:[1,2]})
-            $('#propertiesPanelTitle').text("Palette item properties");
-            $('#locationPropertiesPanel').hide();
-            $('#paletteItemPropertiesPanel').show();
-        }
+    $(document).on('mouseover', '#palettePanel', function() {
+        //$('#paletteItemPropertiesPanel').show();
     });
 
-    $(document).on ('mouseleave', '#palettePanel', function() {
-        if (selectedCell === null) {
-            $('#propertiesPanelTitle').text("Properties");
-            $('#paletteItemPropertiesPanel').hide();
-        }
+    $(document).on('mouseleave', '#palettePanel', function() {
+        //$('#paletteItemPropertiesPanel').hide();
     });
 
-    $(document).on ('mouseover', '.paletteItem', function() {
+    $(document).on('mouseover', '.paletteItem', function() {
         if ($(this).prop('id').length == 0)
             return;
 
-        if (selectedCell === null) {
-            var tabData = envData;
-            if ($('#palette').tabs('option', 'active') === 1) tabData = itemData;
+        console.log("mouseover .paletteItem");
+        var tabData = envData;
+        if ($('#palette').tabs('option', 'active') === 1) tabData = itemData;
 
-            var paletteItem = findPaletteItemByName(tabData, $(this).prop('id'));
-            populatePaletteDetails(paletteItem);
-        }
+        var paletteItem = findPaletteItemByName(tabData, $(this).attr('data-type'));
+        populatePaletteDetails(paletteItem);
     });
 
-    $(document).on ('mouseleave', '.paletteItem', function() {
-        if (selectedCell === null) {
-            clearPaletteDetails();
-        }
+    $(document).on('mouseleave', '.paletteItem', function() {
+        clearPaletteDetails();
     });
 
     // Show / edit map locations
-    $(document).on ('mouseover', '#mapPanel', function() {
+    $(document).on('mouseover', '#mapPanel', function() {
         $('#propertiesPanel').tabs({disabled:[]})
-        $('#propertiesPanelTitle').text("Location properties");
-        $('#locationPropertiesPanel').show();
-        $('#paletteItemPropertiesPanel').hide();
+        //$('#locationPropertiesPanel').show();
+        //$('#paletteItemPropertiesPanel').hide();
     });
 
-    $(document).on ('mouseleave', '#mapPanel', function() {
+    $(document).on('mouseleave', '#mapPanel', function() {
         if (selectedCell === null) {
-            $('#propertiesPanelTitle').text("Properties");
-            $('#locationPropertiesPanel').hide();
+            //$('#locationPropertiesPanel').hide();
         }
     });
 
-    $(document).on ('mouseover', '.mapItem', function() {
+    $(document).on('mouseover', '.mapItem', function() {
         if (selectedCell === null) {
             $('#currentCell').val($(this).prop('id'));
             $('#envType').text($(this).attr('data-env'));
@@ -282,16 +267,15 @@ $(document).ready(function() {
         }
     });
 
-    $(document).on ('mouseleave', '.mapItem', function() {
+    $(document).on('mouseleave', '.mapItem', function() {
         if (selectedCell === null) {
             $('#currentCell').val('');
-            $('#envType').text('');
             $(this).closest('td').css('border-color', '');
             clearLocationDetails();
         }
     });
 
-    $(document).on ('mouseup', '.mapItem', function() {
+    $(document).on('mouseup', '.mapItem', function() {
         if (selectedCell === null) {
             if ($(this).is('.ui-draggable-dragging')) {
                 $(this).closest('td').css('border-color', '');
@@ -310,7 +294,7 @@ $(document).ready(function() {
             $('#envType').text('');
             selectedCell.closest('td').css('border-color', '');
             selectedCell = null;
-            $('#propertiesPanelTitle').text("Properties");
+            $('#propertiesPanelTitle').text("Location properties");
             clearLocationDetails();
         } else if ($(this).attr('data-x') !== selectedCell.attr('data-x') ||
                    $(this).attr('data-y') !== selectedCell.attr('data-y')) {
@@ -322,7 +306,6 @@ $(document).ready(function() {
             $('#envType').text('');
             selectedCell.closest('td').css('border-color', '');
             selectedCell = null;
-            $('#propertiesPanelTitle').text("Properties");
             clearLocationDetails();
             console.log("2");
 
@@ -336,7 +319,7 @@ $(document).ready(function() {
         }
     });
 
-    $(document).on ('click', '#save', function() {
+    $(document).on('click', '#save', function() {
         var thisCell = locations.where({
             x: selectedCell.attr('data-x'), y:selectedCell.attr('data-y')});
 
@@ -370,14 +353,14 @@ function removeMapItem(collection, x, y)
 //   paletteItem: the palette item.
 function populatePaletteDetails(paletteItem)
 {
-    $('#paletteItemName').text(paletteItem.name);
+    $('#paletteItemType').text(paletteItem.type);
     $('#paletteItemDescription').text(paletteItem.description);
 }
 
 
 function clearPaletteDetails()
 {
-    $('#paletteItemName').text('');
+    $('#paletteItemType').text('');
     $('#paletteItemDescription').text('');
 }
 
@@ -389,9 +372,8 @@ function clearPaletteDetails()
 //   allDetails: true shows all details. False shows only high-level details.
 function populateLocationDetails(locationCollection, location, allDetails)
 {
-    $('#propertiesPanelTitle').text("Location properties");
-    $('#paletteItemPropertiesPanel').hide();
-    $('#locationPropertiesPanel').show();
+    //$('#paletteItemPropertiesPanel').hide();
+    //$('#locationPropertiesPanel').show();
 
     var thisCell = locationCollection.where({
         x: location.attr('data-x'), y:location.attr('data-y')});
@@ -410,15 +392,23 @@ function populateLocationDetails(locationCollection, location, allDetails)
 
 function clearLocationDetails()
 {
-    $('#propertiesPanelTitle').text("Properties");
     $('#locationName').val('');
     $('#envType').text('');
+    $('#characterSummary').text('');
+    $('#itemSummary').text('');
+    clearLocationItems();
+}
+
+
+function clearLocationItems()
+{
+    $('#properties-items').find('.paletteItem').remove();
 }
 
 
 function findPaletteItemByName(data, searchName) {
     for (var i = 0, len = data.length; i < len; i++) {
-        if (data[i].name === searchName)
+        if (data[i].type === searchName)
             return data[i]; // Return as soon as the object is found
     }
 
@@ -433,11 +423,12 @@ function loadEnvPalette() {
             var target = $('#palette-environment');
             envData = data;
 
+            var envNum = 1;
             data.forEach(function(item) {
                 var container = $("<div style='display: inline-block; padding: 2px;'></div>");
                 var html = "<div class='paletteItem draggable ui-widget-content' " +
-                           "id='" + item.name + "' " +
-                           "data-name='" + item.name + "' " +
+                           "id='env_" + envNum++ + "' " +
+                           "data-type='" + item.type + "' " +
                            "data-category='environment' " +
                            "><img src='" + item.image + "'/>";
                 html += "</div>";
@@ -460,12 +451,13 @@ function loadItemsPalette() {
             var target = $('#palette-items');
             itemData = data;
 
+            var itemNum = 1;
             data.forEach(function(item) {
                 var container = $("<div style='display: inline-block; padding: 2px;'></div>");
                 var html = "<div class='paletteItem draggable ui-widget-content' " +
-                           "id='" + item.name + "' " +
-                           "data-name='" + item.name + "' " +
+                           "id='item_" + itemNum++ + "' " +
                            "data-category='item' " +
+                           "data-type='" + item.type + "' " +
                            "data-image='" + item.image + "' " +
                            "><img src='" + item.image + "'/>";
                 html += "</div>";
@@ -493,8 +485,9 @@ function displayLocationItems(location)
                 var container = $("<div style='display: inline-block; padding: 2px;'></div>");
                 var html = "<div class='paletteItem draggable ui-widget-content' " +
                     "id='" + item.id + "' " +
-                    "data-name='" + item.name + "' " +
+                    "data-name='" + item.name + "' " +  // eg; "the sword of destiny"
                     "data-category='item' " +
+                    "data-type='" + item.type + "' " +  // eg; "long sword"
                     "><img src='" + item.image + "'/>";
                 html += "</div>";
                 var paletteItem = $(html);

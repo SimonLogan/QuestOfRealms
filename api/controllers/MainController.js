@@ -26,7 +26,7 @@ var MainController = {
         var terrainData = [];
         terrainData.push(
             {
-                name: "grassland",
+                type: "grassland",
                 image: "images/grassland.png",
                 description: "Grassy plains."
             }
@@ -34,7 +34,7 @@ var MainController = {
 
         terrainData.push(
             {
-                name: "water",
+                type: "water",
                 image: "images/water.png",
                 description: "Lake or ocean. You need a boat to cross this."
             }
@@ -42,7 +42,7 @@ var MainController = {
 
         terrainData.push(
             {
-                name: "mountains",
+                type: "mountains",
                 image: "images/mountains.png",
                 description: "Not much grows here."
             }
@@ -56,7 +56,7 @@ var MainController = {
         var itemsData = [];
         itemsData.push(
             {
-                name: "spear",
+                type: "spear",
                 image: "images/spear.png",
                 description: "medium range weapon."
             }
@@ -64,7 +64,7 @@ var MainController = {
 
         itemsData.push(
             {
-                name: "short sword",
+                type: "short sword",
                 image: "images/shortsword.png",
                 description: "Useful for close-quarters combat. Easily concealed."
             }
@@ -72,7 +72,7 @@ var MainController = {
 
         itemsData.push(
             {
-                name: "long sword",
+                type: "long sword",
                 image: "images/longsword.png",
                 description: "Useful against more powerful or armoured opponents."
             }

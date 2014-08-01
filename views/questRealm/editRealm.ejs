@@ -13,6 +13,7 @@ Realm Designer
 <div id="workArea">
     <div id="toolsPanel" style="float:left; margin-right:5px;">
         <div id="palettePanel" style="clear:both;">
+            <div style="font-weight: bold">Palette</div>
             <div id="palette" style="width:300px; height: 200px; font-family: arial, sans-serif; font-size: 12px;">
                 <ul>
                     <li><a href="#palette-environment">Environment</a></li>
@@ -28,10 +29,20 @@ Realm Designer
                 <div id="palette-characters">
                     <!-- Will be dynamically populated. -->
                 </div>
+                <div id="paletteItemPropertiesPanel">
+                    <table>
+                        <tr>
+                            <th style="text-align: right;">Type:</th><td><label id="paletteItemType" value="" /></td></td>
+                        </tr>
+                        <tr>
+                            <th style="text-align: right;">Description:</th><td><label id="paletteItemDescription" value="" /></td>
+                        </tr>
+                    </table>
+                </div>
             </div>
         </div>
 
-        <div id="propertiesPanelTitle" style="border-bottom: solid gray 1px; margin-top: 20px; margin-bottom: 10px;">Item properties</div>
+        <div id="propertiesPanelTitle" style="margin-top: 20px; font-weight: bold">Location properties</div>
         <div id="propertiesPanel" style="clear:both;">
             <div id="properties" style="width:300px; height: 200px;font-family: arial, sans-serif; font-size: 12px;">
                 <ul>
@@ -40,17 +51,7 @@ Realm Designer
                     <li><a href="#properties-characters">Characters</a></li>
                 </ul>
                 <div id="properties-overview">
-                    <div id="paletteItemPropertiesPanel" style="display: none">
-                        <table>
-                            <tr>
-                                <th style="text-align: right;">Name:</th><td><label id="paletteItemName" value="" /></td></td>
-                            </tr>
-                            <tr>
-                                <th style="text-align: right;">Description:</th><td><label id="paletteItemDescription" value="" /></td>
-                            </tr>
-                        </table>
-                    </div>
-                    <div id="locationPropertiesPanel" style="display: none">
+                    <div id="locationPropertiesPanel">
                         <div>
                             <table>
                                 <tr>
@@ -69,11 +70,24 @@ Realm Designer
                                 </tr>
                             </table>
                         </div>
-                        <div style="margin-top: 50px; border-top:1px solid gray"><img id="save" src="images/save.png" /></div>
+                        <div style="margin-top: 50px; border-top:1px solid gray"><img id="location_save" src="images/save.png" /></div>
                     </div>
                 </div>
                 <div id="properties-items">
-                    <!-- Will be dynamically populated. -->
+                    <!-- Items will be dynamically populated. -->
+                    <div id="itemPropertiesPanel">
+                        <div>
+                            <table>
+                                <tr>
+                                    <th style="text-align: right;">Name:</th><td><input type="text" id="itemName" /></td>
+                                </tr>
+                                <tr>
+                                    <th style="text-align: right;">Description:</th><td><label id="itemDescription" value="" /></td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div style="margin-top: 50px; border-top:1px solid gray"><img id="items_save" src="images/save.png" /></div>
+                    </div>
                 </div>
                 <div id="properties-characters">
                     <!-- Will be dynamically populated. -->
