@@ -44,7 +44,7 @@ Realm Designer
 
         <div id="propertiesPanelTitle" style="margin-top: 20px; font-weight: bold">Location properties</div>
         <div id="propertiesPanel" style="clear:both;">
-            <div id="properties" style="width:300px; height: 200px;font-family: arial, sans-serif; font-size: 12px;">
+            <div id="properties" style="width:300px; height: 250px;font-family: arial, sans-serif; font-size: 12px;">
                 <ul>
                     <li><a href="#properties-overview">Overview</a></li>
                     <li><a href="#properties-items">Items</a></li>
@@ -55,10 +55,10 @@ Realm Designer
                         <div>
                             <table>
                                 <tr>
-                                    <th style="text-align: right;">Name:</th><td><input type="text" id="locationName" /></td>
+                                    <th style="text-align: right;">Name:</th><td><input type="text" id="locationName" class="locationProperty" /></td>
                                 </tr>
                                 <tr>
-                                    <th style="text-align: right;">Environment:</th><td><label id="envType" value="" /></td>
+                                    <th style="text-align: right;">Environment:</th><td><label id="envType" value="" class="locationProperty" /></td>
                                 </tr>
                                 <tr>
                                     <th style="text-align: right;">Characters:</th>
@@ -70,23 +70,23 @@ Realm Designer
                                 </tr>
                             </table>
                         </div>
-                        <div style="margin-top: 50px; border-top:1px solid gray"><img id="location_save" src="images/save.png" /></div>
                     </div>
                 </div>
                 <div id="properties-items">
-                    <!-- Items will be dynamically populated. -->
-                    <div id="itemPropertiesPanel">
+                    <div id="itemList" style="height: 55px">
+                        <!-- Items will be dynamically populated. -->
+                    </div>
+                    <div id="itemPropertiesPanel" style="border-top:1px solid gray">
                         <div>
                             <table>
                                 <tr>
-                                    <th style="text-align: right;">Name:</th><td><input type="text" id="itemName" /></td>
+                                    <th style="text-align: right;">Name:</th><td><input type="text" id="itemName" class="itemProperty" /></td>
                                 </tr>
                                 <tr>
-                                    <th style="text-align: right;">Description:</th><td><label id="itemDescription" value="" /></td>
+                                    <th style="text-align: right;">Description:</th><td><label id="itemDescription" value="" class="itemProperty" /></td>
                                 </tr>
                             </table>
                         </div>
-                        <div style="margin-top: 50px; border-top:1px solid gray"><img id="items_save" src="images/save.png" /></div>
                     </div>
                 </div>
                 <div id="properties-characters">

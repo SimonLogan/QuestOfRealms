@@ -15,6 +15,8 @@
  * @docs        :: http://sailsjs.org/#!documentation/controllers
  */
 
+//var nomo = require('node-monkey').start({host: "127.0.0.1"});
+
 var MainController = {
 
     index: function (req, res) {

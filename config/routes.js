@@ -58,6 +58,11 @@ module.exports.routes = {
         action: 'createItem'
     },
 
+    '/editItem' : {
+        controller: 'item',
+        action: 'editItem'
+    },
+
     '/fetchItemsInLocation' : {
         controller: 'item',
         action: 'fetchItemsInLocation'

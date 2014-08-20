@@ -8,6 +8,7 @@
 var envData;
 var itemData;
 var selectedCell = null;
+var selectedItem = null;
 
 $(document).ready(function() {
     var realmWidth = parseInt($('#realmWidth').val());
@@ -21,9 +22,9 @@ $(document).ready(function() {
         tableContents += '<tr id="row_' + y + '">';
         for (var x = 0; x < realmWidth; x++) {
             tableContents += '<td id="cell_' + y + '_' + x + '"> ' +
-                             '<div class="droppable" style="width:50px; height:50px;" ' +
-                                'data-x="' + x + '" data-y="' + y + '" data-env=""></div>' +
-                             '</td>';
+                '<div class="droppable" style="width:50px; height:50px;" ' +
+                'data-x="' + x + '" data-y="' + y + '" data-env=""></div>' +
+                '</td>';
         }
         tableContents += '</tr>';
     }
@@ -32,7 +33,7 @@ $(document).ready(function() {
     // Create the tabbed panels and load the data.
     $(function() {
         $("#palette").tabs();
-        $("#propertiesPanel").tabs();
+        $("#properties").tabs();
     });
 
     envData = loadEnvPalette();
@@ -85,9 +86,9 @@ $(document).ready(function() {
     });
 
     var MapLocationCollection = QuestCollection.extend({
-            questCollection: 'maplocation',
-            model: MapLocationModel
-        });
+        questCollection: 'maplocation',
+        model: MapLocationModel
+    });
 
     var locations = new MapLocationCollection();
     // Load the existing data. We may choose not to do this if we are going to provide
@@ -101,18 +102,18 @@ $(document).ready(function() {
     // Display incoming updates to the Backbone collection.
     var LocationsView = Backbone.View.extend({
         initialize: function () {
-            this.collection.on('add', this.render, this);
-            this.collection.on('remove', this.remove, this);
-            this.collection.on('change', this.change, this);
+            this.listenTo(this.collection, 'add', this.render);
+            this.listenTo(this.collection, 'remove', this.remove);
+            this.listenTo(this.collection, 'change', this.change);
         },
         render: function(item) {
             if (item != undefined) {
-                //console.log("in view.render, received new " + item.attributes.x, ", " + item.attributes.y +
-                //    ", " + item.attributes.environment);
+                //console.log("in view.render, received new " + JSON.stringify(item));
 
                 // Update the local display with the message data.
-                var target = $('#mapTable td[id="cell_' + item.attributes.y + '_' + item.attributes.x + '"]').find('DIV');
+                var target = $('#mapTable td[id="cell_' + item.attributes.y + '_' + item.attributes.x + '"]').find('div');
                 target.attr('data-env', item.attributes.environment);
+                target.html('');
                 target.append('<img src="images/' + item.attributes.environment + '.png" />');
 
                 // To allow it to be dragged to the wastebasket.
@@ -125,14 +126,27 @@ $(document).ready(function() {
         },
         remove: function(item) {
             //console.log("in view.remove");
-            var target = $('#mapTable td[id="cell_' + item.attributes.y + '_' + item.attributes.x + '"]').find('DIV');
+            var target = $('#mapTable td[id="cell_' + item.attributes.y + '_' + item.attributes.x + '"]').find('div');
             target.html('');
 
             // To allow it to be dragged to the wastebasket.
             target.removeClass('draggable mapItem');
         },
         change: function(item) {
-            console.log("in view.change");
+            console.log("in view.render, received change " + JSON.stringify(item));
+
+            // Update the local display with the message data.
+            var target = $('#mapTable td[id="cell_' + item.attributes.y + '_' + item.attributes.x + '"]').find('div');
+            target.attr('data-env', item.attributes.environment);
+            target.html('');
+            target.append('<img src="images/' + item.attributes.environment + '.png" />');
+
+            // To allow it to be dragged to the wastebasket.
+            target.addClass('draggable mapItem');
+            target.draggable({helper: 'clone', revert: 'invalid'});
+
+            // Populate the relevant location properties
+            $('#envType').text(item.attributes.environment);
         }
     });
 
@@ -150,13 +164,13 @@ $(document).ready(function() {
             var droppedPaletteItem = droppedItem.is('.paletteItem');
             var droppedMapItem = droppedItem.is('.mapItem');
 
-            if (droppedPaletteItem) {
-                console.log(("dropped paletteItem"));
-            }
+            //if (droppedPaletteItem) {
+            //    console.log(("dropped paletteItem"));
+            //}
 
-            if (droppedMapItem) {
-                console.log(("dropped mapItem"));
-            }
+            //if (droppedMapItem) {
+            //    console.log(("dropped mapItem"));
+            //}
 
             if (target.is('#wastebasket')) {
                 console.log("Dropped item onto wastebasket");
@@ -173,67 +187,73 @@ $(document).ready(function() {
                     x: target.attr('data-x'), y:target.attr('data-y')});
 
                 if (existingLocationItem.length === 0) {
-                    console.log("create new item");
+                    console.log("target is empty");
                     // Create the new item if dragging an environment.
                     if ((droppedPaletteItem && droppedItem.attr('data-category') === "environment") ||
                         droppedMapItem) {
-                            var environment = (droppedPaletteItem ? droppedItem.attr('data-type') :
-                                                                    droppedItem.attr('data-env'));
+                        var environment = (droppedPaletteItem ? droppedItem.attr('data-type') :
+                            droppedItem.attr('data-env'));
 
-                            // The message is an instance of models/MapLocation
-                            locations.create({realmId: realmId,
-                                              x: target.attr('data-x'),
-                                              y: target.attr('data-y'),
-                                              environment: environment,
-                                              items: [],
-                                              characters: []}, {wait: true});
+                        // If dragging an existing map item, treat this as a move.
+                        // Simulate a move by creating and deleting. This will publish events for both.
+                        locations.create({realmId: realmId,
+                            x: target.attr('data-x'),
+                            y: target.attr('data-y'),
+                            environment: environment,
+                            items: [],
+                            characters: []}, {wait: true});
 
-                            // If dragging an existing map item, treat this as a move.
-                            if (droppedItem.is('.mapItem'))
-                                removeMapItem(locations, droppedItem.attr('data-x'), droppedItem.attr('data-y'));
+                        if (droppedItem.is('.mapItem'))
+                            removeMapItem(locations, droppedItem.attr('data-x'), droppedItem.attr('data-y'));
 
+                        // An update like this doesn't work well for a location move, as
+                        // only the updated record gets published, meaning we can'r remove
+                        // the old location from the map.
+                        /*
+                         var old_x = droppedItem.attr('data-x');
+                         var old_y = droppedItem.attr('data-y');
+
+                         draggedItem = locations.where({
+                         x: droppedItem.attr('data-x'), y:droppedItem.attr('data-y')});
+                         draggedItem[0].attributes.x = target.attr('data-x');
+                         draggedItem[0].attributes.y = target.attr('data-y');
+                         draggedItem[0].save(function(err) {alert(err);});
+                         */
                     } else {
                         console.error("can't drop item category '" +
-                                      droppedItem.attr('data-category') +
-                                      "' onto empty map location.");
+                            droppedItem.attr('data-category') +
+                            "' onto empty map location.");
                     }
+
+
                 } else {
-                    console.log("edit existing item");
-                     $.post(
-                         '/createItem',
-                         {
-                             type: droppedItem.attr('data-type'),
-                             name: '',
-                             description: '',
-                             image: droppedItem.attr('data-image'),
-                             locationId: existingLocationItem[0].id
-                         },
-                         function (data) {
-                             existingLocationItem[0].attributes.items.push({"id": data.id});
-                             existingLocationItem[0].save();
-                         }
-                     ).fail(function(res){
-                         alert("Error: " + res.getResponseHeader("error"));
-                     });
+                    console.log("target is not empty");
+                    $.post(
+                        '/createItem',
+                        {
+                            type: droppedItem.attr('data-type'),
+                            name: '',
+                            description: '',
+                            image: droppedItem.attr('data-image'),
+                            locationId: existingLocationItem[0].id
+                        },
+                        function (data) {
+                            existingLocationItem[0].attributes.items.push({"id": data.id});
+                            existingLocationItem[0].save();
+                        }
+                    ).fail(function(res){
+                            alert("Error: " + res.getResponseHeader("error"));
+                    });
                 }
             }
         }
     });
 
-    // Show palette properties
-    $(document).on('mouseover', '#palettePanel', function() {
-        //$('#paletteItemPropertiesPanel').show();
-    });
-
-    $(document).on('mouseleave', '#palettePanel', function() {
-        //$('#paletteItemPropertiesPanel').hide();
-    });
-
-    $(document).on('mouseover', '.paletteItem', function() {
+    $(document).on('mouseenter', '.paletteItem', function() {
         if ($(this).prop('id').length == 0)
             return;
 
-        console.log("mouseover .paletteItem");
+        console.log("mouseenter .paletteItem");
         var tabData = envData;
         if ($('#palette').tabs('option', 'active') === 1) tabData = itemData;
 
@@ -246,10 +266,8 @@ $(document).ready(function() {
     });
 
     // Show / edit map locations
-    $(document).on('mouseover', '#mapPanel', function() {
+    $(document).on('mouseenter', '#mapPanel', function() {
         $('#propertiesPanel').tabs({disabled:[]})
-        //$('#locationPropertiesPanel').show();
-        //$('#paletteItemPropertiesPanel').hide();
     });
 
     $(document).on('mouseleave', '#mapPanel', function() {
@@ -258,7 +276,7 @@ $(document).ready(function() {
         }
     });
 
-    $(document).on('mouseover', '.mapItem', function() {
+    $(document).on('mouseenter', '.mapItem', function(e) {
         if (selectedCell === null) {
             $('#currentCell').val($(this).prop('id'));
             $('#envType').text($(this).attr('data-env'));
@@ -267,7 +285,7 @@ $(document).ready(function() {
         }
     });
 
-    $(document).on('mouseleave', '.mapItem', function() {
+    $(document).on('mouseleave', '.mapItem', function(e) {
         if (selectedCell === null) {
             $('#currentCell').val('');
             $(this).closest('td').css('border-color', '');
@@ -288,7 +306,7 @@ $(document).ready(function() {
                 populateLocationDetails(locations, selectedCell, false);
             }
         } else if ($(this).attr('data-x') === selectedCell.attr('data-x') &&
-                   $(this).attr('data-y') === selectedCell.attr('data-y')) {
+            $(this).attr('data-y') === selectedCell.attr('data-y')) {
             // Click again in the selected cell to cancel edit mode.
             $('#currentCell').val('');
             $('#envType').text('');
@@ -297,7 +315,7 @@ $(document).ready(function() {
             $('#propertiesPanelTitle').text("Location properties");
             clearLocationDetails();
         } else if ($(this).attr('data-x') !== selectedCell.attr('data-x') ||
-                   $(this).attr('data-y') !== selectedCell.attr('data-y')) {
+            $(this).attr('data-y') !== selectedCell.attr('data-y')) {
             // Click in a different cell to edit it.
 
             // First deselect the current edit cell.
@@ -319,16 +337,69 @@ $(document).ready(function() {
         }
     });
 
-    $(document).on('click', '#save', function() {
+    $(document).on('mouseup', '.propertiesPanelItem', function() {
+        if (selectedItem === null) {
+            if ($(this).is('.ui-draggable-dragging')) {
+                $(this).closest('td').css('border-color', '');
+            } else {
+                // Activate edit mode.
+                $(this).closest('div').css('border-color', 'red');
+                selectedItem = $(this);
+                populateLocationItemDetails(selectedItem);
+            }
+        } else if ($(this).attr('id') === selectedItem.attr('id')) {
+            // Click again in the selected item to cancel edit mode.
+            selectedItem.closest('div').css('border-color', '');
+            selectedItem = null;
+            clearLocationItemDetails();
+        } else if ($(this).attr('id') !== selectedItem.attr('id')) {
+            // Click in a different item to edit it.
+
+            // First deselect the current edit item.
+            selectedItem.closest('div').css('border-color', '');
+
+            // Then activate the new edit item.
+            $(this).closest('div').css('border-color', 'red');
+            selectedItem = $(this);
+            populateLocationItemDetails(selectedItem);
+        }
+    });
+
+    $(document).on('mouseenter', '.propertiesPanelItem', function() {
+        if (selectedItem === null) {
+            populateLocationItemDetails($(this));
+        }
+    });
+
+    $(document).on('mouseleave', '.propertiesPanelItem', function() {
+        if (selectedItem === null) {
+            clearLocationItemDetails();
+        }
+    });
+
+    $(document).on('change', '.locationProperty', function() {
         var thisCell = locations.where({
             x: selectedCell.attr('data-x'), y:selectedCell.attr('data-y')});
 
-        var locationName = $('#locationName').val().trim();
-        if (locationName.length > 0) {
-            thisCell[0].attributes.name = locationName;
-        }
-
+        thisCell[0].attributes.name = $('#locationName').val().trim();
         thisCell[0].save();
+    });
+
+    $(document).on('change', '.itemProperty', function() {
+        console.log("itemProperty change");
+
+        $.post(
+            '/editItem',
+            {
+                id: selectedItem.attr('id'),
+                name: $('#itemName').val().trim()
+            },
+            function (data) {
+                populateLocationDetails(locations, selectedCell, false);
+            }
+        ).fail(function(res){
+                alert("Error: " + res.getResponseHeader("error"));
+            });
     });
 });
 
@@ -365,6 +436,20 @@ function clearPaletteDetails()
 }
 
 
+function populateLocationItemDetails(item)
+{
+    $('#itemName').val(item.attr('data-name'));
+    $('#itemDescription').text(item.attr('data-type'));
+}
+
+
+function clearLocationItemDetails(item)
+{
+    $('#itemName').val('');
+    $('#itemDescription').text('');
+}
+
+
 // Populate the properties window for the specified location.
 // params:
 //   locationCollection: the collection of locations to search.
@@ -392,6 +477,7 @@ function populateLocationDetails(locationCollection, location, allDetails)
 
 function clearLocationDetails()
 {
+    //console.log('clearLocationDetails');
     $('#locationName').val('');
     $('#envType').text('');
     $('#characterSummary').text('');
@@ -402,7 +488,8 @@ function clearLocationDetails()
 
 function clearLocationItems()
 {
-    $('#properties-items').find('.paletteItem').remove();
+    console.log("clearLocationItems found" + $('#itemList').find('.propertiesPanelItem').length)
+    $('#itemList').find('.propertiesPanelItem').remove();
 }
 
 
@@ -427,10 +514,10 @@ function loadEnvPalette() {
             data.forEach(function(item) {
                 var container = $("<div style='display: inline-block; padding: 2px;'></div>");
                 var html = "<div class='paletteItem draggable ui-widget-content' " +
-                           "id='env_" + envNum++ + "' " +
-                           "data-type='" + item.type + "' " +
-                           "data-category='environment' " +
-                           "><img src='" + item.image + "'/>";
+                    "id='env_" + envNum++ + "' " +
+                    "data-type='" + item.type + "' " +
+                    "data-category='environment' " +
+                    "><img src='" + item.image + "'/>";
                 html += "</div>";
                 var paletteItem = $(html);
                 paletteItem.draggable({helper: 'clone', revert: 'invalid'});
@@ -439,8 +526,8 @@ function loadEnvPalette() {
             });
         }
     ).fail(function(res){
-        alert("Error: " + res.getResponseHeader("error"));
-    });
+            alert("Error: " + res.getResponseHeader("error"));
+        });
 }
 
 
@@ -455,39 +542,10 @@ function loadItemsPalette() {
             data.forEach(function(item) {
                 var container = $("<div style='display: inline-block; padding: 2px;'></div>");
                 var html = "<div class='paletteItem draggable ui-widget-content' " +
-                           "id='item_" + itemNum++ + "' " +
-                           "data-category='item' " +
-                           "data-type='" + item.type + "' " +
-                           "data-image='" + item.image + "' " +
-                           "><img src='" + item.image + "'/>";
-                html += "</div>";
-                var paletteItem = $(html);
-                paletteItem.draggable({helper: 'clone', revert: 'invalid'});
-                paletteItem.appendTo(container);
-                container.appendTo(target);
-            });
-        }
-    ).fail(function(res){
-        alert("Error: " + res.getResponseHeader("error"));
-    });
-}
-
-
-function displayLocationItems(location)
-{
-    $.get(
-        '/fetchItemsInLocation',
-        { "id": location.id },
-        function (data) {
-            var target = $('#properties-items').html("");
-
-            data.forEach(function(item) {
-                var container = $("<div style='display: inline-block; padding: 2px;'></div>");
-                var html = "<div class='paletteItem draggable ui-widget-content' " +
-                    "id='" + item.id + "' " +
-                    "data-name='" + item.name + "' " +  // eg; "the sword of destiny"
+                    "id='item_" + itemNum++ + "' " +
                     "data-category='item' " +
-                    "data-type='" + item.type + "' " +  // eg; "long sword"
+                    "data-type='" + item.type + "' " +
+                    "data-image='" + item.image + "' " +
                     "><img src='" + item.image + "'/>";
                 html += "</div>";
                 var paletteItem = $(html);
@@ -495,11 +553,41 @@ function displayLocationItems(location)
                 paletteItem.appendTo(container);
                 container.appendTo(target);
             });
+        }
+    ).fail(function(res){
+            alert("Error: " + res.getResponseHeader("error"));
+        });
+}
+
+
+function displayLocationItems(location)
+{
+    console.log(Date.now() + ' displayLocationItems at x:' + location.attributes['x'] + " y: " + location.attributes['y']);
+    $.get(
+        '/fetchItemsInLocation',
+        { "id": location.id },
+        function (data) {
+            var target = $('#itemList').html("");
+
+            data.forEach(function(item) {
+                var container = $("<div style='display: inline-block; padding: 2px;'></div>");
+                var html = "<div class='propertiesPanelItem draggable ui-widget-content' " +
+                    "id='" + item.id + "' " +
+                    "data-name='" + item.name + "' " +  // eg; "the sword of destiny"
+                    "data-category='item' " +
+                    "data-type='" + item.type + "' " +  // eg; "long sword"
+                    "><img src='" + item.image + "'/>";
+                html += "</div>";
+                var locationItem = $(html);
+                locationItem.draggable({helper: 'clone', revert: 'invalid'});
+                locationItem.appendTo(container);
+                container.appendTo(target);
+            });
 
 
         }
     ).fail(function(res){
-        alert("Error: " + res.getResponseHeader("error"));
-    });
+            alert("Error: " + res.getResponseHeader("error"));
+        });
 
 }

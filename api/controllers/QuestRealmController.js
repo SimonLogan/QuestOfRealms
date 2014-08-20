@@ -49,9 +49,8 @@ var QuestRealmController = {
                 sails.log.info("in QuestRealm.findByname() callback, no error.");
                 if (realm) {
                     currentRealm = realm;
-                    sails.log.info("in QuestRealm.findByname() callback, realm ok. name=" + realm.name +
-                                   " width=" + realm.width + " height=" + realm.height);
-                    sails.log.info("one");
+                    sails.log.info("in QuestRealm.findByname() callback " + JSON.stringify(realm));
+
                     return res.view({
                         realm: {
                             id: realm.id,

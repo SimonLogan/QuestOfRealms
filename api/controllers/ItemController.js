@@ -15,6 +15,7 @@
  * @docs        :: http://sailsjs.org/#!documentation/controllers
  */
 
+
 module.exports = {
 
     createItem: function(req, res) {
@@ -33,8 +34,35 @@ module.exports = {
                 sails.log.error("DB Error:" + error);
                 res.send(500, {error: "DB Error:" + error});
             } else {
-                sails.log.info("created item, name = " + item.name + ", type = " + item.type);
+                sails.log.info("created item " + JSON.stringify(item));
                 res.send(item);
+            }
+        });
+    },
+
+    editItem: function(req, res) {
+        var itemName = req.param("name");
+        var id = req.param("id");
+        sails.log.info("in editItem, name = " + itemName + ", id = " + id);
+        Item.find({'_id': id}).done(function(err, item) {
+            sails.log.info("in editItem.find() callback");
+            if (err) {
+                sails.log.info("in editItem.find() callback, error. " + err);
+                res.send(500, { error: "DB Error1" + err });
+            } else {
+                sails.log.info("in editItem.find() callback, no error.");
+                if (item) {
+                    sails.log.info("in editItem.find() callback, " + JSON.stringify(item));
+                    item[0].name = itemName;
+                    item[0].save(function(err) {
+                        sails.log.info("after save, " + JSON.stringify(err));
+                    });
+                    sails.log.info("in editItem.find() after edit, " + JSON.stringify(item));
+                    res.send(item[0]);
+                } else {
+                    sails.log.info("in editItem.find() callback, item is null.");
+                    res.send(404, { error: "item not Found" });
+                }
             }
         });
     },
@@ -51,10 +79,7 @@ module.exports = {
                 sails.log.info("in Item.find() callback, no error.");
                 if (item) {
                     currentItem = item;
-                    sails.log.info("in Item.find() callback " + typeof(item));
-                    sails.log.info("in Item.find() callback, item ok. name=" + item.name +
-                        " type=" + item.type + " description=" + item.description);
-                    sails.log.info("one");
+                    sails.log.info("in Item.find() callback " + JSON.stringify(item));
                     res.send(item);
                 } else {
                     sails.log.info("in Item.find() callback, item is null.");
