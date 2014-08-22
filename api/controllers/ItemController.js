@@ -67,10 +67,9 @@ module.exports = {
         });
     },
 
-    fetchItemsInLocation: function(req, res) {
-        var id = req.param("id");
-        sails.log.info("in fetchItemsInLocation, id = " + id + " typeof(id) = " + typeof(id));
-        Item.find({'locationId': id}).done(function(err, item) {
+    fetchItems: function(req, res) {
+        var ids = JSON.parse(req.param("ids"));
+        Item.find({"_id": ids}).done(function(err, item) {
             sails.log.info("in Item.find() callback");
             if (err) {
                 sails.log.info("in Item.find() callback, error. " + err);
@@ -78,7 +77,6 @@ module.exports = {
             } else {
                 sails.log.info("in Item.find() callback, no error.");
                 if (item) {
-                    currentItem = item;
                     sails.log.info("in Item.find() callback " + JSON.stringify(item));
                     res.send(item);
                 } else {

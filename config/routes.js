@@ -63,9 +63,9 @@ module.exports.routes = {
         action: 'editItem'
     },
 
-    '/fetchItemsInLocation' : {
+    '/fetchItems' : {
         controller: 'item',
-        action: 'fetchItemsInLocation'
+        action: 'fetchItems'
     }
 
   // By default, your root route (aka home page) points to a view

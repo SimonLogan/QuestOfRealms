@@ -12,8 +12,7 @@ module.exports = {
         name:   'STRING',
         type:   'STRING',
         description: 'STRING',
-        image:  'STRING',
-        locationId: 'STRING'
+        image:  'STRING'
     }
 
 };

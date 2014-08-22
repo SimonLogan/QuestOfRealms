@@ -164,14 +164,6 @@ $(document).ready(function() {
             var droppedPaletteItem = droppedItem.is('.paletteItem');
             var droppedMapItem = droppedItem.is('.mapItem');
 
-            //if (droppedPaletteItem) {
-            //    console.log(("dropped paletteItem"));
-            //}
-
-            //if (droppedMapItem) {
-            //    console.log(("dropped mapItem"));
-            //}
-
             if (target.is('#wastebasket')) {
                 console.log("Dropped item onto wastebasket");
                 if (droppedMapItem)
@@ -183,6 +175,9 @@ $(document).ready(function() {
             }
             else {
                 console.log("Dropped item onto map");
+                var droppedLocationItem = locations.where({
+                    x: droppedItem.attr('data-x'), y:droppedItem.attr('data-y')});
+
                 var existingLocationItem = locations.where({
                     x: target.attr('data-x'), y:target.attr('data-y')});
 
@@ -196,36 +191,29 @@ $(document).ready(function() {
 
                         // If dragging an existing map item, treat this as a move.
                         // Simulate a move by creating and deleting. This will publish events for both.
-                        locations.create({realmId: realmId,
+                        copiedItems = [];
+                        if (droppedItem.is('.mapItem'))
+                            copiedItems = droppedLocationItem[0].attributes.items;
+
+                        // An update doesn't work well for a location move, as only the
+                        // updated record gets published, meaning we can't remove
+                        // the old location from the map. Do an add + remove.
+
+                        var newObj = locations.create({realmId: realmId,
                             x: target.attr('data-x'),
                             y: target.attr('data-y'),
                             environment: environment,
-                            items: [],
+                            items: copiedItems,
                             characters: []}, {wait: true});
 
                         if (droppedItem.is('.mapItem'))
                             removeMapItem(locations, droppedItem.attr('data-x'), droppedItem.attr('data-y'));
 
-                        // An update like this doesn't work well for a location move, as
-                        // only the updated record gets published, meaning we can'r remove
-                        // the old location from the map.
-                        /*
-                         var old_x = droppedItem.attr('data-x');
-                         var old_y = droppedItem.attr('data-y');
-
-                         draggedItem = locations.where({
-                         x: droppedItem.attr('data-x'), y:droppedItem.attr('data-y')});
-                         draggedItem[0].attributes.x = target.attr('data-x');
-                         draggedItem[0].attributes.y = target.attr('data-y');
-                         draggedItem[0].save(function(err) {alert(err);});
-                         */
                     } else {
                         console.error("can't drop item category '" +
                             droppedItem.attr('data-category') +
                             "' onto empty map location.");
                     }
-
-
                 } else {
                     console.log("target is not empty");
                     $.post(
@@ -526,8 +514,8 @@ function loadEnvPalette() {
             });
         }
     ).fail(function(res){
-            alert("Error: " + res.getResponseHeader("error"));
-        });
+        alert("Error: " + res.getResponseHeader("error"));
+    });
 }
 
 
@@ -555,17 +543,22 @@ function loadItemsPalette() {
             });
         }
     ).fail(function(res){
-            alert("Error: " + res.getResponseHeader("error"));
-        });
+        alert("Error: " + res.getResponseHeader("error"));
+    });
 }
 
 
 function displayLocationItems(location)
 {
     console.log(Date.now() + ' displayLocationItems at x:' + location.attributes['x'] + " y: " + location.attributes['y']);
+    items = [];
+    location.attributes.items.forEach(function(thisItem) {
+       items.push(thisItem.id);
+    });
+
     $.get(
-        '/fetchItemsInLocation',
-        { "id": location.id },
+        '/fetchItems',
+        { "ids": JSON.stringify(items) },
         function (data) {
             var target = $('#itemList').html("");
 
@@ -583,11 +576,9 @@ function displayLocationItems(location)
                 locationItem.appendTo(container);
                 container.appendTo(target);
             });
-
-
         }
     ).fail(function(res){
-            alert("Error: " + res.getResponseHeader("error"));
-        });
+        alert("Error: " + res.getResponseHeader("error"));
+    });
 
 }
