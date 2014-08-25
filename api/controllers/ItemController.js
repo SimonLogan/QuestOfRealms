@@ -67,6 +67,27 @@ module.exports = {
         });
     },
 
+    deleteItem: function(req, res) {
+        var id = req.param("id");
+        sails.log.info("in deleteItem, id = " + id);
+        Item.destroy({'_id': id}).done(function(err, item) {
+            sails.log.info("in deleteItem.find() callback");
+            if (err) {
+                sails.log.info("in deleteItem.find() callback, error. " + err);
+                res.send(500, { error: "DB Error1" + err });
+            } else {
+                sails.log.info("in deleteItem.find() callback, no error.");
+                if (item) {
+                    sails.log.info("in deleteItem.find() callback");
+                    res.send({success: true});
+                } else {
+                    sails.log.info("in deleteItem.find() callback, item is null.");
+                    res.send(404, { error: "item not Found" });
+                }
+            }
+        });
+    },
+
     fetchItems: function(req, res) {
         var ids = JSON.parse(req.param("ids"));
         Item.find({"_id": ids}).done(function(err, item) {

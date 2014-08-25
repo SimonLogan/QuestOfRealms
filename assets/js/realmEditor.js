@@ -161,13 +161,14 @@ $(document).ready(function() {
         drop: function (event, ui) {
             var droppedItem = $(ui.draggable);
             var target = $(this);
-            var droppedPaletteItem = droppedItem.is('.paletteItem');
-            var droppedMapItem = droppedItem.is('.mapItem');
 
             if (target.is('#wastebasket')) {
                 console.log("Dropped item onto wastebasket");
-                if (droppedMapItem)
-                    removeMapItem(locations, droppedItem.attr('data-x'), droppedItem.attr('data-y'));
+                if (droppedItem.is('.mapItem'))
+                    removeMapLocation(locations, droppedItem.attr('data-x'), droppedItem.attr('data-y'));
+
+                if (droppedItem.is('.propertiesPanelItem'))
+                    removeLocationItem(locations, droppedItem);
 
                 // No need to do anything when a palette item is dropped
                 // on the wastebasket.
@@ -184,9 +185,9 @@ $(document).ready(function() {
                 if (existingLocationItem.length === 0) {
                     console.log("target is empty");
                     // Create the new item if dragging an environment.
-                    if ((droppedPaletteItem && droppedItem.attr('data-category') === "environment") ||
-                        droppedMapItem) {
-                        var environment = (droppedPaletteItem ? droppedItem.attr('data-type') :
+                    if ((droppedItem.is('.paletteItem') && droppedItem.attr('data-category') === "environment") ||
+                        droppedItem.is('.mapItem')) {
+                        var environment = (droppedItem.is('.paletteItem') ? droppedItem.attr('data-type') :
                             droppedItem.attr('data-env'));
 
                         // If dragging an existing map item, treat this as a move.
@@ -207,7 +208,7 @@ $(document).ready(function() {
                             characters: []}, {wait: true});
 
                         if (droppedItem.is('.mapItem'))
-                            removeMapItem(locations, droppedItem.attr('data-x'), droppedItem.attr('data-y'));
+                            removeMapLocation(locations, droppedItem.attr('data-x'), droppedItem.attr('data-y'));
 
                     } else {
                         console.error("can't drop item category '" +
@@ -386,8 +387,8 @@ $(document).ready(function() {
                 populateLocationDetails(locations, selectedCell, false);
             }
         ).fail(function(res){
-                alert("Error: " + res.getResponseHeader("error"));
-            });
+            alert("Error: " + res.getResponseHeader("error"));
+        });
     });
 });
 
@@ -396,13 +397,40 @@ $(document).ready(function() {
 // Utility functions
 //
 
-function removeMapItem(collection, x, y)
+function removeMapLocation(collection, x, y)
 {
     var models = collection.where({x: x, y: y});
 
     if (models.length > 0) {
         models[0].destroy();
         collection.remove(models[0]);
+    }
+}
+
+
+function removeLocationItem(collection, droppedItem)
+{
+    var itemLocation = collection.where({id: droppedItem.attr('data-locationId')});
+    var locationItems = itemLocation[0].attributes['items'];
+
+    for (var i=0; i<locationItems.length; i++) {
+        if (locationItems[i].id == droppedItem.attr('id')) {
+            $.post(
+                '/deleteItem',
+                {
+                    id: droppedItem.attr('id')
+                },
+                function (data) {
+                    locationItems.splice(i, 1);
+                    itemLocation[0].save();
+                    $('#itemList').find('#' + droppedItem.attr('id')).remove();
+                }
+            ).fail(function(res){
+                alert("Error: " + res.getResponseHeader("error"));
+            });
+
+            break;
+        }
     }
 }
 
@@ -569,6 +597,9 @@ function displayLocationItems(location)
                     "data-name='" + item.name + "' " +  // eg; "the sword of destiny"
                     "data-category='item' " +
                     "data-type='" + item.type + "' " +  // eg; "long sword"
+                    "data-x='" + location.attributes['x'] + "' " +
+                    "data-y='" + location.attributes['y'] + "' " +
+                    "data-locationId='" + location.attributes['id'] + "' " +
                     "><img src='" + item.image + "'/>";
                 html += "</div>";
                 var locationItem = $(html);

@@ -63,6 +63,11 @@ module.exports.routes = {
         action: 'editItem'
     },
 
+    '/deleteItem' : {
+        controller: 'item',
+        action: 'deleteItem'
+    },
+
     '/fetchItems' : {
         controller: 'item',
         action: 'fetchItems'
