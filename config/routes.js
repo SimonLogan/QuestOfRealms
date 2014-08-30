@@ -63,9 +63,9 @@ module.exports.routes = {
         action: 'editItem'
     },
 
-    '/deleteItem' : {
+    '/deleteItems' : {
         controller: 'item',
-        action: 'deleteItem'
+        action: 'deleteItems'
     },
 
     '/fetchItems' : {

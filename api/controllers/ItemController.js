@@ -23,13 +23,11 @@ module.exports = {
         var itemType = req.param("type");
         var itemDescription = req.param("description");
         var itemImage = req.param("image");
-        var locationId = req.param("locationId");
         sails.log.info("in createItem, name = " + itemName + ", type = " + itemType);
         Item.create({name: itemName,
                      type: itemType,
                      description: itemDescription,
-                     image: itemImage,
-                     locationId: locationId}).done(function(error, item) {
+                     image: itemImage}).done(function(error, item) {
             if (error) {
                 sails.log.error("DB Error:" + error);
                 res.send(500, {error: "DB Error:" + error});
@@ -67,21 +65,22 @@ module.exports = {
         });
     },
 
-    deleteItem: function(req, res) {
-        var id = req.param("id");
-        sails.log.info("in deleteItem, id = " + id);
-        Item.destroy({'_id': id}).done(function(err, item) {
-            sails.log.info("in deleteItem.find() callback");
+    deleteItems: function(req, res) {
+        sails.log.info("in deleteItems, req.param(\"ids\") = " + req.param("ids"));
+        var ids = JSON.parse(req.param("ids"));
+        sails.log.info("in deleteItems, ids = " + ids);
+        Item.destroy({'_id': ids}).done(function(err, item) {
+            sails.log.info("in deleteItems.find() callback");
             if (err) {
-                sails.log.info("in deleteItem.find() callback, error. " + err);
+                sails.log.info("in deleteItems.find() callback, error. " + err);
                 res.send(500, { error: "DB Error1" + err });
             } else {
-                sails.log.info("in deleteItem.find() callback, no error.");
+                sails.log.info("in deleteItems.find() callback, no error.");
                 if (item) {
-                    sails.log.info("in deleteItem.find() callback");
+                    sails.log.info("in deleteItems.find() callback");
                     res.send({success: true});
                 } else {
-                    sails.log.info("in deleteItem.find() callback, item is null.");
+                    sails.log.info("in deleteItems.find() callback, item is null.");
                     res.send(404, { error: "item not Found" });
                 }
             }
