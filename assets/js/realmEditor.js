@@ -186,32 +186,12 @@ $(document).ready(function() {
                     x: target.attr('data-x'), y:target.attr('data-y')});
 
                 if (droppedItemNewLocation.length === 0) {
-                    // Create the new item if dragging an environment.
+                    // Dropped at item onto an empty map location.
+                    // Create the new location if dragging an environment.
                     if ((droppedItem.is('.paletteItem') && droppedItem.attr('data-category') === "environment") ||
-                        droppedItem.is('.mapItem')) {
-                        var environment = (droppedItem.is('.paletteItem') ? droppedItem.attr('data-type') :
-                            droppedItem.attr('data-env'));
-
-                        // If dragging an existing map item, treat this as a move.
-                        // Simulate a move by creating and deleting. This will publish events for both.
-                        copiedItems = [];
-                        if (droppedItem.is('.mapItem'))
-                            copiedItems = droppedItemOriginalLocation[0].attributes.items;
-
-                        // An update doesn't work well for a location move, as only the
-                        // updated record gets published, meaning we can't remove
-                        // the old location from the map. Do an add + remove.
-
-                        var newObj = locations.create({realmId: realmId,
-                            x: target.attr('data-x'),
-                            y: target.attr('data-y'),
-                            environment: environment,
-                            items: copiedItems,
-                            characters: []}, {wait: true});
-
-                        if (droppedItem.is('.mapItem'))
-                            removeMapLocation(locations, droppedItem.attr('data-x'), droppedItem.attr('data-y'));
-
+                        droppedItem.is('.mapItem'))
+                    {
+                        addMapLocation(realmId, locations, droppedItem, droppedItemOriginalLocation, target)
                     } else {
                         console.error("can't drop item category '" +
                             droppedItem.attr('data-category') +
@@ -392,6 +372,34 @@ $(document).ready(function() {
 //
 // Utility functions
 //
+
+function addMapLocation(realmId, collection, droppedItem, originalLocation, newLocation)
+{
+    var environment = (droppedItem.is('.paletteItem') ?
+        droppedItem.attr('data-type') : droppedItem.attr('data-env'));
+
+    // If dragging an existing map item, treat this as a move.
+    // Simulate a move by creating and deleting. This will publish events for both.
+    copiedItems = [];
+    if (droppedItem.is('.mapItem'))
+        copiedItems = originalLocation[0].attributes.items;
+
+    // An update doesn't work well for a location move, as only the
+    // updated record gets published, meaning we can't remove
+    // the old location from the map. Do an add + remove.
+
+    var newObj = collection.create({
+        realmId: realmId,
+        x: newLocation.attr('data-x'),
+        y: newLocation.attr('data-y'),
+        environment: environment,
+        items: copiedItems,
+        characters: []}, {wait: true});
+
+    if (droppedItem.is('.mapItem'))
+        removeMapLocation(collection, droppedItem.attr('data-x'), droppedItem.attr('data-y'));
+}
+
 
 function removeMapLocation(collection, x, y)
 {
