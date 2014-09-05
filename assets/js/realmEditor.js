@@ -10,6 +10,12 @@ var itemData;
 var selectedCell = null;
 var selectedItem = null;
 
+PaletteItemType = {
+    ENV : 0,
+    ITEM : 1,
+    CHARACTER : 2
+}
+
 $(document).ready(function() {
     var realmWidth = parseInt($('#realmWidth').val());
     var realmHeight = parseInt($('#realmHeight').val());
@@ -32,8 +38,8 @@ $(document).ready(function() {
 
     // Create the tabbed panels and load the data.
     $(function() {
-        $("#palette").tabs();
-        $("#properties").tabs();
+        $("#paletteInnerPanel").tabs();
+        $("#propertiesInnerPanel").tabs();
     });
 
     envData = loadEnvPalette();
@@ -108,7 +114,7 @@ $(document).ready(function() {
         },
         render: function(item) {
             if (item != undefined) {
-                //console.log("in view.render, received new " + JSON.stringify(item));
+                console.log("in view.render, received new " + JSON.stringify(item));
 
                 // Update the local display with the message data.
                 var target = $('#mapTable td[id="cell_' + item.attributes.y + '_' + item.attributes.x + '"]').find('div');
@@ -120,13 +126,10 @@ $(document).ready(function() {
                 // To allow it to be dragged to the wastebasket.
                 target.addClass('draggable mapItem');
                 target.draggable({helper: 'clone', revert: 'invalid'});
-
-                // Populate the relevant location properties
-                $('#envType').text(item.attributes.environment);
             }
         },
         remove: function(item) {
-            //console.log("in view.remove");
+            console.log("in view.remove");
             var target = $('#mapTable td[id="cell_' + item.attributes.y + '_' + item.attributes.x + '"]').find('div');
             target.html('');
 
@@ -147,7 +150,7 @@ $(document).ready(function() {
             target.draggable({helper: 'clone', revert: 'invalid'});
 
             // Populate the relevant location properties
-            $('#envType').text(item.attributes.environment);
+            populateLocationDetails(locations, item, true);
         }
     });
 
@@ -219,11 +222,12 @@ $(document).ready(function() {
             return;
 
         console.log("mouseenter .paletteItem");
-        var tabData = envData;
-        if ($('#palette').tabs('option', 'active') === 1) tabData = itemData;
+        var tabData = {class: PaletteItemType.ENV, data: envData};
+        if ($('#paletteInnerPanel').tabs('option', 'active') === 1)
+            tabData = {class: PaletteItemType.ITEM, data: itemData};
 
-        var paletteItem = findPaletteItemByName(tabData, $(this).attr('data-type'));
-        populatePaletteDetails(paletteItem);
+        var paletteItem = findPaletteItemByName(tabData.data, $(this).attr('data-type'));
+        populatePaletteDetails(tabData.class, paletteItem);
     });
 
     $(document).on('mouseleave', '.paletteItem', function() {
@@ -231,9 +235,7 @@ $(document).ready(function() {
     });
 
     // Show / edit map locations
-    $(document).on('mouseenter', '#mapPanel', function() {
-        $('#propertiesPanel').tabs({disabled:[]})
-    });
+    $(document).on('mouseenter', '#mapPanel', function() {     });
 
     $(document).on('mouseleave', '#mapPanel', function() {
         if (selectedCell === null) {
@@ -244,9 +246,8 @@ $(document).ready(function() {
     $(document).on('mouseenter', '.mapItem', function(e) {
         if (selectedCell === null) {
             $('#currentCell').val($(this).prop('id'));
-            $('#envType').text($(this).attr('data-env'));
             $(this).closest('td').css('border-color', 'red');
-            populateLocationDetails(locations, $(this), false);
+            populateMapLocationDetails(locations, $(this), false);
         }
     });
 
@@ -261,32 +262,28 @@ $(document).ready(function() {
     $(document).on('mouseup', '.mapItem', function() {
         if (selectedCell === null) {
             if ($(this).is('.ui-draggable-dragging')) {
+                // Don't show a red border if dragging a cell.
                 $(this).closest('td').css('border-color', '');
             } else {
-                // Activate edit mode.
+                // You clicked in a cell. Activate edit mode.
                 $(this).closest('td').css('border-color', 'red');
                 mapMode = "edit";
                 selectedCell = $(this);
                 $('#propertiesPanelTitle').text("Edit location properties");
-                populateLocationDetails(locations, selectedCell, false);
+                populateMapLocationDetails(locations, selectedCell, false);
             }
         } else if ($(this).attr('data-x') === selectedCell.attr('data-x') &&
-            $(this).attr('data-y') === selectedCell.attr('data-y')) {
+                   $(this).attr('data-y') === selectedCell.attr('data-y')) {
             // Click again in the selected cell to cancel edit mode.
-            $('#currentCell').val('');
-            $('#envType').text('');
             selectedCell.closest('td').css('border-color', '');
             selectedCell = null;
             $('#propertiesPanelTitle').text("Location properties");
-            clearLocationDetails();
         } else if ($(this).attr('data-x') !== selectedCell.attr('data-x') ||
-            $(this).attr('data-y') !== selectedCell.attr('data-y')) {
+                   $(this).attr('data-y') !== selectedCell.attr('data-y')) {
             // Click in a different cell to edit it.
-
             // First deselect the current edit cell.
             console.log("1");
             $('#currentCell').val('');
-            $('#envType').text('');
             selectedCell.closest('td').css('border-color', '');
             selectedCell = null;
             clearLocationDetails();
@@ -297,7 +294,7 @@ $(document).ready(function() {
             mapMode = "edit";
             selectedCell = $(this);
             $('#propertiesPanelTitle').text("Edit location properties");
-            populateLocationDetails(locations, selectedCell, false);
+            populateMapLocationDetails(locations, selectedCell, false);
             console.log("3");
         }
     });
@@ -360,7 +357,7 @@ $(document).ready(function() {
                 name: $('#itemName').val().trim()
             },
             function (data) {
-                populateLocationDetails(locations, selectedCell, false);
+                populateMapLocationDetails(locations, selectedCell, false);
             }
         ).fail(function(res){
             alert("Error: " + res.getResponseHeader("error"));
@@ -447,7 +444,10 @@ function removeItemFromLocation(collection, droppedItem)
                 function (data) {
                     locationItems.splice(i, 1);
                     itemLocation[0].save();
-                    $('#itemList').find('#' + droppedItem.attr('data-id')).remove();
+                    // Now remove the item from the properties window if it is visible.
+                    // We can't do it directly here as this would only update the local
+                    // UI. Do it in the collection view function.
+                    //$('#itemList').find('div[data-id="'+ droppedItem.attr('data-id') + '"]').remove();
                 }
             ).fail(function(res){
                 alert("Error: " + res.getResponseHeader("error"));
@@ -504,17 +504,40 @@ function addItemToLocation(droppedItem, location)
 // Populate the properties window for the specified palette item.
 // params:
 //   paletteItem: the palette item.
-function populatePaletteDetails(paletteItem)
+function populatePaletteDetails(paletteItemClass, paletteItem)
 {
-    $('#paletteItemType').text(paletteItem.type);
-    $('#paletteItemDescription').text(paletteItem.description);
+    if (PaletteItemType.ENV === paletteItemClass) {
+        $('#paletteEnvType').text(paletteItem.type);
+        $('#paletteEnvDescription').text(paletteItem.description);
+    }
+    else if (PaletteItemType.ITEM === paletteItemClass) {
+        $('#paletteItemType').text(paletteItem.type);
+        $('#paletteItemDescription').text(paletteItem.description);
+        $('#paletteItemDamage').text(paletteItem.damage);
+    }
+    else if (PaletteItemType.CHARACTER === paletteItemClass) {
+        $('#paletteEnvType').text(paletteItem.type);
+        $('#paletteEnvDescription').text(paletteItem.description);
+    }
 }
 
 
 function clearPaletteDetails()
 {
-    $('#paletteItemType').text('');
-    $('#paletteItemDescription').text('');
+    var activeTab = $('#paletteInnerPanel').tabs('option', 'active');
+    if (0 === activeTab) {
+        $('#paletteEnvType').text('');
+        $('#paletteEnvDescription').text('');
+    }
+    else if (1 === activeTab) {
+        $('#paletteItemType').text('');
+        $('#paletteItemDescription').text('');
+        $('#paletteItemDamage').text('');
+    }
+    else if (2 === activeTab) {
+        $('#paletteEnvType').text('');
+        $('#paletteEnvDescription').text('');
+    }
 }
 
 
@@ -535,23 +558,34 @@ function clearLocationItemDetails(item)
 // Populate the properties window for the specified location.
 // params:
 //   locationCollection: the collection of locations to search.
-//   location: the mapLocation cell of interest.
+//   location: the mapLocation UI cell of interest.
 //   allDetails: true shows all details. False shows only high-level details.
-function populateLocationDetails(locationCollection, location, allDetails)
+function populateMapLocationDetails(locationCollection, location, allDetails)
 {
     var thisCell = locationCollection.where({
         x: location.attr('data-x'), y:location.attr('data-y')});
 
-    if (thisCell[0].attributes.name !== undefined)
+    populateLocationDetails(locationCollection, thisCell[0], allDetails);
+}
+
+
+// Populate the properties window for the specified location.
+// params:
+//   locationCollection: the collection of locations to search.
+//   location: the mapLocation data object of interest.
+//   allDetails: true shows all details. False shows only high-level details.
+function populateLocationDetails(locationCollection, location, allDetails)
+{
+    if (location.attributes.name !== undefined)
         $('#locationName').val(thisCell[0].attributes.name);
 
-    $('#propertiesPanel').attr('data-id', location.attr('data-id'));
-    $('#envType').text(thisCell[0].attributes.environment);
-    $('#characterSummary').text(thisCell[0].attributes.characters.length);
-    $('#itemSummary').text(thisCell[0].attributes.items.length);
+    $('#propertiesPanel').attr('data-id', location.id);
+    $('#envType').text(location.attributes.environment);
+    $('#characterSummary').text(location.attributes.characters.length);
+    $('#itemSummary').text(location.attributes.items.length);
 
     // Can we get these directly from the current cell's items[] collection?
-    displayLocationItems(thisCell[0]);
+    displayLocationItems(location);
 }
 
 
@@ -587,7 +621,7 @@ function loadEnvPalette() {
     $.get(
         '/loadEnvPalette',
         function (data) {
-            var target = $('#palette-environment');
+            var target = $('#paletteEnvList');
             envData = data;
 
             var envNum = 1;
@@ -615,7 +649,7 @@ function loadItemsPalette() {
     $.get(
         '/loadItemsPalette',
         function (data) {
-            var target = $('#palette-items');
+            var target = $('#paletteItemList');
             itemData = data;
 
             var itemNum = 1;
@@ -626,6 +660,8 @@ function loadItemsPalette() {
                     "data-category='item' " +
                     "data-type='" + item.type + "' " +
                     "data-image='" + item.image + "' " +
+                    "data-description='" + item.description + "' " +
+                    "data-damage='" + item.damage + "' " +
                     "><img src='" + item.image + "'/>";
                 html += "</div>";
                 var paletteItem = $(html);
