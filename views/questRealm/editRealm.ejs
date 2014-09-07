@@ -14,61 +14,74 @@ Realm Designer
     <div id="toolsPanel" style="float:left; margin-right:5px;">
         <div id="palettePanel" style="clear:both;">
             <div id="palettePanelTitle" style="font-weight: bold">Palette</div>
-            <div id="paletteInnerPanel" style="width:300px; height: 200px; font-family: arial, sans-serif; font-size: 12px;">
+            <div id="paletteInnerPanel" style="width:300px; height: 250px; font-family: arial, sans-serif; font-size: 12px;">
                 <ul>
                     <li><a href="#palette-environment">Environment</a></li>
                     <li><a href="#palette-items">Items</a></li>
                     <li><a href="#palette-characters">Characters</a></li>
                 </ul>
                 <div id="palette-environment">
-                    <div id="paletteEnvList" style="height: 55px">
+                    <div id="paletteEnvList" style="height: 55px; margin-bottom: 5px;">
                         <!-- Items will be dynamically populated. -->
                     </div>
-                    <div id="paletteEnvPropertiesPanel" style="border-top:1px solid gray">
+                    <div id="paletteEnvPropertiesPanel" style="border-top:1px solid gray; padding-top: 5px;">
                         <div>
                             <table>
                                 <tr>
-                                    <th style="text-align: right;">Type:</th><td><label id="paletteEnvType" value="" /></td></td>
+                                    <th class="detailsHeading">Type:</th><td><label id="paletteEnvType" value="" /></td></td>
                                 </tr>
                                 <tr>
-                                    <th style="text-align: right;">Description:</th><td><label id="paletteEnvDescription" value="" /></td>
+                                    <th class="detailsHeading">Description:</th><td><label id="paletteEnvDescription" value="" /></td>
                                 </tr>
                             </table>
                         </div>
                     </div>
                 </div>
                 <div id="palette-items">
-                    <div id="paletteItemList" style="height: 55px">
+                    <div id="paletteItemList" style="height: 55px; margin-bottom: 5px;">
                         <!-- Items will be dynamically populated. -->
                     </div>
-                    <div id="paletteEnvPropertiesPanel" style="border-top:1px solid gray">
+                    <div id="paletteItemPropertiesPanel" style="border-top:1px solid gray; padding-top: 5px;">
                         <div>
                             <table>
                                 <tr>
-                                    <th style="text-align: right;">Type:</th><td><label id="paletteItemType" value="" /></td></td>
+                                    <th class="detailsHeading">Type:</th><td><label id="paletteItemType" value="" /></td></td>
                                 </tr>
                                 <tr>
-                                    <th style="text-align: right;">Description:</th><td><label id="paletteItemDescription" value="" /></td>
+                                    <th class="detailsHeading">Description:</th><td><label id="paletteItemDescription" value="" /></td>
                                 </tr>
                                 <tr>
-                                    <th style="text-align: right;">Damage:</th><td><label id="paletteItemDamage" value="" /></td>
+                                    <th class="detailsHeading">Damage:</th><td><label id="paletteItemDamage" value="" /></td>
                                 </tr>
                             </table>
                         </div>
                     </div>
                 </div>
                 <div id="palette-characters">
-                    <table>
-                        <tr>
-                            <th style="text-align: right;">Type:</th><td><label id="paletteItemType" value="" /></td></td>
-                        </tr>
-                        <tr>
-                            <th style="text-align: right;">Description:</th><td><label id="paletteItemDescription" value="" /></td>
-                        </tr>
-                        <tr>
-                            <th style="text-align: right;">Damage:</th><td><label id="paletteItemDamage" value="" /></td>
-                        </tr>
-                    </table>
+                    <div id="paletteCharactersList" style="height: 55px; margin-bottom: 5px;">
+                        <!-- Items will be dynamically populated. -->
+                    </div>
+                    <div id="paletteCharactersPropertiesPanel" style="border-top:1px solid gray; padding-top: 5px;">
+                        <div>
+                            <table>
+                                <tr>
+                                    <th class="detailsHeading">Type:</th><td><label id="paletteCharacterType" value="" /></td></td>
+                                </tr>
+                                <tr>
+                                    <th class="detailsHeading">Description:</th><td><label id="paletteCharacterDescription" value="" /></td>
+                                </tr>
+                                <tr>
+                                    <th class="detailsHeading">Additional info:</th><td><label id="paletteCharacterAddInfo" value="" /></td>
+                                </tr>
+                                <tr>
+                                    <th class="detailsHeading">Health:</th><td><label id="paletteCharacterHealth" value="" /></td>
+                                </tr>
+                                <tr>
+                                    <th class="detailsHeading">Drops:</th><td><label id="paletteCharacterDrops" value="" /></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

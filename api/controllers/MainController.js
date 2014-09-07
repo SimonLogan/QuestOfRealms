@@ -94,7 +94,7 @@ var MainController = {
                 type: "Giant",
                 image: "images/spear.png",
                 description: "Lumbering, stupid humanoids.",
-                aditional_info: "Can be found herding Iron Boars. Easily killed by Gryphons. They love gold.",
+                additional_info: "Can be found herding Iron Boars. Easily killed by Gryphons. They love gold.",
                 health: 15,
                 drops: ["leather"]
             }
@@ -105,7 +105,7 @@ var MainController = {
                 type: "Gryphon",
                 image: "images/spear.png",
                 description: "Graceful, mountable predators.",
-                aditional_info: "Can be mounted if you bring them a young Iron Boar. Kill Giants - their natural enemies. Can be found in the Globed Forest.",
+                additional_info: "Can be mounted if you bring them a young Iron Boar. Kill Giants - their natural enemies. Can be found in the Globed Forest.",
                 health: 50,
                 drops: ["feathers"]
             }
@@ -116,7 +116,7 @@ var MainController = {
                 type: "Iron boar",
                 image: "images/spear.png",
                 description: "Tough, easily tamed animals.",
-                aditional_info: "Medium armour. Can be domesticated. Drops iron or gold. Found on Endless plains, and in Utropica. Love to eat Forge Weed.",
+                additional_info: "Medium armour. Can be domesticated. Drops iron or gold. Found on Endless plains, and in Utropica. Love to eat Forge Weed.",
                 health: 20,
                 drops: ["iron", "gold"]
             }
@@ -127,7 +127,7 @@ var MainController = {
                 type: "night spider",
                 image: "images/spear.png",
                 description: "Sinister, silent killers.",
-                aditional_info: "Webs can be made into bow strings. can appear in any realm. can give you sleeping sickness (-1 health per minute when you have it). juveniles can be domesticated to replenish bow strings.",
+                additional_info: "Webs can be made into bow strings. can appear in any realm. can give you sleeping sickness (-1 health per minute when you have it). juveniles can be domesticated to replenish bow strings.",
                 health: 3,
                 drops: ["string", "spider fangs"]
             }

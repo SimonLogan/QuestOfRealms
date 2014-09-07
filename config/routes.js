@@ -43,6 +43,11 @@ module.exports.routes = {
         action: 'loadItemsPalette'
     },
 
+    '/loadCharactersPalette' : {
+        controller: 'main',
+        action: 'loadCharactersPalette'
+    },
+
     '/createRealm' : {
         controller: 'questRealm',
         action: 'createRealm'

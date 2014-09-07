@@ -8,3 +8,7 @@
     float: left;
 }
 
+th.detailsHeading {
+    text-align: right;
+    vertical-align: top;
+}

@@ -7,8 +7,7 @@
 // Global data
 var envData;
 var itemData;
-var selectedCell = null;
-var selectedItem = null;
+var characterData;
 
 PaletteItemType = {
     ENV : 0,
@@ -42,8 +41,9 @@ $(document).ready(function() {
         $("#propertiesInnerPanel").tabs();
     });
 
-    envData = loadEnvPalette();
-    itemData = loadItemsPalette();
+    loadEnvPalette();
+    loadItemsPalette();
+    loadCharactersPalette();
 
     var MapLocationModel = Backbone.Model.extend({
         urlRoot: '/maplocation'
@@ -225,6 +225,8 @@ $(document).ready(function() {
         var tabData = {class: PaletteItemType.ENV, data: envData};
         if ($('#paletteInnerPanel').tabs('option', 'active') === 1)
             tabData = {class: PaletteItemType.ITEM, data: itemData};
+        else if ($('#paletteInnerPanel').tabs('option', 'active') === 2)
+            tabData = {class: PaletteItemType.CHARACTER, data: characterData};
 
         var paletteItem = findPaletteItemByName(tabData.data, $(this).attr('data-type'));
         populatePaletteDetails(tabData.class, paletteItem);
@@ -235,16 +237,13 @@ $(document).ready(function() {
     });
 
     // Show / edit map locations
-    $(document).on('mouseenter', '#mapPanel', function() {     });
+    $(document).on('mouseenter', '#mapPanel', function() {});
 
-    $(document).on('mouseleave', '#mapPanel', function() {
-        if (selectedCell === null) {
-            //$('#locationPropertiesPanel').hide();
-        }
-    });
+    $(document).on('mouseleave', '#mapPanel', function() {});
 
     $(document).on('mouseenter', '.mapItem', function(e) {
-        if (selectedCell === null) {
+        var selectedMapCell = $('#mapTable').find(".mapItem.selected");
+        if (selectedMapCell.length === 0) {
             $('#currentCell').val($(this).prop('id'));
             $(this).closest('td').css('border-color', 'red');
             populateMapLocationDetails(locations, $(this), false);
@@ -252,7 +251,8 @@ $(document).ready(function() {
     });
 
     $(document).on('mouseleave', '.mapItem', function(e) {
-        if (selectedCell === null) {
+        var selectedMapCell = $('#mapTable').find(".mapItem.selected");
+        if (selectedMapCell.length === 0) {
             $('#currentCell').val('');
             $(this).closest('td').css('border-color', '');
             clearLocationDetails();
@@ -260,7 +260,8 @@ $(document).ready(function() {
     });
 
     $(document).on('mouseup', '.mapItem', function() {
-        if (selectedCell === null) {
+        var selectedMapCell = $('#mapTable').find(".mapItem.selected");
+        if (selectedMapCell.length === 0) {
             if ($(this).is('.ui-draggable-dragging')) {
                 // Don't show a red border if dragging a cell.
                 $(this).closest('td').css('border-color', '');
@@ -268,80 +269,86 @@ $(document).ready(function() {
                 // You clicked in a cell. Activate edit mode.
                 $(this).closest('td').css('border-color', 'red');
                 mapMode = "edit";
-                selectedCell = $(this);
+                $(this).addClass('selected');
                 $('#propertiesPanelTitle').text("Edit location properties");
-                populateMapLocationDetails(locations, selectedCell, false);
+                populateMapLocationDetails(locations, $(this), false);
             }
-        } else if ($(this).attr('data-x') === selectedCell.attr('data-x') &&
-                   $(this).attr('data-y') === selectedCell.attr('data-y')) {
+        } else if ($(this).attr('data-x') === selectedMapCell.attr('data-x') &&
+                   $(this).attr('data-y') === selectedMapCell.attr('data-y')) {
             // Click again in the selected cell to cancel edit mode.
-            selectedCell.closest('td').css('border-color', '');
-            selectedCell = null;
+            selectedMapCell.closest('td').css('border-color', '');
+            selectedMapCell.removeClass('selected');
             $('#propertiesPanelTitle').text("Location properties");
-        } else if ($(this).attr('data-x') !== selectedCell.attr('data-x') ||
-                   $(this).attr('data-y') !== selectedCell.attr('data-y')) {
+        } else if ($(this).attr('data-x') !== selectedMapCell.attr('data-x') ||
+                   $(this).attr('data-y') !== selectedMapCell.attr('data-y')) {
             // Click in a different cell to edit it.
             // First deselect the current edit cell.
             console.log("1");
             $('#currentCell').val('');
-            selectedCell.closest('td').css('border-color', '');
-            selectedCell = null;
+            selectedMapCell.closest('td').css('border-color', '');
+            selectedMapCell.removeClass('selected');
             clearLocationDetails();
             console.log("2");
 
             // Then activate the new edit cell.
             $(this).closest('td').css('border-color', 'red');
             mapMode = "edit";
-            selectedCell = $(this);
+            $(this).addClass('selected');
             $('#propertiesPanelTitle').text("Edit location properties");
-            populateMapLocationDetails(locations, selectedCell, false);
+            populateMapLocationDetails(locations, $(this), false);
             console.log("3");
         }
     });
 
     $(document).on('mouseup', '.propertiesPanelItem', function() {
-        if (selectedItem === null) {
+        var selectedItem = $('#itemList').find(".propertiesPanelItem.selected");
+        if (selectedItem.length === 0) {
             if ($(this).is('.ui-draggable-dragging')) {
                 $(this).closest('td').css('border-color', '');
             } else {
-                // Activate edit mode.
+                // Activate edit mode: $(this) is now the selectedItem.
                 $(this).closest('div').css('border-color', 'red');
-                selectedItem = $(this);
-                populateLocationItemDetails(selectedItem);
+                $(this).addClass('selected');
+                populateLocationItemDetails($(this));
             }
         } else if ($(this).attr('data-id') === selectedItem.attr('data-id')) {
             // Click again in the selected item to cancel edit mode.
             selectedItem.closest('div').css('border-color', '');
-            selectedItem = null;
+            selectedItem.removeClass('selected');
             clearLocationItemDetails();
         } else if ($(this).attr('data-id') !== selectedItem.attr('data-id')) {
             // Click in a different item to edit it.
 
             // First deselect the current edit item.
             selectedItem.closest('div').css('border-color', '');
+            selectedItem.removeClass('selected');
 
             // Then activate the new edit item.
             $(this).closest('div').css('border-color', 'red');
-            selectedItem = $(this);
-            populateLocationItemDetails(selectedItem);
+            $(this).addClass('selected');
+            populateLocationItemDetails($(this));
         }
     });
 
     $(document).on('mouseenter', '.propertiesPanelItem', function() {
-        if (selectedItem === null) {
+        if ($('#itemList').find(".propertiesPanelItem.selected").length === 0) {
+            console.log("call populateLocationItemDetails");
             populateLocationItemDetails($(this));
         }
     });
 
     $(document).on('mouseleave', '.propertiesPanelItem', function() {
-        if (selectedItem === null) {
+        if ($('#itemList').find(".propertiesPanelItem.selected").length === 0) {
+            console.log("call clearLocationItemDetails");
             clearLocationItemDetails();
         }
     });
 
     $(document).on('change', '.locationProperty', function() {
+        console.log("locationProperty change");
+        var selectedMapCell = $('#mapTable').find(".mapItem.selected");
         var thisCell = locations.where({
-            x: selectedCell.attr('data-x'), y:selectedCell.attr('data-y')});
+            x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')});
 
         thisCell[0].attributes.name = $('#locationName').val().trim();
         thisCell[0].save();
@@ -349,7 +356,7 @@ $(document).ready(function() {
 
     $(document).on('change', '.itemProperty', function() {
         console.log("itemProperty change");
-
+        var selectedItem = $('#itemList').find(".propertiesPanelItem.selected");
         $.post(
             '/editItem',
             {
@@ -357,7 +364,8 @@ $(document).ready(function() {
                 name: $('#itemName').val().trim()
             },
             function (data) {
-                populateMapLocationDetails(locations, selectedCell, false);
+                var selectedMapCell = $('#itemList').find(".propertiesPanelItem.selected");
+                populateMapLocationDetails(locations, selectedMapCell, false);
             }
         ).fail(function(res){
             alert("Error: " + res.getResponseHeader("error"));
@@ -516,8 +524,11 @@ function populatePaletteDetails(paletteItemClass, paletteItem)
         $('#paletteItemDamage').text(paletteItem.damage);
     }
     else if (PaletteItemType.CHARACTER === paletteItemClass) {
-        $('#paletteEnvType').text(paletteItem.type);
-        $('#paletteEnvDescription').text(paletteItem.description);
+        $('#paletteCharacterType').text(paletteItem.type);
+        $('#paletteCharacterDescription').text(paletteItem.description);
+        $('#paletteCharacterAddInfo').text(paletteItem.additional_info);
+        $('#paletteCharacterHealth').text(paletteItem.health);
+        $('#paletteCharacterDrops').text(paletteItem.drops);
     }
 }
 
@@ -535,8 +546,11 @@ function clearPaletteDetails()
         $('#paletteItemDamage').text('');
     }
     else if (2 === activeTab) {
-        $('#paletteEnvType').text('');
-        $('#paletteEnvDescription').text('');
+        $('#paletteCharacterType').text('');
+        $('#paletteCharacterDescription').text('');
+        $('#paletteCharacterAddInfo').text('');
+        $('#paletteCharacterHealth').text('');
+        $('#paletteCharacterDrops').text('');
     }
 }
 
@@ -577,7 +591,7 @@ function populateMapLocationDetails(locationCollection, location, allDetails)
 function populateLocationDetails(locationCollection, location, allDetails)
 {
     if (location.attributes.name !== undefined)
-        $('#locationName').val(thisCell[0].attributes.name);
+        $('#locationName').val(location.attributes.name);
 
     $('#propertiesPanel').attr('data-id', location.id);
     $('#envType').text(location.attributes.environment);
@@ -662,6 +676,39 @@ function loadItemsPalette() {
                     "data-image='" + item.image + "' " +
                     "data-description='" + item.description + "' " +
                     "data-damage='" + item.damage + "' " +
+                    "><img src='" + item.image + "'/>";
+                html += "</div>";
+                var paletteItem = $(html);
+                paletteItem.draggable({helper: 'clone', revert: 'invalid'});
+                paletteItem.appendTo(container);
+                container.appendTo(target);
+            });
+        }
+    ).fail(function(res){
+        alert("Error: " + res.getResponseHeader("error"));
+    });
+}
+
+
+function loadCharactersPalette() {
+    $.get(
+        '/loadCharactersPalette',
+        function (data) {
+            var target = $('#paletteCharactersList');
+            characterData = data;
+
+            var itemNum = 1;
+            data.forEach(function(item) {
+                var container = $("<div style='display: inline-block; padding: 2px;'></div>");
+                var html = "<div class='paletteItem draggable ui-widget-content' " +
+                    "id='char_" + itemNum++ + "' " +
+                    "data-category='character' " +
+                    "data-type='" + item.type + "' " +
+                    "data-image='" + item.image + "' " +
+                    "data-description='" + item.description + "' " +
+                    "data-additionalinfo='" + item.additional_info + "' " +
+                    "data-health='" + item.health + "' " +
+                    "data-drops='" + item.drops + "' " +
                     "><img src='" + item.image + "'/>";
                 html += "</div>";
                 var paletteItem = $(html);
