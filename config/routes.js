@@ -76,7 +76,28 @@ module.exports.routes = {
     '/fetchItems' : {
         controller: 'item',
         action: 'fetchItems'
+    },
+
+    '/createCharacter' : {
+        controller: 'character',
+        action: 'createCharacter'
+    },
+
+    '/editCharacter' : {
+        controller: 'character',
+        action: 'editCharacter'
+    },
+
+    '/deleteCharacters' : {
+        controller: 'character',
+        action: 'deleteCharacters'
+    },
+
+    '/fetchCharacters' : {
+        controller: 'character',
+        action: 'fetchCharacters'
     }
+
 
   // By default, your root route (aka home page) points to a view
   // located at `views/home/index.ejs`

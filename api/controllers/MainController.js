@@ -92,10 +92,11 @@ var MainController = {
         characterData.push(
             {
                 type: "Giant",
-                image: "images/spear.png",
+                image: "images/Giant.png",
                 description: "Lumbering, stupid humanoids.",
                 additional_info: "Can be found herding Iron Boars. Easily killed by Gryphons. They love gold.",
                 health: 15,
+                damage: 5,
                 drops: ["leather"]
             }
         );
@@ -103,10 +104,11 @@ var MainController = {
         characterData.push(
             {
                 type: "Gryphon",
-                image: "images/spear.png",
+                image: "images/Gryphon.png",
                 description: "Graceful, mountable predators.",
                 additional_info: "Can be mounted if you bring them a young Iron Boar. Kill Giants - their natural enemies. Can be found in the Globed Forest.",
                 health: 50,
+                damage: 15,
                 drops: ["feathers"]
             }
         );
@@ -114,10 +116,11 @@ var MainController = {
         characterData.push(
             {
                 type: "Iron boar",
-                image: "images/spear.png",
+                image: "images/IronBoar.png",
                 description: "Tough, easily tamed animals.",
                 additional_info: "Medium armour. Can be domesticated. Drops iron or gold. Found on Endless plains, and in Utropica. Love to eat Forge Weed.",
                 health: 20,
+                damage: 5,
                 drops: ["iron", "gold"]
             }
         );
@@ -125,10 +128,11 @@ var MainController = {
         characterData.push(
             {
                 type: "night spider",
-                image: "images/spear.png",
+                image: "images/NightSpider.png",
                 description: "Sinister, silent killers.",
                 additional_info: "Webs can be made into bow strings. can appear in any realm. can give you sleeping sickness (-1 health per minute when you have it). juveniles can be domesticated to replenish bow strings.",
                 health: 3,
+                damage: 10,
                 drops: ["string", "spider fangs"]
             }
         );

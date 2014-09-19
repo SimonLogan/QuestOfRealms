@@ -14,7 +14,7 @@ Realm Designer
     <div id="toolsPanel" style="float:left; margin-right:5px;">
         <div id="palettePanel" style="clear:both;">
             <div id="palettePanelTitle" style="font-weight: bold">Palette</div>
-            <div id="paletteInnerPanel" style="width:300px; height: 250px; font-family: arial, sans-serif; font-size: 12px;">
+            <div id="paletteInnerPanel" style="width:300px; min-height: 250px; font-family: arial, sans-serif; font-size: 12px;">
                 <ul>
                     <li><a href="#palette-environment">Environment</a></li>
                     <li><a href="#palette-items">Items</a></li>
@@ -77,6 +77,9 @@ Realm Designer
                                     <th class="detailsHeading">Health:</th><td><label id="paletteCharacterHealth" value="" /></td>
                                 </tr>
                                 <tr>
+                                    <th class="detailsHeading">Damage:</th><td><label id="paletteCharacterDamage" value="" /></td>
+                                </tr>
+                                <tr>
                                     <th class="detailsHeading">Drops:</th><td><label id="paletteCharacterDrops" value="" /></td>
                                 </tr>
                             </table>
@@ -88,7 +91,7 @@ Realm Designer
 
         <div id="propertiesPanel" style="clear:both;">
             <div id="propertiesPanelTitle" style="margin-top: 20px; font-weight: bold">Location properties</div>
-            <div id="propertiesInnerPanel" style="width:300px; height: 250px;font-family: arial, sans-serif; font-size: 12px;">
+            <div id="propertiesInnerPanel" style="width:300px; min-height: 250px;font-family: arial, sans-serif; font-size: 12px;">
                 <ul>
                     <li><a href="#properties-overview">Overview</a></li>
                     <li><a href="#properties-items">Items</a></li>
@@ -99,18 +102,16 @@ Realm Designer
                         <div>
                             <table>
                                 <tr>
-                                    <th style="text-align: right;">Name:</th><td><input type="text" id="locationName" class="locationProperty" /></td>
+                                    <th class="detailsHeading">Name:</th><td><input type="text" id="locationName" class="locationProperty" /></td>
                                 </tr>
                                 <tr>
-                                    <th style="text-align: right;">Environment:</th><td><label id="envType" value="" class="locationProperty" /></td>
+                                    <th class="detailsHeading">Environment:</th><td><label id="envType" value="" class="locationProperty" /></td>
                                 </tr>
                                 <tr>
-                                    <th style="text-align: right;">Characters:</th>
-                                    <td><div id="characterSummary"></div></td>
+                                    <th class="detailsHeading">Characters:</th><td><div id="characterSummary"></div></td>
                                 </tr>
                                 <tr>
-                                    <th style="text-align: right;">Items:</th>
-                                    <td><div id="itemSummary"></div></td>
+                                    <th class="detailsHeading">Items:</th><td><div id="itemSummary"></div></td>
                                 </tr>
                             </table>
                         </div>
@@ -124,17 +125,46 @@ Realm Designer
                         <div>
                             <table>
                                 <tr>
-                                    <th style="text-align: right;">Name:</th><td><input type="text" id="itemName" class="itemProperty" /></td>
+                                    <th class="detailsHeading">Name:</th><td><input type="text" id="itemName" class="itemProperty" /></td>
                                 </tr>
                                 <tr>
-                                    <th style="text-align: right;">Description:</th><td><label id="itemDescription" value="" class="itemProperty" /></td>
+                                    <th class="detailsHeading">Description:</th><td><label id="itemDescription" value="" class="itemProperty" /></td>
                                 </tr>
                             </table>
                         </div>
                     </div>
                 </div>
                 <div id="properties-characters">
-                    <!-- Will be dynamically populated. -->
+                    <div id="characterList" style="height: 55px">
+                        <!-- Items will be dynamically populated. -->
+                    </div>
+                    <div id="characterPropertiesPanel" style="border-top:1px solid gray">
+                        <div>
+                            <table>
+                                <tr>
+                                    <th class="detailsHeading">Name:</th><td><input type="text" id="characterName" class="characterProperty" /></td>
+                                </tr>
+                                <tr>
+                                    <th class="detailsHeading">Type:</th><td><label id="characterType" value="" class="characterProperty" /></td>
+                                </tr>
+                                <tr>
+                                    <th class="detailsHeading">Description:</th><td><label id="characterDescription" value="" class="characterProperty" /></td>
+                                </tr>
+                                <tr>
+                                    <th class="detailsHeading">Additional info:</th><td><label id="characterAddInfo" value="" class="characterProperty" /></td>
+                                </tr>
+                                <tr>
+                                    <th class="detailsHeading">Damage:</th><td><label id="characterDamage" value="" class="characterProperty" /></td>
+                                </tr>
+                                <tr>
+                                    <th class="detailsHeading">Health:</th><td><label id="characterHealth" value="" class="characterProperty" /></td>
+                                </tr>
+                                <tr>
+                                    <th class="detailsHeading">Drops:</th><td><label id="characterDrops" value="" class="characterProperty" /></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

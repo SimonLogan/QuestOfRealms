@@ -11,7 +11,11 @@ module.exports = {
     attributes	: {
         name:   'STRING',
         type:   'STRING',
-        health: 'INT'
+        description: 'STRING',
+        additionalInfo: 'STRING',
+        health: 'INT',
+        damage: 'INT',
+        drops:  'STRING'
     }
 
 };

@@ -170,11 +170,18 @@ $(document).ready(function() {
                 console.log("Dropped item onto wastebasket");
                 if (droppedItem.is('.mapItem')) {
                     removeAllItemsFromLocation(locations, droppedItem);
+                    removeAllCharactersFromLocation(locations, droppedItem);
                     removeMapLocation(locations, droppedItem.attr('data-x'), droppedItem.attr('data-y'));
                 }
 
-                if (droppedItem.is('.propertiesPanelItem'))
-                    removeItemFromLocation(locations, droppedItem);
+                if (droppedItem.is('.propertiesPanelItem')) {
+                    if ($('#propertiesInnerPanel').tabs('option', 'active') === 1) {
+                        removeItemFromLocation(locations, droppedItem);
+                    }
+                    else if ($('#propertiesInnerPanel').tabs('option', 'active') === 2) {
+                        removeCharacterFromLocation(locations, droppedItem);
+                    }
+                }
 
                 // No need to do anything when a palette item is dropped
                 // on the wastebasket.
@@ -203,11 +210,21 @@ $(document).ready(function() {
                 } else {
                     if (droppedItem.is('.paletteItem')) {
                         console.log("dropped paletteItem");
-                        addItemToLocation(droppedItem, droppedItemNewLocation);
+                        if (droppedItem.attr('data-category') === 'item')
+                            addItemToLocation(droppedItem, droppedItemNewLocation);
+                        else if (droppedItem.attr('data-category') === 'character')
+                            addCharacterToLocation(droppedItem, droppedItemNewLocation);
+                        else
+                            console.log("dropped unexpected item category: " + droppedItem.attr('data-category'));
                     }
                     else if (droppedItem.is('.propertiesPanelItem')) {
                         console.log("dropped propertiesPanelItem");
-                        changeItemLocation(locations, droppedItem, droppedItemNewLocation);
+                        if ($('#propertiesInnerPanel').tabs('option', 'active') === 1) {
+                            changeItemLocation(locations, droppedItem, droppedItemNewLocation);
+                        }
+                        else if ($('#propertiesInnerPanel').tabs('option', 'active') === 2) {
+                            changeCharacterLocation(locations, droppedItem, droppedItemNewLocation);
+                        }
                     }
                     else {
                         console.log("Dropped unexpected item type.");
@@ -301,7 +318,17 @@ $(document).ready(function() {
     });
 
     $(document).on('mouseup', '.propertiesPanelItem', function() {
-        var selectedItem = $('#itemList').find(".propertiesPanelItem.selected");
+        var listName = 'itemList';
+        var populateFunction = populateLocationItemDetails;
+        var clearFunction = clearLocationItemDetails;
+        if ($('#propertiesInnerPanel').tabs('option', 'active') === 2)
+        {
+            listName = 'characterList';
+            populateFunction = populateLocationCharacterDetails;
+            clearFunction = clearLocationCharacterDetails;
+        }
+
+        var selectedItem = $('#' + listName).find(".propertiesPanelItem.selected");
         if (selectedItem.length === 0) {
             if ($(this).is('.ui-draggable-dragging')) {
                 $(this).closest('td').css('border-color', '');
@@ -309,13 +336,13 @@ $(document).ready(function() {
                 // Activate edit mode: $(this) is now the selectedItem.
                 $(this).closest('div').css('border-color', 'red');
                 $(this).addClass('selected');
-                populateLocationItemDetails($(this));
+                populateFunction($(this));
             }
         } else if ($(this).attr('data-id') === selectedItem.attr('data-id')) {
             // Click again in the selected item to cancel edit mode.
             selectedItem.closest('div').css('border-color', '');
             selectedItem.removeClass('selected');
-            clearLocationItemDetails();
+            clearFunction();
         } else if ($(this).attr('data-id') !== selectedItem.attr('data-id')) {
             // Click in a different item to edit it.
 
@@ -326,21 +353,39 @@ $(document).ready(function() {
             // Then activate the new edit item.
             $(this).closest('div').css('border-color', 'red');
             $(this).addClass('selected');
-            populateLocationItemDetails($(this));
+            populateFunction($(this));
         }
     });
 
     $(document).on('mouseenter', '.propertiesPanelItem', function() {
-        if ($('#itemList').find(".propertiesPanelItem.selected").length === 0) {
-            console.log("call populateLocationItemDetails");
-            populateLocationItemDetails($(this));
+        if ($('#propertiesInnerPanel').tabs('option', 'active') === 1) {
+            if ($('#itemList').find(".propertiesPanelItem.selected").length === 0) {
+                console.log("call populateLocationItemDetails");
+                populateLocationItemDetails($(this));
+            }
+        }
+        else if ($('#propertiesInnerPanel').tabs('option', 'active') === 2)
+        {
+            if ($('#characterList').find(".propertiesPanelItem.selected").length === 0) {
+                console.log("call populateLocationCharacterDetails");
+                populateLocationCharacterDetails($(this));
+            }
         }
     });
 
     $(document).on('mouseleave', '.propertiesPanelItem', function() {
-        if ($('#itemList').find(".propertiesPanelItem.selected").length === 0) {
-            console.log("call clearLocationItemDetails");
-            clearLocationItemDetails();
+        if ($('#propertiesInnerPanel').tabs('option', 'active') === 1) {
+            if ($('#itemList').find(".propertiesPanelItem.selected").length === 0) {
+                console.log("call clearLocationItemDetails");
+                clearLocationItemDetails();
+            }
+        }
+        else if ($('#propertiesInnerPanel').tabs('option', 'active') === 2)
+        {
+            if ($('#characterList').find(".propertiesPanelItem.selected").length === 0) {
+                console.log("call clearLocationCharacterDetails");
+                clearLocationCharacterDetails();
+            }
         }
     });
 
@@ -371,6 +416,24 @@ $(document).ready(function() {
             alert("Error: " + res.getResponseHeader("error"));
         });
     });
+
+    $(document).on('change', '.characterProperty', function() {
+        console.log("characterProperty change");
+        var selectedCharacter = $('#characterList').find(".propertiesPanelItem.selected");
+        $.post(
+            '/editCharacter',
+            {
+                id: selectedCharacter.attr('data-id'),
+                name: $('#characterName').val().trim()
+            },
+            function (data) {
+                var selectedMapCell = $('#characterList').find(".propertiesPanelItem.selected");
+                populateMapLocationDetails(locations, selectedMapCell, false);
+            }
+        ).fail(function(res){
+            alert("Error: " + res.getResponseHeader("error"));
+        });
+    });
 });
 
 
@@ -386,20 +449,24 @@ function addMapLocation(realmId, collection, droppedItem, originalLocation, newL
     // If dragging an existing map item, treat this as a move.
     // Simulate a move by creating and deleting. This will publish events for both.
     copiedItems = [];
-    if (droppedItem.is('.mapItem'))
+    copiedCharacters = [];
+    if (droppedItem.is('.mapItem')) {
         copiedItems = originalLocation[0].attributes.items;
+        copiedCharacters = originalLocation[0].attributes.characters;
+    }
 
     // An update doesn't work well for a location move, as only the
     // updated record gets published, meaning we can't remove
-    // the old location from the map. Do an add + remove.
-
+    // the old location from the map in a remote UI. Do an add + remove.
+    // TODO: add + remove is ok for the game designer but in game mode
+    // TODO: we'll need to find a way to handle updates properly.
     var newObj = collection.create({
         realmId: realmId,
         x: newLocation.attr('data-x'),
         y: newLocation.attr('data-y'),
         environment: environment,
         items: copiedItems,
-        characters: []}, {wait: true});
+        characters: copiedCharacters}, {wait: true});
 
     if (droppedItem.is('.mapItem'))
         removeMapLocation(collection, droppedItem.attr('data-x'), droppedItem.attr('data-y'));
@@ -419,7 +486,6 @@ function removeMapLocation(collection, x, y)
 
 function removeAllItemsFromLocation(collection, location)
 {
-    //var itemLocation = collection.where({id: $('#propertiesPanel').attr('data-id')});
     var itemLocation = collection.where({id: location.attr('data-id')});
     items = [];
     itemLocation[0].attributes.items.forEach(function(thisItem) {
@@ -477,7 +543,7 @@ function changeItemLocation(collection, droppedItem, newLocation)
             // Update the old location.
             originalLocationItems.splice(i, 1);
             originalLocation[0].save();
-            $('#itemList').find('#' + droppedItem.attr('data-id')).remove();
+            //$('#itemList').find('#' + droppedItem.attr('data-id')).remove();
 
             // Update the new location.
             newLocation[0].attributes.items.push({"id": droppedItem.attr('data-id')});
@@ -509,6 +575,101 @@ function addItemToLocation(droppedItem, location)
 }
 
 
+function removeAllCharactersFromLocation(collection, location)
+{
+    var characterLocation = collection.where({id: location.attr('data-id')});
+    characters = [];
+    characterLocation[0].attributes.characters.forEach(function(thisCharacter) {
+        characters.push(thisCharacter.id);
+    });
+
+    $.post(
+        '/deleteCharacters',
+        { "ids": JSON.stringify(characters) },
+        function (data) {
+            var j=5;
+        }
+    ).fail(function(res){
+        alert("Error: " + res.getResponseHeader("error"));
+    });
+}
+
+
+function removeCharacterFromLocation(collection, droppedItem)
+{
+    var characterLocation = collection.where({id: $('#propertiesPanel').attr('data-id')});
+    var locationCharacters = characterLocation[0].attributes['characters'];
+    characters = [droppedItem.attr('data-id')];
+
+    for (var i=0; i<locationCharacters.length; i++) {
+        if (locationCharacters[i].id == droppedItem.attr('data-id')) {
+            $.post(
+                '/deleteCharacters',
+                { ids: JSON.stringify(characters) },
+                function (data) {
+                    locationCharacters.splice(i, 1);
+                    characterLocation[0].save();
+                    // Now remove the item from the properties window if it is visible.
+                    // We can't do it directly here as this would only update the local
+                    // UI. Do it in the collection view function.
+                    //$('#itemList').find('div[data-id="'+ droppedItem.attr('data-id') + '"]').remove();
+                }
+            ).fail(function(res){
+                alert("Error: " + res.getResponseHeader("error"));
+            });
+
+            break;
+        }
+    }
+}
+
+
+function changeCharacterLocation(collection, droppedItem, newLocation)
+{
+    var originalLocation = collection.where({id: $('#propertiesPanel').attr('data-id')});
+    var originalLocationCharacters = originalLocation[0].attributes['characters'];
+
+    for (var i=0; i<originalLocationCharacters.length; i++) {
+        if (originalLocationCharacters[i].id == droppedItem.attr('data-id')) {
+            // Update the old location.
+            originalLocationCharacters.splice(i, 1);
+            originalLocation[0].save();
+            //$('#characterList').find('#' + droppedItem.attr('data-id')).remove();
+
+            // Update the new location.
+            newLocation[0].attributes.characters.push({"id": droppedItem.attr('data-id')});
+            newLocation[0].save();
+
+            break;
+        }
+    }
+}
+
+
+function addCharacterToLocation(droppedCharacter, location)
+{
+    $.post(
+        '/createCharacter',
+        {
+            type: droppedCharacter.attr('data-type'),
+            name: '',
+            description: droppedCharacter.attr('data-description'),
+            additionalInfo: droppedCharacter.attr('data-additionalInfo'),
+            damage: droppedCharacter.attr('data-damage'),
+            health: droppedCharacter.attr('data-health'),
+            drops: droppedCharacter.attr('data-drops'),
+            image: droppedCharacter.find('img').attr('src')
+        },
+        function (data) {
+            location[0].attributes.characters.push({"id": data.id});
+            location[0].save();
+        }
+    ).fail(function (res) {
+        alert("Error: " + res.getResponseHeader("error"));
+    });
+}
+
+
 // Populate the properties window for the specified palette item.
 // params:
 //   paletteItem: the palette item.
@@ -528,6 +689,7 @@ function populatePaletteDetails(paletteItemClass, paletteItem)
         $('#paletteCharacterDescription').text(paletteItem.description);
         $('#paletteCharacterAddInfo').text(paletteItem.additional_info);
         $('#paletteCharacterHealth').text(paletteItem.health);
+        $('#paletteCharacterDamage').text(paletteItem.damage);
         $('#paletteCharacterDrops').text(paletteItem.drops);
     }
 }
@@ -550,6 +712,7 @@ function clearPaletteDetails()
         $('#paletteCharacterDescription').text('');
         $('#paletteCharacterAddInfo').text('');
         $('#paletteCharacterHealth').text('');
+        $('#paletteCharacterDamage').text('');
         $('#paletteCharacterDrops').text('');
     }
 }
@@ -566,6 +729,30 @@ function clearLocationItemDetails(item)
 {
     $('#itemName').val('');
     $('#itemDescription').text('');
+}
+
+
+function populateLocationCharacterDetails(character)
+{
+    $('#characterName').val(character.attr('data-name'));
+    $('#characterType').text(character.attr('data-type'));
+    $('#characterDescription').text(character.attr('data-description'));
+    $('#characterAddInfo').text(character.attr('data-additionalInfo'));
+    $('#characterDamage').text(character.attr('data-damage'));
+    $('#characterHealth').text(character.attr('data-health'));
+    $('#characterDrops').text(character.attr('data-drops'));
+}
+
+
+function clearLocationCharacterDetails(character)
+{
+    $('#characteName').val('');
+    $('#characterType').text('');
+    $('#characterDescription').text('');
+    $('#characterAddInfo').text('');
+    $('#characterDamage').text('');
+    $('#characterHealth').text('');
+    $('#characterDrops').text('');
 }
 
 
@@ -600,6 +787,7 @@ function populateLocationDetails(locationCollection, location, allDetails)
 
     // Can we get these directly from the current cell's items[] collection?
     displayLocationItems(location);
+    displayLocationCharacters(location);
 }
 
 
@@ -611,6 +799,7 @@ function clearLocationDetails()
     $('#characterSummary').text('');
     $('#itemSummary').text('');
     clearLocationItems();
+    clearLocationCharacters();
 }
 
 
@@ -618,6 +807,13 @@ function clearLocationItems()
 {
     console.log("clearLocationItems found" + $('#itemList').find('.propertiesPanelItem').length)
     $('#itemList').find('.propertiesPanelItem').remove();
+}
+
+
+function clearLocationCharacters()
+{
+    console.log("clearLocationCharacters found" + $('#characterList').find('.propertiesPanelItem').length)
+    $('#characterList').find('.propertiesPanelItem').remove();
 }
 
 
@@ -708,6 +904,7 @@ function loadCharactersPalette() {
                     "data-description='" + item.description + "' " +
                     "data-additionalinfo='" + item.additional_info + "' " +
                     "data-health='" + item.health + "' " +
+                    "data-damage='" + item.damage + "' " +
                     "data-drops='" + item.drops + "' " +
                     "><img src='" + item.image + "'/>";
                 html += "</div>";
@@ -751,6 +948,48 @@ function displayLocationItems(location)
                 var locationItem = $(html);
                 locationItem.draggable({helper: 'clone', revert: 'invalid'});
                 locationItem.appendTo(container);
+                container.appendTo(target);
+            });
+        }
+    ).fail(function(res){
+        alert("Error: " + res.getResponseHeader("error"));
+    });
+}
+
+
+function displayLocationCharacters(location)
+{
+    console.log(Date.now() + ' displayLocationCharacters at x:' + location.attributes['x'] + " y: " + location.attributes['y']);
+    characters = [];
+    location.attributes.characters.forEach(function(thisCharacter) {
+        characters.push(thisCharacter.id);
+    });
+
+    $.get(
+        '/fetchCharacters',
+        { "ids": JSON.stringify(characters) },
+        function (data) {
+            var target = $('#characterList').html("");
+
+            data.forEach(function(item) {
+                var container = $("<div style='display: inline-block; padding: 2px;'></div>");
+                var html = "<div class='propertiesPanelItem draggable ui-widget-content' " +
+                    "data-id='" + item.id + "' " +
+                    "data-name='" + item.name + "' " +  // eg; "turnip stealer"
+                    "data-category='character' " +
+                    "data-type='" + item.type + "' " +  // eg; "iron boar"
+                    "data-description='" + item.description + "' " +
+                    "data-additionalInfo='" + item.additionalInfo + "' " +
+                    "data-health='" + item.health + "' " +
+                    "data-damage='" + item.damage + "' " +
+                    "data-drops='" + item.drops + "' " +
+                    "data-x='" + location.attributes['x'] + "' " +
+                    "data-y='" + location.attributes['y'] + "' " +
+                    "><img src='" + item.image + "'/>";
+                html += "</div>";
+                var locationCharacter = $(html);
+                locationCharacter.draggable({helper: 'clone', revert: 'invalid'});
+                locationCharacter.appendTo(container);
                 container.appendTo(target);
             });
         }

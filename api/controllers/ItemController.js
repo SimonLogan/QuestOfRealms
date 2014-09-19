@@ -112,8 +112,6 @@ module.exports = {
      * (specific to CharacterController)
      */
     _config: {}
-
-
 };
 /**
  * Created by Simon on 29/03/2014.
