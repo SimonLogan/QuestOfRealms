@@ -23,6 +23,10 @@ var MainController = {
         return res.view();
     },
 
+    credits: function (req, res) {
+        return res.view();
+    },
+
     loadEnvPalette: function(req, res) {
         sails.log.info("in loadEnvPalette");
         var terrainData = [];

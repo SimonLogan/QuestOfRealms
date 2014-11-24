@@ -33,6 +33,11 @@ module.exports.routes = {
         action: 'index'
     },
 
+    '/credits' : {
+        controller: 'main',
+        action: 'credits'
+    },
+
     '/loadEnvPalette' : {
         controller: 'main',
         action: 'loadEnvPalette'
