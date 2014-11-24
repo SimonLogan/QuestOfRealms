@@ -91,6 +91,125 @@ $(document).ready(function() {
         }
     });
 
+    /* Dialogs */
+
+    // The edit item dialog
+    $(function() {
+        var dialog, form,
+            name = $("#editItemName"),
+            description = $("#editItemDescription"),
+            damage = $("#editItemDamage"),
+            allFields = $([]).add(name).add(description).add(damage);
+
+        function save() {
+            var selectedItem = $('#itemList').find(".propertiesPanelItem.selected");
+            saveItem(
+                selectedItem.attr('data-id'),
+                $('#editItemName').val().trim(),
+                $('#editItemDescription').val(),
+                $('#editItemDamage').val(),
+                function () {
+                    dialog.dialog("close");
+                    var selectedMapCell = $('#characterList').find(".propertiesPanelItem.selected");
+                    populateMapLocationDetails(locations, selectedMapCell, false);
+                }
+            );
+        };
+
+        dialog = $("#editItemDialog").dialog({
+            autoOpen: false,
+            height: 600,
+            width: 525,
+            modal: true,
+            buttons: {
+                "Save": save,
+                Cancel: function() {
+                    dialog.dialog("close");
+                }
+            },
+            close: function() {
+                form[0].reset();
+                allFields.removeClass("ui-state-error");
+            }
+        });
+
+        form = dialog.find("form").on("submit", function(event) {
+            event.preventDefault();
+            save();
+        });
+
+        $("#editItemProperties").on( "click", function() {
+            $('#editItemName').val($('#itemName').val());
+            $('#editItemType').val($('#itemType').text());
+            $('#editItemDescription').val($('#itemDescription').text());
+            $('#editItemDamage').val($('#itemDamage').text());
+            dialog.dialog("open");
+        });
+    });
+
+    // The edit character dialog.
+    $(function() {
+        var dialog, form,
+            name = $("#editCharacterName"),
+            description = $("#editCharacterDescription"),
+            addInfo = $("#editCharacterAddInfo"),
+            damage = $("#editCharacterDamage"),
+            health = $("#editCharacterHealth"),
+            drops = $("#editCharacterDrops"),
+            allFields = $([]).add(name).add(description).add(addInfo).add(health).add(damage).add(drops);
+
+        function save() {
+            var selectedCharacter = $('#characterList').find(".propertiesPanelItem.selected");
+            saveCharacter(
+                selectedCharacter.attr('data-id'),
+                $('#editCharacterName').val().trim(),
+                $('#editCharacterDescription').val(),
+                $('#editCharacterAddInfo').val(),
+                $('#editCharacterDamage').val(),
+                $('#editCharacterHealth').val(),
+                $('#editCharacterDrops').val(),
+                function () {
+                    dialog.dialog("close");
+                    var selectedMapCell = $('#characterList').find(".propertiesPanelItem.selected");
+                    populateMapLocationDetails(locations, selectedMapCell, false);
+                }
+            );
+        };
+
+        dialog = $("#editCharacterDialog").dialog({
+            autoOpen: false,
+            height: 600,
+            width: 525,
+            modal: true,
+            buttons: {
+                "Save": save,
+                Cancel: function() {
+                    dialog.dialog("close");
+                }
+            },
+            close: function() {
+                form[0].reset();
+                allFields.removeClass("ui-state-error");
+            }
+        });
+
+        form = dialog.find("form").on("submit", function(event) {
+            event.preventDefault();
+            save();
+        });
+
+        $("#editCharacterProperties").on( "click", function() {
+            $('#editCharacterName').val($('#characterName').val());
+            $('#editCharacterType').val($('#characterType').text());
+            $('#editCharacterDescription').val($('#characterDescription').text());
+            $('#editCharacterAddInfo').val($('#characterAddInfo').text());
+            $('#editCharacterDamage').val($('#characterDamage').text());
+            $('#editCharacterHealth').val($('#characterHealth').text());
+            $('#editCharacterDrops').val($('#characterDrops').text());
+            dialog.dialog("open");
+        });
+    });
+
     var MapLocationCollection = QuestCollection.extend({
         questCollection: 'maplocation',
         model: MapLocationModel
@@ -114,7 +233,7 @@ $(document).ready(function() {
         },
         render: function(item) {
             if (item != undefined) {
-                console.log("in view.render, received new " + JSON.stringify(item));
+                console.log("in view.render:  " + JSON.stringify(item));
 
                 // Update the local display with the message data.
                 var target = $('#mapTable td[id="cell_' + item.attributes.y + '_' + item.attributes.x + '"]').find('div');
@@ -129,7 +248,7 @@ $(document).ready(function() {
             }
         },
         remove: function(item) {
-            console.log("in view.remove");
+            console.log("in view.remove: " + JSON.stringify(item));
             var target = $('#mapTable td[id="cell_' + item.attributes.y + '_' + item.attributes.x + '"]').find('div');
             target.html('');
 
@@ -137,7 +256,7 @@ $(document).ready(function() {
             target.removeClass('draggable mapItem');
         },
         change: function(item) {
-            console.log("in view.render, received change " + JSON.stringify(item));
+            console.log("in view.change:  " + JSON.stringify(item));
 
             // Update the local display with the message data.
             var target = $('#mapTable td[id="cell_' + item.attributes.y + '_' + item.attributes.x + '"]').find('div');
@@ -149,8 +268,16 @@ $(document).ready(function() {
             target.addClass('draggable mapItem');
             target.draggable({helper: 'clone', revert: 'invalid'});
 
-            // Populate the relevant location properties
-            populateLocationDetails(locations, item, true);
+            // Populate the relevant location properties if this location is currently
+            // open in the properties window.
+            // use $('#propertiesPanel').attr('data-id');  and look up the location
+            // or add x and y attributes to the propertiesPanel.
+            var selectedMapCell = $('#mapTable').find(".mapItem.selected");
+            if ((selectedMapCell.length > 0) &&
+                (selectedMapCell.attr('data-x') === item.attributes['x']) &&
+                (selectedMapCell.attr('data-y') === item.attributes['y'])) {
+                populateLocationDetails(locations, item, true);
+            }
         }
     });
 
@@ -289,6 +416,7 @@ $(document).ready(function() {
                 $(this).addClass('selected');
                 $('#propertiesPanelTitle').text("Edit location properties");
                 populateMapLocationDetails(locations, $(this), false);
+                enableLocationEdits();
             }
         } else if ($(this).attr('data-x') === selectedMapCell.attr('data-x') &&
                    $(this).attr('data-y') === selectedMapCell.attr('data-y')) {
@@ -296,6 +424,7 @@ $(document).ready(function() {
             selectedMapCell.closest('td').css('border-color', '');
             selectedMapCell.removeClass('selected');
             $('#propertiesPanelTitle').text("Location properties");
+            disableLocationEdits();
         } else if ($(this).attr('data-x') !== selectedMapCell.attr('data-x') ||
                    $(this).attr('data-y') !== selectedMapCell.attr('data-y')) {
             // Click in a different cell to edit it.
@@ -313,6 +442,7 @@ $(document).ready(function() {
             $(this).addClass('selected');
             $('#propertiesPanelTitle').text("Edit location properties");
             populateMapLocationDetails(locations, $(this), false);
+            enableLocationEdits();
             console.log("3");
         }
     });
@@ -321,11 +451,15 @@ $(document).ready(function() {
         var listName = 'itemList';
         var populateFunction = populateLocationItemDetails;
         var clearFunction = clearLocationItemDetails;
+        var enableEditsFunction = enableLocationItemEdits;
+        var disableEditsFunction = disableLocationItemEdits;
         if ($('#propertiesInnerPanel').tabs('option', 'active') === 2)
         {
             listName = 'characterList';
             populateFunction = populateLocationCharacterDetails;
             clearFunction = clearLocationCharacterDetails;
+            enableEditsFunction = enableLocationCharacterEdits;
+            disableEditsFunction = disableLocationCharacterEdits;
         }
 
         var selectedItem = $('#' + listName).find(".propertiesPanelItem.selected");
@@ -337,12 +471,14 @@ $(document).ready(function() {
                 $(this).closest('div').css('border-color', 'red');
                 $(this).addClass('selected');
                 populateFunction($(this));
+                enableEditsFunction();
             }
         } else if ($(this).attr('data-id') === selectedItem.attr('data-id')) {
             // Click again in the selected item to cancel edit mode.
             selectedItem.closest('div').css('border-color', '');
             selectedItem.removeClass('selected');
             clearFunction();
+            disableEditsFunction();
         } else if ($(this).attr('data-id') !== selectedItem.attr('data-id')) {
             // Click in a different item to edit it.
 
@@ -354,6 +490,7 @@ $(document).ready(function() {
             $(this).closest('div').css('border-color', 'red');
             $(this).addClass('selected');
             populateFunction($(this));
+            enableEditsFunction();
         }
     });
 
@@ -402,37 +539,34 @@ $(document).ready(function() {
     $(document).on('change', '.itemProperty', function() {
         console.log("itemProperty change");
         var selectedItem = $('#itemList').find(".propertiesPanelItem.selected");
-        $.post(
-            '/editItem',
-            {
-                id: selectedItem.attr('data-id'),
-                name: $('#itemName').val().trim()
-            },
-            function (data) {
+        saveItem(
+            selectedItem.attr('data-id'),
+            $('#itemName').val().trim(),
+            $('#itemDescription').text(),
+            $('#itemDamage').text(),
+            function () {
                 var selectedMapCell = $('#itemList').find(".propertiesPanelItem.selected");
                 populateMapLocationDetails(locations, selectedMapCell, false);
             }
-        ).fail(function(res){
-            alert("Error: " + res.getResponseHeader("error"));
-        });
+        );
     });
 
     $(document).on('change', '.characterProperty', function() {
         console.log("characterProperty change");
         var selectedCharacter = $('#characterList').find(".propertiesPanelItem.selected");
-        $.post(
-            '/editCharacter',
-            {
-                id: selectedCharacter.attr('data-id'),
-                name: $('#characterName').val().trim()
-            },
-            function (data) {
+        saveCharacter(
+            selectedCharacter.attr('data-id'),
+            $('#characterName').val().trim(),
+            $('#characterDescription').text(),
+            $('#characterAddInfo').text(),
+            $('#characterDamage').text(),
+            $('#characterHealth').text(),
+            $('#characterDrops').text(),
+            function () {
                 var selectedMapCell = $('#characterList').find(".propertiesPanelItem.selected");
                 populateMapLocationDetails(locations, selectedMapCell, false);
             }
-        ).fail(function(res){
-            alert("Error: " + res.getResponseHeader("error"));
-        });
+        );
     });
 });
 
@@ -562,7 +696,8 @@ function addItemToLocation(droppedItem, location)
         {
             type: droppedItem.attr('data-type'),
             name: '',
-            description: '',
+            description: droppedItem.attr('data-description'),
+            damage: droppedItem.attr('data-damage'),
             image: droppedItem.find('img').attr('src')
         },
         function (data) {
@@ -574,6 +709,24 @@ function addItemToLocation(droppedItem, location)
     });
 }
 
+
+function saveItem(id, name, description, damage, callback)
+{
+    $.post(
+        '/editItem',
+        {
+            id: id,
+            name: name,
+            description: description,
+            damage: damage
+        },
+        function (data) {
+            callback();
+        }
+    ).fail(function(res){
+        alert("Error: " + res.getResponseHeader("error"));
+    });
+}
 
 function removeAllCharactersFromLocation(collection, location)
 {
@@ -670,6 +823,28 @@ function addCharacterToLocation(droppedCharacter, location)
 }
 
 
+function saveCharacter(id, name, description, additionalInfo, damage, health, drops, callback)
+{
+    $.post(
+        '/editCharacter',
+        {
+            id: id,
+            name: name,
+            description: description,
+            additionalInfo: additionalInfo,
+            damage: damage,
+            health: health,
+            drops: drops
+        },
+        function (data) {
+            callback();
+        }
+    ).fail(function(res){
+        alert("Error: " + res.getResponseHeader("error"));
+    });
+}
+
+
 // Populate the properties window for the specified palette item.
 // params:
 //   paletteItem: the palette item.
@@ -718,17 +893,52 @@ function clearPaletteDetails()
 }
 
 
+function disableLocationItemEdits()
+{
+    $('#itemName').prop('disabled', true);
+    $('#itemType').prop('disabled', true);
+    $('#itemDescription').prop('disabled', true);
+    $('#editItemProperties').prop('disabled', true).attr('src', 'images/pencil43-disabled.png');
+}
+
+
+function enableLocationItemEdits()
+{
+    $('#itemName').prop('disabled', false);
+    $('#itemType').prop('disabled', false);
+    $('#itemDescription').prop('disabled', false);
+    $('#editItemProperties').prop('disabled', false).attr('src', 'images/pencil43.png');
+}
+
+
 function populateLocationItemDetails(item)
 {
     $('#itemName').val(item.attr('data-name'));
-    $('#itemDescription').text(item.attr('data-type'));
+    $('#itemType').text(item.attr('data-type'));
+    $('#itemDescription').text(item.attr('data-description'));
+    $('#itemDamage').text(item.attr('data-damage'));
 }
 
 
 function clearLocationItemDetails(item)
 {
     $('#itemName').val('');
+    $('#itemType').text('');
     $('#itemDescription').text('');
+}
+
+
+function enableLocationCharacterEdits()
+{
+    $('#characterName').prop('disabled', false);
+    $('#editCharacterProperties').prop('disabled', false).attr('src', 'images/pencil43.png');
+}
+
+
+function disableLocationCharacterEdits()
+{
+    $('#characterName').prop('disabled', true);
+    $('#editCharacterProperties').prop('disabled', true).attr('src', 'images/pencil43-disabled.png');
 }
 
 
@@ -746,7 +956,7 @@ function populateLocationCharacterDetails(character)
 
 function clearLocationCharacterDetails(character)
 {
-    $('#characteName').val('');
+    $('#characterName').val('');
     $('#characterType').text('');
     $('#characterDescription').text('');
     $('#characterAddInfo').text('');
@@ -770,6 +980,18 @@ function populateMapLocationDetails(locationCollection, location, allDetails)
 }
 
 
+function disableLocationEdits()
+{
+    $('#locationName').prop('disabled', true);
+}
+
+
+function enableLocationEdits()
+{
+    $('#locationName').prop('disabled', false);
+}
+
+
 // Populate the properties window for the specified location.
 // params:
 //   locationCollection: the collection of locations to search.
@@ -785,9 +1007,12 @@ function populateLocationDetails(locationCollection, location, allDetails)
     $('#characterSummary').text(location.attributes.characters.length);
     $('#itemSummary').text(location.attributes.items.length);
 
-    // Can we get these directly from the current cell's items[] collection?
+    disableLocationEdits();
+
     displayLocationItems(location);
     displayLocationCharacters(location);
+    disableLocationItemEdits();
+    disableLocationCharacterEdits();
 }
 
 
@@ -941,6 +1166,8 @@ function displayLocationItems(location)
                     "data-name='" + item.name + "' " +  // eg; "the sword of destiny"
                     "data-category='item' " +
                     "data-type='" + item.type + "' " +  // eg; "long sword"
+                    "data-description='" + item.description + "' " +  // eg; "useful for killing orcs"
+                    "data-damage='" + item.damage + "' " +
                     "data-x='" + location.attributes['x'] + "' " +
                     "data-y='" + location.attributes['y'] + "' " +
                     "><img src='" + item.image + "'/>";
@@ -954,6 +1181,8 @@ function displayLocationItems(location)
     ).fail(function(res){
         alert("Error: " + res.getResponseHeader("error"));
     });
+
+    $('#itemName').prop('disabled', true);
 }
 
 
@@ -996,4 +1225,6 @@ function displayLocationCharacters(location)
     ).fail(function(res){
         alert("Error: " + res.getResponseHeader("error"));
     });
+
+    $('#characterName').prop('disabled', true);
 }

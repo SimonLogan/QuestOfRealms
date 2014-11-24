@@ -48,13 +48,14 @@ module.exports = {
 
     editCharacter: function(req, res) {
         var characterName = req.param("name");
-        var characterType = req.param("type");
+        var id = req.param("id");
+        //var characterType = req.param("type");
         var characterDescription = req.param("description");
         var characterAdditionalInfo = req.param("additionalInfo");
         var characterDamage = req.param("damage");
         var characterHealth = req.param("health");
         var characterDrops = req.param("drops");
-        var characterImage = req.param("image");
+        //var characterImage = req.param("image");
         sails.log.info("in editCharacter, name = " + characterName + ", id = " + id);
         Character.find({'_id': id}).done(function(err, character) {
             sails.log.info("in editCharacter.find() callback");
@@ -66,13 +67,13 @@ module.exports = {
                 if (character) {
                     sails.log.info("in editCharacter.find() callback, " + JSON.stringify(character));
                     character[0].name = characterName;
-                    character[0].type = characterType;
+                    //character[0].type = characterType;
                     character[0].description = characterDescription;
                     character[0].additionalInfo = characterAdditionalInfo;
                     character[0].damage = characterDamage;
                     character[0].health = characterHealth;
                     character[0].drops = characterDrops;
-                    character[0].image = characterImage;
+                    //character[0].image = characterImage;
                     character[0].save(function(err) {
                         sails.log.info("after save, " + JSON.stringify(err));
                     });

@@ -9,6 +9,8 @@ Realm Designer
 
 <link rel="stylesheet" href="//code.jquery.com/ui/1.10.4/themes/smoothness/jquery-ui.css">
 <link rel="stylesheet" href="/styles/editRealm.css">
+<script src="//code.jquery.com/jquery-1.10.2.js"></script>
+<script src="//code.jquery.com/ui/1.11.1/jquery-ui.js"></script>
 
 <div id="workArea">
     <div id="toolsPanel" style="float:left; margin-right:5px;">
@@ -102,7 +104,7 @@ Realm Designer
                         <div>
                             <table>
                                 <tr>
-                                    <th class="detailsHeading">Name:</th><td><input type="text" id="locationName" class="locationProperty" /></td>
+                                    <th class="detailsHeading">Name:</th><td><input type="text" id="locationName" class="locationProperty" disabled/></td>
                                 </tr>
                                 <tr>
                                     <th class="detailsHeading">Environment:</th><td><label id="envType" value="" class="locationProperty" /></td>
@@ -125,12 +127,21 @@ Realm Designer
                         <div>
                             <table>
                                 <tr>
-                                    <th class="detailsHeading">Name:</th><td><input type="text" id="itemName" class="itemProperty" /></td>
+                                    <th class="detailsHeading">Name:</th><td><input type="text" id="itemName" class="itemProperty" disabled /></td>
+                                </tr>
+                                <tr>
+                                    <th class="detailsHeading">Type:</th><td><label id="itemType" value="" class="itemProperty" /></td>
                                 </tr>
                                 <tr>
                                     <th class="detailsHeading">Description:</th><td><label id="itemDescription" value="" class="itemProperty" /></td>
                                 </tr>
+                                <tr>
+                                    <th class="detailsHeading">Damage:</th><td><label id="itemDamage" value="" class="itemProperty" /></td>
+                                </tr>
                             </table>
+                        </div>
+                        <div style="margin-top:10px; border-top: 1px solid gray;">
+                            <input type="image" id="editItemProperties" src="images/pencil43-disabled.png" style="margin-top: 10px;" disabled/>
                         </div>
                     </div>
                 </div>
@@ -142,7 +153,7 @@ Realm Designer
                         <div>
                             <table>
                                 <tr>
-                                    <th class="detailsHeading">Name:</th><td><input type="text" id="characterName" class="characterProperty" /></td>
+                                    <th class="detailsHeading">Name:</th><td><input type="text" id="characterName" class="characterProperty" disabled /></td>
                                 </tr>
                                 <tr>
                                     <th class="detailsHeading">Type:</th><td><label id="characterType" value="" class="characterProperty" /></td>
@@ -165,6 +176,9 @@ Realm Designer
                             </table>
                         </div>
                     </div>
+                    <div style="margin-top:10px; border-top: 1px solid gray;">
+                        <input type="image" id="editCharacterProperties" src="images/pencil43-disabled.png" style="margin-top: 10px;" disabled/>
+                    </div>
                 </div>
             </div>
         </div>
@@ -182,6 +196,59 @@ Realm Designer
             </div>
         </div>
         <div class="droppable" id="wastebasket"><img src="images/wastebasket.png" /></div>
+    </div>
+
+    <div id="editItemDialog" title="Edit Item">
+        <form>
+            <fieldset>
+                <dl>
+                    <dt><label for="editItemName">Name:</label></dt>
+                    <dd><input type="text" name="editItemName" id="editItemName" value="" class="text ui-widget-content ui-corner-all"></dd>
+
+                    <dt><label for="editItemType">Type:</label></dt>
+                    <dd><input type="text" name="editItemType" id="editItemType" value="" class="text ui-widget-content ui-corner-all" readonly></dd>
+
+                    <dt><label for="editItemDescription">Description:</label></dt>
+                    <dd><textarea name="editItemDescription" id="editItemDescription" value="" class="text ui-widget-content ui-corner-all"></textarea></dd>
+
+                    <dt><label for="editItemDamage">Damage:</label></dt>
+                    <dd><input type="text" name="editItemDamage" id="editItemDamage" value="" class="text ui-widget-content ui-corner-all"></dd>
+                </dl>
+                <!-- Allow form submission with keyboard without duplicating the dialog button -->
+                <input type="submit" tabindex="-1" style="position:absolute; top:-1000px">
+            </fieldset>
+        </form>
+    </div>
+
+    <div id="editCharacterDialog" title="Edit Character">
+        <form>
+            <fieldset>
+                <dl>
+                    <dt><label for="editCharacterName">Name:</label></dt>
+                    <dd><input type="text" name="editCharacterName" id="editCharacterName" value="" class="text ui-widget-content ui-corner-all"></dd>
+
+                    <dt><label for="editCharacterType">Type:</label></dt>
+                    <dd><input type="text" name="editCharacterType" id="editCharacterType" value="" class="text ui-widget-content ui-corner-all" readonly></dd>
+
+                    <dt><label for="editCharacterDescription">Description:</label></dt>
+                    <dd><textarea name="editCharacterDescription" id="editCharacterDescription" value="" class="text ui-widget-content ui-corner-all"></textarea></dd>
+
+                    <dt><label for="editCharacterAddInfo">Additional Info:</label></dt>
+                    <dd><textarea name="editCharacterAddInfo" id="editCharacterAddInfo" value="" class="text ui-widget-content ui-corner-all"></textarea></dd>
+
+                    <dt><label for="editCharacterDamage">Damage:</label></dt>
+                    <dd><input type="text" name="editCharacterDamage" id="editCharacterDamage" value="" class="text ui-widget-content ui-corner-all"></dd>
+
+                    <dt><label for="editCharacterHealth">Health:</label></dt>
+                    <dd><input type="text" name="editCharacterHealth" id="editCharacterHealth" value="" class="text ui-widget-content ui-corner-all"></dd>
+
+                    <dt><label for="editCharacterDrops">Drops:</label></dt>
+                    <dd><input type="text" name="editCharacterDrops" id="editCharacterDrops" value="" class="text ui-widget-content ui-corner-all"></dd>
+                </dl>
+                <!-- Allow form submission with keyboard without duplicating the dialog button -->
+                <input type="submit" tabindex="-1" style="position:absolute; top:-1000px">
+            </fieldset>
+        </form>
     </div>
 </div>
 

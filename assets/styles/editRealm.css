@@ -12,3 +12,16 @@ th.detailsHeading {
     text-align: right;
     vertical-align: top;
 }
+
+form dt {
+    clear:both;
+    width:33%;
+    float:left;
+    text-align:right;
+}
+
+form dd {
+    float:left;
+    width:66%;
+    margin:0 0 0.5em 0.25em;
+}

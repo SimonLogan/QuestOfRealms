@@ -22,11 +22,13 @@ module.exports = {
         var itemName = req.param("name");
         var itemType = req.param("type");
         var itemDescription = req.param("description");
+        var itemDamage = req.param("damage");
         var itemImage = req.param("image");
         sails.log.info("in createItem, name = " + itemName + ", type = " + itemType);
         Item.create({name: itemName,
                      type: itemType,
                      description: itemDescription,
+                     damage: itemDamage,
                      image: itemImage}).done(function(error, item) {
             if (error) {
                 sails.log.error("DB Error:" + error);
@@ -41,6 +43,8 @@ module.exports = {
     editItem: function(req, res) {
         var itemName = req.param("name");
         var id = req.param("id");
+        var itemDescription = req.param("description");
+        var itemDamage = req.param("damage");
         sails.log.info("in editItem, name = " + itemName + ", id = " + id);
         Item.find({'_id': id}).done(function(err, item) {
             sails.log.info("in editItem.find() callback");
@@ -52,6 +56,8 @@ module.exports = {
                 if (item) {
                     sails.log.info("in editItem.find() callback, " + JSON.stringify(item));
                     item[0].name = itemName;
+                    item[0].description = itemDescription;
+                    item[0].damage = itemDamage;
                     item[0].save(function(err) {
                         sails.log.info("after save, " + JSON.stringify(err));
                     });
