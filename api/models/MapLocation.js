@@ -15,7 +15,8 @@ module.exports = {
         terrain: 'STRING',
         weather: 'STRING',
         items: 'ARRAY',
-        characters: 'ARRAY'
+        characters: 'ARRAY',
+        startLocation: 'BOOLEAN'
     }
 
 };

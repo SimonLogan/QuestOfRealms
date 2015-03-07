@@ -1,0 +1,32 @@
+Objectives editor
+=================
+
+1. Need to be able to set the game start position
+2. Need to set an objective for completing the game.
+   Initially support objective types:
+   - Reach location
+
+
+Create game
+===========
+
+1. What you create in the game editor is a game template. To actually play a game you need to clone the template.
+- How to do this in mongo? In an SQL db I'd just copy all rows in each table an increment the gameId column.
+  In mongo do I need to iterate through all the documents fixing up links manually?
+2. I haven't decided whether you'll create a game from the game menu (with a list of templates) or from
+   the templates menu (with a "Create game" option on each).
+
+
+Game menu
+=========
+
+1. List existing games.
+2. Play existing game.
+   2.1 Needs map window and command window.
+   2.2 Initially support only commands:
+   - Move : move to new location.
+            When you enter a location it must give a high-level description.
+   - Look : with arg "around". Look around means describe your current location in detail.
+   2.3 Eventually may have chat window to chat to other players.
+   2.4 When does game finish: when all objectives are complete.
+3. Decide on model: client-side logic with pubsub like the designer, or server-side command-srived logic.

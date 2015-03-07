@@ -21,19 +21,7 @@ $(document).ready(function() {
     var realmId = $('#realmId').val();
 
     // Draw an empty map grid.
-    var mapTable = $('#mapTable');
-    var tableContents = '';
-    for (var y = 0; y < realmHeight; y++) {
-        tableContents += '<tr id="row_' + y + '">';
-        for (var x = 0; x < realmWidth; x++) {
-            tableContents += '<td id="cell_' + y + '_' + x + '"> ' +
-                '<div class="droppable" style="width:50px; height:50px;" ' +
-                'data-x="' + x + '" data-y="' + y + '" data-env=""></div>' +
-                '</td>';
-        }
-        tableContents += '</tr>';
-    }
-    mapTable.html(tableContents);
+    drawMapGrid(realmWidth, realmHeight);
 
     // Create the tabbed panels and load the data.
     $(function() {
@@ -138,7 +126,7 @@ $(document).ready(function() {
             save();
         });
 
-        $("#editItemProperties").on( "click", function() {
+        $("#editItemProperties").click(function() {
             $('#editItemName').val($('#itemName').val());
             $('#editItemType').val($('#itemType').text());
             $('#editItemDescription').val($('#itemDescription').text());
@@ -198,7 +186,7 @@ $(document).ready(function() {
             save();
         });
 
-        $("#editCharacterProperties").on( "click", function() {
+        $("#editCharacterProperties").click(function() {
             $('#editCharacterName').val($('#characterName').val());
             $('#editCharacterType').val($('#characterType').text());
             $('#editCharacterDescription').val($('#characterDescription').text());
@@ -209,6 +197,67 @@ $(document).ready(function() {
             dialog.dialog("open");
         });
     });
+
+    // The add objective dialog.
+    $(function() {
+        var dialog, form,
+            type = $("#objectiveChoice"),
+            allFields = $([]).add(type);
+
+        function save() {
+            /*
+            var selectedCharacter = $('#characterList').find(".propertiesPanelItem.selected");
+            saveCharacter(
+                selectedCharacter.attr('data-id'),
+                $('#editCharacterName').val().trim(),
+                $('#editCharacterDescription').val(),
+                $('#editCharacterAddInfo').val(),
+                $('#editCharacterDamage').val(),
+                $('#editCharacterHealth').val(),
+                $('#editCharacterDrops').val(),
+                function () {
+                    dialog.dialog("close");
+                    var selectedMapCell = $('#characterList').find(".propertiesPanelItem.selected");
+                    populateMapLocationDetails(locations, selectedMapCell, false);
+                }
+            );
+            */
+        };
+
+        dialog = $("#editObjectiveDialog").dialog({
+            autoOpen: false,
+            height: 600,
+            width: 525,
+            modal: true,
+            buttons: {
+                "Save": save,
+                Cancel: function() {
+                    dialog.dialog("close");
+                }
+            },
+            close: function() {
+                form[0].reset();
+                allFields.removeClass("ui-state-error");
+            }
+        });
+
+        form = dialog.find("form").on("submit", function(event) {
+            event.preventDefault();
+            save();
+        });
+
+        $("#addObjective").click(function() {
+            $('#editCharacterName').val($('#characterName').val());
+            $('#editCharacterType').val($('#characterType').text());
+            $('#editCharacterDescription').val($('#characterDescription').text());
+            $('#editCharacterAddInfo').val($('#characterAddInfo').text());
+            $('#editCharacterDamage').val($('#characterDamage').text());
+            $('#editCharacterHealth').val($('#characterHealth').text());
+            $('#editCharacterDrops').val($('#characterDrops').text());
+            dialog.dialog("open");
+        });
+    });
+
 
     var MapLocationCollection = QuestCollection.extend({
         questCollection: 'maplocation',
@@ -236,7 +285,7 @@ $(document).ready(function() {
                 console.log("in view.render:  " + JSON.stringify(item));
 
                 // Update the local display with the message data.
-                var target = $('#mapTable td[id="cell_' + item.attributes.y + '_' + item.attributes.x + '"]').find('div');
+                var target = $('#mapTable td[id="cell_' + item.attributes.x + '_' + item.attributes.y + '"]').find('div');
                 target.attr('data-env', item.attributes.environment);
                 target.attr('data-id', item.id);
                 target.html('');
@@ -249,7 +298,7 @@ $(document).ready(function() {
         },
         remove: function(item) {
             console.log("in view.remove: " + JSON.stringify(item));
-            var target = $('#mapTable td[id="cell_' + item.attributes.y + '_' + item.attributes.x + '"]').find('div');
+            var target = $('#mapTable td[id="cell_' + item.attributes.x + '_' + item.attributes.y + '"]').find('div');
             target.html('');
 
             // To allow it to be dragged to the wastebasket.
@@ -259,8 +308,13 @@ $(document).ready(function() {
             console.log("in view.change:  " + JSON.stringify(item));
 
             // Update the local display with the message data.
-            var target = $('#mapTable td[id="cell_' + item.attributes.y + '_' + item.attributes.x + '"]').find('div');
+            var target = $('#mapTable td[id="cell_' + item.attributes.x + '_' + item.attributes.y + '"]').find('div');
             target.attr('data-env', item.attributes.environment);
+
+            if (item.attributes.startLocation !== undefined) {
+                target.attr('data-startLocation', item.attributes.startLocation);
+            }
+
             target.html('');
             target.append('<img src="images/' + item.attributes.environment + '.png" />');
 
@@ -323,7 +377,7 @@ $(document).ready(function() {
                     x: target.attr('data-x'), y:target.attr('data-y')});
 
                 if (droppedItemNewLocation.length === 0) {
-                    // Dropped at item onto an empty map location.
+                    // Dropped an item onto an empty map location.
                     // Create the new location if dragging an environment.
                     if ((droppedItem.is('.paletteItem') && droppedItem.attr('data-category') === "environment") ||
                         droppedItem.is('.mapItem'))
@@ -366,17 +420,29 @@ $(document).ready(function() {
             return;
 
         console.log("mouseenter .paletteItem");
-        var tabData = {class: PaletteItemType.ENV, data: envData};
-        if ($('#paletteInnerPanel').tabs('option', 'active') === 1)
-            tabData = {class: PaletteItemType.ITEM, data: itemData};
-        else if ($('#paletteInnerPanel').tabs('option', 'active') === 2)
-            tabData = {class: PaletteItemType.CHARACTER, data: characterData};
+        var tabData = {};
+        var activeTab = $('#paletteInnerPanel').tabs('option', 'active');
+        switch (activeTab) {
+            case PaletteItemType.ENV:
+                tabData = {class: activeTab, data: envData};
+                break;
+            case PaletteItemType.ITEM:
+                tabData = {class: activeTab, data: itemData};
+                break;
+            case PaletteItemType.CHARACTER:
+                tabData = {class: activeTab, data: characterData};
+                break;
+            default:
+                console.log("Got invalid active tab " + activeTab);
+                return;
+        }
 
         var paletteItem = findPaletteItemByName(tabData.data, $(this).attr('data-type'));
         populatePaletteDetails(tabData.class, paletteItem);
     });
 
     $(document).on('mouseleave', '.paletteItem', function() {
+        console.log("mouseleave .paletteItem");
         clearPaletteDetails();
     });
 
@@ -574,6 +640,62 @@ $(document).ready(function() {
 //
 // Utility functions
 //
+
+function drawMapGrid(realmWidth, realmHeight)
+{
+    var mapTable = $('#mapTable');
+    var tableContents = '';
+
+    /* Being an html table, it has to be drawn from the top left to
+       bottom right, but we want to label the cells with the origin
+       at the bottom left.
+    */
+
+    // Allow an extra cell at the top and bottom of the table for the cell labels.
+    for (var yCounter = realmHeight +1; yCounter >= 0; yCounter--) {
+        if ((yCounter === realmHeight +1) || (yCounter === 0)) {
+            tableContents += '<tr>';
+        } else {
+            tableContents += '<tr id="row_' + yCounter + '">';
+        }
+
+        // Allow an extra cell at the start of the row for the cell labels.
+        tableContents += '<td style="border-style: none">';
+        if ((yCounter === realmHeight +1) || (yCounter === 0)) {
+            tableContents += '<div>&nbsp;</div>';
+        } else {
+            tableContents += '<div style="width:50px; height:50px; line-height:50px; text-align:center;">' + yCounter + '</div>';
+        }
+        tableContents += '</td>';
+
+        // Draw the columns.
+        for (var xCounter = 1; xCounter <= realmWidth; xCounter++) {
+            // Draw the column labels in the top and bottom rows.
+            if ((yCounter === 0) || (yCounter === realmHeight +1)) {
+                tableContents += '<td style="border-style: none"><div style="width:50px; height:50px; line-height:50px; text-align:center;">' + xCounter + '</div></td>';
+            } else {
+                // Draw the regular map cells.
+                tableContents += '<td id="cell_' + xCounter + "_" + yCounter + '"> ' +
+                '<div class="droppable" style="width:50px; height:50px;" ' +
+                'data-x="' + xCounter + '" data-y="' + yCounter + '" data-env=""></div>' +
+                '</td>';
+            }
+        }
+
+        // Allow an extra cell at the end of the row for the cell labels.
+        tableContents += '<td style="border-style: none">';
+        if ((yCounter === realmHeight +1) || (yCounter === 0)) {
+            tableContents += '<div>&nbsp;</div>';
+        } else {
+            tableContents += '<div style="width:50px; height:50px; line-height:50px; text-align:center;">' + yCounter + '</div>';
+        }
+        tableContents += '</td>';
+
+        tableContents += '</tr>';
+    }
+    mapTable.html(tableContents);
+}
+
 
 function addMapLocation(realmId, collection, droppedItem, originalLocation, newLocation)
 {
@@ -873,22 +995,29 @@ function populatePaletteDetails(paletteItemClass, paletteItem)
 function clearPaletteDetails()
 {
     var activeTab = $('#paletteInnerPanel').tabs('option', 'active');
-    if (0 === activeTab) {
-        $('#paletteEnvType').text('');
-        $('#paletteEnvDescription').text('');
-    }
-    else if (1 === activeTab) {
-        $('#paletteItemType').text('');
-        $('#paletteItemDescription').text('');
-        $('#paletteItemDamage').text('');
-    }
-    else if (2 === activeTab) {
-        $('#paletteCharacterType').text('');
-        $('#paletteCharacterDescription').text('');
-        $('#paletteCharacterAddInfo').text('');
-        $('#paletteCharacterHealth').text('');
-        $('#paletteCharacterDamage').text('');
-        $('#paletteCharacterDrops').text('');
+    switch (activeTab) {
+        case PaletteItemType.ENV:
+            $('#paletteEnvType').text('');
+            $('#paletteEnvDescription').text('');
+            break;
+
+        case PaletteItemType.ITEM:
+            $('#paletteItemType').text('');
+            $('#paletteItemDescription').text('');
+            $('#paletteItemDamage').text('');
+            break;
+
+        case PaletteItemType.CHARACTER:
+            $('#paletteCharacterType').text('');
+            $('#paletteCharacterDescription').text('');
+            $('#paletteCharacterAddInfo').text('');
+            $('#paletteCharacterHealth').text('');
+            $('#paletteCharacterDamage').text('');
+            $('#paletteCharacterDrops').text('');
+            break;
+
+        default:
+            console.log("Got invalid active tab " + activeTab);
     }
 }
 

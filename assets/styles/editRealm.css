@@ -25,3 +25,8 @@ form dd {
     width:66%;
     margin:0 0 0.5em 0.25em;
 }
+
+#mapTable, #mapTable th, #mapTable td {
+    border: 1px solid black;
+    border-collapse: collapse;
+}

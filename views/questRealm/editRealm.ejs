@@ -16,7 +16,7 @@ Realm Designer
     <div id="toolsPanel" style="float:left; margin-right:5px;">
         <div id="palettePanel" style="clear:both;">
             <div id="palettePanelTitle" style="font-weight: bold">Palette</div>
-            <div id="paletteInnerPanel" style="width:300px; min-height: 250px; font-family: arial, sans-serif; font-size: 12px;">
+            <div id="paletteInnerPanel" style="width:330px; min-height: 250px; font-family: arial, sans-serif; font-size: 12px;">
                 <ul>
                     <li><a href="#palette-environment">Environment</a></li>
                     <li><a href="#palette-items">Items</a></li>
@@ -93,7 +93,7 @@ Realm Designer
 
         <div id="propertiesPanel" style="clear:both;">
             <div id="propertiesPanelTitle" style="margin-top: 20px; font-weight: bold">Location properties</div>
-            <div id="propertiesInnerPanel" style="width:300px; min-height: 250px;font-family: arial, sans-serif; font-size: 12px;">
+            <div id="propertiesInnerPanel" style="width:330px; min-height: 250px;font-family: arial, sans-serif; font-size: 12px;">
                 <ul>
                     <li><a href="#properties-overview">Overview</a></li>
                     <li><a href="#properties-items">Items</a></li>
@@ -182,20 +182,41 @@ Realm Designer
                 </div>
             </div>
         </div>
+
+
     </div>
 
-    <div id="workPanel">
+    <div id="workPanel" style="margin: 10px;">
         <div id="mapPanel">
             <div>
                 <input type="hidden" id="realmWidth" value="<%= realm.width %>" />
                 <input type="hidden" id="realmHeight" value="<%= realm.height %>" />
                 <div id = "mapContainer">
-                    <table id="mapTable" border="1">
+                    <table id="mapTable" style="border-spacing:1px; border-collapse:collapse">
                     </table>
                 </div>
             </div>
         </div>
         <div class="droppable" id="wastebasket"><img src="images/wastebasket.png" /></div>
+    </div>
+
+    <div id="objectivesPanel" style="float:left; margin-right:5px;">
+        <div id="objectivesPanel1" style="clear:both;">
+            <div id="objectivesPanelTitle" style="margin-top: 20px; font-weight: bold">Objectives</div>
+            <div id="objectivesPanel2" style="width:300px; min-height: 250px; font-family: arial, sans-serif; font-size: 12px;" class="ui-widget-content ui-corner-all">
+                <div id="objectiveChoicePanel" style="padding: 5px;">
+                    <input type="button" id="addObjective" value="Add Objective">
+                </div>
+                <div id="objectiveListPanel" style="padding: 5px;">
+                    <table id="objectiveList" style="border: 1px;">
+                        <tr style="background-color: lightgray">
+                            <th>Objective type</th>
+                            <th>Details</th>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="editItemDialog" title="Edit Item">
@@ -250,6 +271,24 @@ Realm Designer
             </fieldset>
         </form>
     </div>
+
+    <div id="editObjectiveDialog" title="Edit Objective">
+        <form>
+            <fieldset>
+                <dl>
+                    <div id="objectiveChoicePanel" style="padding: 5px;">
+                        <span id="objectiveChoiceLabel">Objective:</span>
+                        <select id="objectiveChoice">
+                            <option id="rule-startPos">Starting Position</option>
+                        </select>
+                    </div>
+                </dl>
+                <!-- Allow form submission with keyboard without duplicating the dialog button -->
+                <input type="submit" tabindex="-1" style="position:absolute; top:-1000px">
+            </fieldset>
+        </form>
+    </div>
+
 </div>
 
 

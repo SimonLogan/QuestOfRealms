@@ -101,8 +101,12 @@ module.exports.routes = {
     '/fetchCharacters' : {
         controller: 'character',
         action: 'fetchCharacters'
-    }
+    },
 
+    '/createRule' : {
+        controller: 'rule',
+        action: 'createRule'
+    }
 
   // By default, your root route (aka home page) points to a view
   // located at `views/home/index.ejs`
