@@ -8,6 +8,7 @@
 var envData;
 var itemData;
 var characterData;
+var objectiveData;
 
 PaletteItemType = {
     ENV : 0,
@@ -32,6 +33,7 @@ $(document).ready(function() {
     loadEnvPalette();
     loadItemsPalette();
     loadCharactersPalette();
+    loadObjectivesPalette();
 
     var MapLocationModel = Backbone.Model.extend({
         urlRoot: '/maplocation'
@@ -198,31 +200,39 @@ $(document).ready(function() {
         });
     });
 
-    // The add objective dialog.
+    // The edit objective dialog.
     $(function() {
         var dialog, form,
             type = $("#objectiveChoice"),
             allFields = $([]).add(type);
 
         function save() {
-            /*
-            var selectedCharacter = $('#characterList').find(".propertiesPanelItem.selected");
-            saveCharacter(
-                selectedCharacter.attr('data-id'),
-                $('#editCharacterName').val().trim(),
-                $('#editCharacterDescription').val(),
-                $('#editCharacterAddInfo').val(),
-                $('#editCharacterDamage').val(),
-                $('#editCharacterHealth').val(),
-                $('#editCharacterDrops').val(),
-                function () {
-                    dialog.dialog("close");
-                    var selectedMapCell = $('#characterList').find(".propertiesPanelItem.selected");
-                    populateMapLocationDetails(locations, selectedMapCell, false);
-                }
-            );
-            */
-        };
+            var target = $('#objectiveParamsPanel');
+            var paramNames = target.find('th');
+            var paramValues = target.find('td input');
+            var saveParams = [];
+            $.each(target.find('th'), function(index) {
+                saveParams.push({
+                    name: $(paramNames[index]).text(),
+                    value: $(paramValues[index]).val()
+                });
+            });
+
+            if (saveParams.length > 0) {
+                var dropdown = $('#objectiveChoice');
+
+                saveObjective(
+                    dropdown.val(),
+                    dropdown.find('option:selected').text(),
+                    dropdown.find('option:selected').attr('title'),
+                    JSON.stringify(saveParams),
+                    function () {
+                        dialog.dialog("close");
+                        displayObjectives();
+                    }
+                );
+            }
+        }
 
         dialog = $("#editObjectiveDialog").dialog({
             autoOpen: false,
@@ -247,17 +257,32 @@ $(document).ready(function() {
         });
 
         $("#addObjective").click(function() {
-            $('#editCharacterName').val($('#characterName').val());
-            $('#editCharacterType').val($('#characterType').text());
-            $('#editCharacterDescription').val($('#characterDescription').text());
-            $('#editCharacterAddInfo').val($('#characterAddInfo').text());
-            $('#editCharacterDamage').val($('#characterDamage').text());
-            $('#editCharacterHealth').val($('#characterHealth').text());
-            $('#editCharacterDrops').val($('#characterDrops').text());
             dialog.dialog("open");
+        });
+
+        $('#objectiveChoice').change(function() {
+            var selectedObjectiveType = $('#objectiveChoice').val();
+            var html = "<table>";
+            objectiveData[selectedObjectiveType -1].parameters.forEach(function (item) {
+                html += "<tr><th class='detailsHeading'>" + item.name + "</th>";
+                html += "<td><input type='text'/></td></tr>";
+            });
+
+            $('#objectiveParamsPanel').html(html);
         });
     });
 
+    $(document).on('click', '.deleteObjective', function(e) {
+        var target = $(e.target.closest('tr'));
+        var deleteId = target.attr('id');
+        //var deleteType = target.attr('data-value');
+        deleteObjective(
+            deleteId,
+            function () {
+                displayObjectives();
+            }
+        );
+    });
 
     var MapLocationCollection = QuestCollection.extend({
         questCollection: 'maplocation',
@@ -268,6 +293,8 @@ $(document).ready(function() {
     // Load the existing data. We may choose not to do this if we are going to provide
     // a /loadData API.
     locations.fetch({ where: { realmId: realmId } });
+
+    displayObjectives();
 
     _.templateSettings = {
         interpolate : /\{\{(.+?)\}\}/g
@@ -967,6 +994,41 @@ function saveCharacter(id, name, description, additionalInfo, damage, health, dr
 }
 
 
+function saveObjective(id, name, description, params, callback)
+{
+    $.post(
+        '/createObjective',
+        {
+            type: id,
+            name: name,
+            description: description,
+            params: params
+        },
+        function (data) {
+            callback();
+        }
+    ).fail(function(res){
+        alert("Error: " + res.getResponseHeader("error"));
+    });
+}
+
+
+function deleteObjective(id, callback)
+{
+    $.post(
+        '/deleteObjective',
+        {
+            id: id
+        },
+        function (data) {
+            callback();
+        }
+    ).fail(function(res){
+        alert("Error: " + res.getResponseHeader("error"));
+    });
+}
+
+
 // Populate the properties window for the specified palette item.
 // params:
 //   paletteItem: the palette item.
@@ -1181,6 +1243,17 @@ function findPaletteItemByName(data, searchName) {
 }
 
 
+/*
+function findObjectiveByType(data, searchType) {
+    for (var i = 0, len = data.length; i < len; i++) {
+        if (data[i].type === searchType)
+            return data[i]; // Return as soon as the object is found
+    }
+
+    return null; // The object was not found
+}
+*/
+
 function loadEnvPalette() {
     $.get(
         '/loadEnvPalette',
@@ -1274,6 +1347,59 @@ function loadCharactersPalette() {
 }
 
 
+function loadObjectivesPalette() {
+    $.get(
+        '/loadObjectivesPalette',
+        function (data) {
+            objectiveData = data;
+            var html = "<option value='0' title='choose' disabled selected>Choose</option>";
+
+            data.forEach(function(item) {
+                html += "<option value='" + item.type + "' ";
+                html += "title='" + item.description + "' ";
+                html += ">" + item.name + "</option>";
+            });
+
+            $('#objectiveChoice').html(html);
+        }
+    ).fail(function(res){
+        alert("Error: " + res.getResponseHeader("error"));
+    });
+}
+
+
+// Check whether the starting position objective has been set.
+// Other objectives cannot be added until this has been done.
+// The start-at objective cannot be deleted if others exist.
+function checkObjectivePriority() {
+    if ($('#objectiveList').find('.objectiveName[data-value="1"]').length > 0) {
+        // The starting position has been set.
+        // Prevent adding this objective again. Enable adding the other
+        // objective types.
+        $('#objectiveChoice').find('option[value="1"]').prop('disabled', true);
+        $('#objectiveChoice').find('option').filter(function() {
+            return $(this).attr("value") > "1"; }).each(function process() {
+               $(this).prop('disabled', false);});
+
+        // Prevent deletion of the starting position objective if others exist.
+        if ($('#objectiveList td.objectiveName').filter(function() {
+            return $(this).attr("data-value") > "1"; }).length > 0) {
+            $('#objectiveList td.objectiveName[data-value="1"]').closest('tr').find('.deleteObjective').prop('disabled', true);
+        } else {
+            $('#objectiveList td.objectiveName[data-value="1"]').closest('tr').find('.deleteObjective').prop('disabled', false);
+        }
+    } else {
+        // The starting position has not been set.
+        // Allow adding this objective. Disable adding the other
+        // objective types.
+        $('#objectiveChoice').find('option[value="1"]').prop('disabled', false);
+        $('#objectiveChoice').find('option').filter(function() {
+            return $(this).attr("value") > "1"; }).each(function process() {
+            $(this).prop('disabled', true);});
+    }
+}
+
+
 function displayLocationItems(location)
 {
     console.log(Date.now() + ' displayLocationItems at x:' + location.attributes['x'] + " y: " + location.attributes['y']);
@@ -1356,4 +1482,50 @@ function displayLocationCharacters(location)
     });
 
     $('#characterName').prop('disabled', true);
+}
+
+
+function displayObjectiveDetails(item) {
+    var description = "";
+    switch (parseInt(item.type)) {
+        case 1: // start at
+        case 2: // navigate to
+            $.each(item.params, function(thisParam){
+                description += item.params[thisParam].name + ":" + item.params[thisParam].value + ", ";
+            });
+
+            description = description.substr(0, description.lastIndexOf(", "));
+            break;
+    }
+
+    return description;
+}
+
+
+function displayObjectives()
+{
+    console.log(Date.now() + ' displayObjectives');
+
+    $.get(
+        '/fetchObjectives',
+        function (data) {
+            var target = $('#objectiveList').html("");
+            var html = "";
+
+            data.forEach(function(item) {
+                html += "<tr id='" + item.id + "'>";
+                html += "<td class='objectiveName' data-value='" + item.type + "'>" + item.name + "</td>";
+                html += "<td class='objectiveDetails'>" + displayObjectiveDetails(item) + "</td>";
+                html += "<td><input class='deleteObjective' type='image' src='images/wastebasket.png' alt='Delete' width='14' height='14'></td>";
+                html += "</tr>";
+            });
+
+            target.append(html);
+            checkObjectivePriority();
+        }
+    ).fail(function(res){
+        alert("Error: " + res.getResponseHeader("error"));
+    });
+
+    $('#itemName').prop('disabled', true);
 }

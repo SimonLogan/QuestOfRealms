@@ -41,7 +41,7 @@ var MainController = {
         terrainData.push(
             {
                 type: "water",
-                image: "images/water.png",
+                image: "images/water2.png",
                 description: "Lake or ocean. You need a boat to cross this."
             }
         );
@@ -49,7 +49,7 @@ var MainController = {
         terrainData.push(
             {
                 type: "mountains",
-                image: "images/mountains.png",
+                image: "images/mountains2.png",
                 description: "Not much grows here."
             }
         );
@@ -142,6 +142,36 @@ var MainController = {
         );
 
         res.send(characterData);
+    },
+
+    loadObjectivesPalette: function(req, res) {
+        sails.log.info("in loadObjectivesPalette");
+        var objectivesData = [];
+        objectivesData.push(
+            {
+                type: 1,
+                name: "Start at",
+                description: "Where you start the game.",
+                parameters: [
+                    {name: "x", type: "int"},
+                    {name: "y", type: "int"}
+                ]
+            }
+        );
+
+        objectivesData.push(
+            {
+                type: 2,
+                name: "Navigate to",
+                description: "Navigate to a specified map location.",
+                parameters: [
+                    {name: "x", type: "int"},
+                    {name: "y", type: "int"}
+                ]
+            }
+        );
+
+        res.send(objectivesData);
     },
 
   /**

@@ -53,6 +53,11 @@ module.exports.routes = {
         action: 'loadCharactersPalette'
     },
 
+    '/loadObjectivesPalette' : {
+        controller: 'main',
+        action: 'loadObjectivesPalette'
+    },
+
     '/createRealm' : {
         controller: 'questRealm',
         action: 'createRealm'
@@ -106,9 +111,24 @@ module.exports.routes = {
     '/createRule' : {
         controller: 'rule',
         action: 'createRule'
+    },
+
+    '/createObjective' : {
+        controller: 'objective',
+        action: 'createObjective'
+    },
+
+    '/deleteObjective' : {
+        controller: 'objective',
+        action: 'deleteObjective'
+    },
+
+    '/fetchObjectives' : {
+        controller: 'objective',
+        action: 'fetchObjectives'
     }
 
-  // By default, your root route (aka home page) points to a view
+    // By default, your root route (aka home page) points to a view
   // located at `views/home/index.ejs`
   // 
   // (This would also work if you had a file at: `/views/home.ejs`)
