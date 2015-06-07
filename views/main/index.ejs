@@ -1,3 +1,4 @@
+<link rel="stylesheet" href="/styles/index.css">
 <script type="text/javascript" src="/js/index.js"></script>
 
 <h1>Quest of Realms</h1>
@@ -5,13 +6,23 @@
 <div><a href="credits">Credits</a></div>
 <div style="margin-top: 10px;">Start page</div>
 
-<div id="buttonPanel" style="margin-top: 10px;">
-    <input type="button" id="ShowCreateFormButton" value="New Realm" />
-    <div id="realmDetailsContainer" style="display: none;">
-        <span><label for="realmName">name:</label><input type="text" id="realmName" /></span>
-        <span><label for="realmWidth">width:</label><input type="number" id="realmWidth" /></span>
-        <span><label for="realmHeight">height:</label><input type="number" id="realmHeight" /></span>
-        <span><input type="button" id="CreateButton" value="Create!" /></span>
+<br>
+
+<div id="realmDesignsPanel">
+    <h2>Existing Realm Designs</h2>
+    <div id="realmList"></div>
+</div>
+
+<div id="createRealmDesignPanel" style="margin-top: 20px;">
+    <hr/>
+    <h2>Design New Realm</h2>
+    <input type="button" id="showCreateRealmDesignButton" value="Start" />
+    <div id="realmDesignContainer" style="display: none;">
+        <div class="inputRow"><label class="inputLabel" for="realmName">Name:</label><input type="text" id="realmName" /></div>
+        <div class="inputRow"><label class="inputLabel" for="realmDescription">Description:</label><input type="text" id="realmDescription" /></div>
+        <div class="inputRow"><label class="inputLabel" for="realmWidth">Width:</label><input type="number" id="realmWidth" /></div>
+        <div class="inputRow"><label class="inputLabel" for="realmHeight">Height:</label><input type="number" id="realmHeight" /></div>
+        <div class="inputRow"><input type="button" id="createButton" value="Create!" /></div>
     </div>
 </div>
 

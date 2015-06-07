@@ -68,6 +68,16 @@ module.exports.routes = {
         action: 'editRealm'
     },
 
+    '/deleteRealm' : {
+        controller: 'questRealm',
+        action: 'deleteRealm'
+    },
+
+    '/fetchRealms' : {
+        controller: 'questRealm',
+        action: 'fetchRealms'
+    },
+
     '/createItem' : {
         controller: 'item',
         action: 'createItem'
@@ -106,11 +116,6 @@ module.exports.routes = {
     '/fetchCharacters' : {
         controller: 'character',
         action: 'fetchCharacters'
-    },
-
-    '/createRule' : {
-        controller: 'rule',
-        action: 'createRule'
     },
 
     '/createObjective' : {
