@@ -225,6 +225,7 @@ $(document).ready(function() {
                     dropdown.val(),
                     dropdown.find('option:selected').text(),
                     dropdown.find('option:selected').attr('title'),
+                    $('#realmId').val(),
                     JSON.stringify(saveParams),
                     function () {
                         dialog.dialog("close");
@@ -994,7 +995,7 @@ function saveCharacter(id, name, description, additionalInfo, damage, health, dr
 }
 
 
-function saveObjective(id, name, description, params, callback)
+function saveObjective(id, name, description, realmId, params, callback)
 {
     $.post(
         '/createObjective',
@@ -1002,6 +1003,7 @@ function saveObjective(id, name, description, params, callback)
             type: id,
             name: name,
             description: description,
+            realmId: realmId,
             params: params
         },
         function (data) {
@@ -1508,6 +1510,7 @@ function displayObjectives()
 
     $.get(
         '/fetchObjectives',
+        { "realmId": $('#realmId').val() },
         function (data) {
             var target = $('#objectiveList').html("");
             var html = "";

@@ -5,6 +5,7 @@
 $(document).ready(function() {
     // Fetch existing realm designs
     loadRealmDesigns();
+    loadGames();
 
     // Allow creation of new realm designs
     $('#showCreateRealmDesignButton').click(function() {
@@ -13,7 +14,7 @@ $(document).ready(function() {
         $('#createButton').prop('disabled', false);
     });
 
-    $('#createButton').click(function() {
+    $('#createRealmButton').click(function() {
         createRealmDesign();
     });
 });
@@ -28,7 +29,8 @@ function loadRealmDesigns() {
             header += "<th class='realmListDescription'>Description</th>";
             header += "<th>Create Date</th>";
             header += "<th>Edit</th>";
-            header += "<th>Delete</th></tr>";
+            header += "<th>Delete</th>";
+            header += "<th>Create Game</th></tr>";
 
             var row = 0;
             var body = "";
@@ -41,12 +43,20 @@ function loadRealmDesigns() {
                 body += "<td>" + item.updatedAt + "</td>";
                 body += "<td><input type='button' class='editRealDesign' value='Edit'/></td>";
                 body += "<td><input type='button' class='deleteRealDesign' value='Delete'/></td>";
+                body += "<td><input type='button' class='launchGameWizard' value='Create Game'/></td>";
                 body += "</tr>";
             });
+
+            if (0 == row) {
+                $('#realmDesignsPanel').hide();
+            } else {
+                $('#realmDesignsPanel').show();
+            }
 
             $('#realmList').html("");
             $('.editRealDesign').off();
             $('.deleteRealDesign').off();
+            $('.launchGameWizard').off();
 
             if (body.length > 0) {
                 $('#realmList').html(header + body);
@@ -57,6 +67,56 @@ function loadRealmDesigns() {
 
                 $('.deleteRealDesign').on('click', function () {
                     deleteRealmDesign($(this));
+                });
+
+                $('.launchGameWizard').on('click', function () {
+                    launchGameWizard($(this));
+                });
+            }
+        }
+    ).fail(function(res){
+        alert("Error: " + res.getResponseHeader("error"));
+    });
+}
+
+
+function loadGames() {
+    $.get(
+        '/fetchGames',
+        function (data) {
+            var header = "<table class='realmList'>";
+            header += "<tr><th class='realmListName'>Name</th>";
+            header += "<th class='realmListDescription'>Description</th>";
+            header += "<th>Create Date</th>";
+            header += "<th>Delete</th></tr>";
+
+            var row = 0;
+            var body = "";
+            data.forEach(function(game) {
+                var rowClass = "realmListOddRow";
+                if (0 == (++row % 2)) rowClass = "realmListEvenRow";
+                body += "<tr id='" + game.id + "' class='" + rowClass + "'>";
+                body += "<td>" + game.name + "</td>";
+                body += "<td>" + game.description + "</td>";
+                body += "<td>" + game.updatedAt + "</td>";
+                body += "<td><input type='button' class='deleteGame' value='Delete'/></td>";
+                body += "</tr>";
+            });
+
+            if (0 == row) {
+                $('#gamesPanel').hide();
+            } else {
+                $('#gamesPanel').show();
+            }
+
+            $('#gameList').html("");
+            $('.deleteGame').off();
+
+            if (body.length > 0) {
+                $('#gameList').html(header + body);
+
+                $('.deleteGame').on('click', function () {
+                    deleteGame($(this));
                 });
             }
         }
@@ -109,3 +169,51 @@ function createRealmDesign() {
         alert("Error: " + res.getResponseHeader("error"));
     });
 }
+
+
+function launchGameWizard(target) {
+    var parentRealmId = target.closest('tr').attr('id');
+    $('#createGamePanel').show();
+    $('#createGameButton').off();
+    $('#createGameButton').on('click', function () {
+        createGame(parentRealmId);
+    });
+}
+
+
+function createGame(parentRealmId) {
+    var gameName = $('#gameName').val().trim();
+    var gameDesc = $('#gameDescription').val().trim();
+
+    $.post(
+        '/createGame',
+        {
+            name: gameName,
+            description: gameDesc,
+            parentRealmId: parentRealmId
+        },
+        function (data) {
+            loadGames();
+        }
+    ).fail(function(res){
+        alert("Error: " + res.getResponseHeader("error"));
+    });
+}
+
+
+function deleteGame(target) {
+    var name = $(target.closest('tr').find('td')[0]).text();
+    var id = target.closest('tr').attr('id');
+    if (confirm("Are you sure you want to delete game " + name)) {
+        $.post(
+            '/deleteGame',
+            {id: id},
+            function (data) {
+                loadGames();
+            }
+        ).fail(function(res){
+                alert("Error: " + JSON.parse(res.responseText).error);
+            });
+    }
+}
+

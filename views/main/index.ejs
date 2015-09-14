@@ -9,12 +9,11 @@
 <br>
 
 <div id="realmDesignsPanel">
-    <h2>Existing Realm Designs</h2>
+    <h2>Realm Designs</h2>
     <div id="realmList"></div>
 </div>
 
 <div id="createRealmDesignPanel" style="margin-top: 20px;">
-    <hr/>
     <h2>Design New Realm</h2>
     <input type="button" id="showCreateRealmDesignButton" value="Start" />
     <div id="realmDesignContainer" style="display: none;">
@@ -22,7 +21,23 @@
         <div class="inputRow"><label class="inputLabel" for="realmDescription">Description:</label><input type="text" id="realmDescription" /></div>
         <div class="inputRow"><label class="inputLabel" for="realmWidth">Width:</label><input type="number" id="realmWidth" /></div>
         <div class="inputRow"><label class="inputLabel" for="realmHeight">Height:</label><input type="number" id="realmHeight" /></div>
-        <div class="inputRow"><input type="button" id="createButton" value="Create!" /></div>
+        <div class="inputRow"><input type="button" id="createRealmButton" value="Create!" /></div>
     </div>
 </div>
 
+<hr/>
+
+<div id="gamesPanel">
+    <h2>Games</h2>
+    <div id="gameList"></div>
+</div>
+
+<div id="createGamePanel" style="margin-top: 20px; display: none">
+    <h2>Create New Game</h2>
+    <div id="newGameContainer">
+        <input type="hidden" id="parentRealmId" value="" />
+        <div class="inputRow"><label class="inputLabel" for="gameName">Game Name:</label><input type="text" id="gameName" /></div>
+        <div class="inputRow"><label class="inputLabel" for="gameDescription">Description:</label><input type="text" id="gameDescription" /></div>
+        <div class="inputRow"><input type="button" id="createGameButton" value="Create!" /></div>
+    </div>
+</div>

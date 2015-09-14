@@ -9,12 +9,14 @@ module.exports = {
         var objectiveType = req.param("type");
         var objectiveName = req.param("name");
         var description = req.param("description");
+        var realmId = req.param("realmId");
         var params = JSON.parse(req.param("params"));
         sails.log.info("in createObjective, type = " + objectiveType);
         Objective.create({
             type: objectiveType,
             name: objectiveName,
             description: description,
+            realmId: realmId,
             params: params}).done(function(error, item) {
             if (error) {
                 sails.log.error("DB Error:" + error);
@@ -42,8 +44,9 @@ module.exports = {
     },
 
     fetchObjectives: function(req, res) {
-        Objective.find().done(function(err, objectives) {
-            sails.log.info("in Objective.find() callback");
+        var realmId = req.param("realmId");
+        Objective.find({"realmId": realmId}).done(function(err, objectives) {
+            sails.log.info("in Objective.find(" + realmId + ") callback");
             if (err) {
                 sails.log.info("in Objective.find() callback, error. " + err);
                 res.send(500, { error: "DB Error1" + err });
