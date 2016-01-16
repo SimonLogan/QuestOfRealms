@@ -193,11 +193,20 @@ function createGame(parentRealmId) {
             parentRealmId: parentRealmId
         },
         function (data) {
+            cleanAndHideCreateGamePanel();
             loadGames();
         }
     ).fail(function(res){
         alert("Error: " + res.getResponseHeader("error"));
     });
+}
+
+
+function cleanAndHideCreateGamePanel()
+{
+    var panel = $('#createGamePanel');
+    panel.hide();
+    panel.find('input[type=text]').val('');
 }
 
 

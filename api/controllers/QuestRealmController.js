@@ -132,7 +132,6 @@ var QuestRealmController = {
     },
 
     createGame: function(req, res) {
-        // TODO: use async for all the object hierarchy cloning. This isn't working reliably.
         var gameName = req.param("name");
         var gameDescription = req.param("description");
         var parentRealmId = req.param("parentRealmId");
@@ -146,16 +145,18 @@ var QuestRealmController = {
                 sails.log.error("DB Error:" + error);
                 res.send(500, {error: "DB Error:" + error});
             } else {
-                sails.log.info("created game " + game.name);
-                if (copyMapLocations(game, parentRealmId)) {
-                    sails.log.info("copied maplocations");
-                    if (copyObjectives(game, parentRealmId)) {
-                        sails.log.info("copied objectives");
-                        sails.log.info("leaving createGame() " + game.name);
-                        res.send(game);
+                async.parallel([
+                    function(callback) {
+                        copyMapLocations(game, parentRealmId, callback);
+                    },
+                    function(callback) {
+                        copyObjectives(game, parentRealmId, callback);
                     }
-                }
-
+                ],
+                function(err) {
+                    sails.log.info("createGame, finished parallel. err: " + err);
+                    res.send(game);
+                });
             }
         });
     },
@@ -312,34 +313,39 @@ function deleteCharacters(location) {
     return true;
 }
 
-function copyObjectives(game, parentRealmId) {
+function copyObjectives(game, parentRealmId, objectivesCopiedCallback) {
     sails.log.info("in copyObjectives. game.id = " + game.id + ", parentRealmId = " + parentRealmId);
+
     Objective.find({"realmId": parentRealmId}).done(function(err, objectives) {
         sails.log.info("in copyObjectives.find() callback");
         if (err) {
             sails.log.info("in copyObjectives.find() callback, error. " + err);
-            return false;
+            objectivesCopiedCallback("in copyObjectives.find() callback, error. " + err);
         } else {
             sails.log.info("in copyObjectives.find() callback, no error.");
-            var result = true;
             if (objectives) {
                 sails.log.info("in copyObjectives.find() locations: " + JSON.stringify(objectives));
-
-                objectives.forEach(function(objective) {
-                    sails.log.info("in copyObjectives.find() location:  " + JSON.stringify(objective));
-                    copyObjective(game, objective);
-                });
+                async.each(objectives, function(objective, objectiveCallback) {
+                        sails.log.info("copy objective: " + JSON.stringify(objective));
+                        copyObjective(game, objective, objectiveCallback);
+                    },
+                    function(err) {
+                        sails.log.info("finished copyObjectives. err: " + err);
+                        objectivesCopiedCallback(err);
+                    });
             } else {
                 sails.log.info("in copyObjectives.find() callback, none found.");
+                objectivesCopiedCallback();
                 // Should this be an error? No point in creating a game with no locations.
             }
         }
     });
 
-    return true;
+    sails.log.info("leaving copyObjectives()");
 }
 
-function copyObjective(game, objective) {
+function copyObjective(game, objective, objectiveCopiedCallback) {
+    sails.log.info("starting copyObjective " + JSON.stringify(objective));
     Objective.create({
         realmId: game.id,
         type: objective.type,
@@ -348,10 +354,10 @@ function copyObjective(game, objective) {
         params: objective.params}).done(function(error, newObjective) {
         if (error) {
             sails.log.error("DB Error:" + error);
-            res.send(500, {error: "DB Error:" + error});
+            objectiveCopiedCallback("DB Error:" + error);
         } else {
             sails.log.info("cloned objective for game " + game.name);
-            //copyItems(location, newLocation);
+            objectiveCopiedCallback();
         }
     });
 
@@ -373,35 +379,37 @@ function deleteObjectives(realm) {
     return true;
 }
 
-function copyMapLocations(game, parentRealmId) {
+function copyMapLocations(game, parentRealmId, locationsCopiedCallback) {
     sails.log.info("in copyMapLocations. game.id = " + game.id + ", parentRealmId = " + parentRealmId);
+
     MapLocation.find({"realmId": parentRealmId}).done(function(err, locations) {
         sails.log.info("in copyMapLocations.find() callback");
         if (err) {
             sails.log.info("in copyMapLocations.find() callback, error. " + err);
-            return false;
+            locationsCopiedCallback("in copyMapLocations.find() callback, error. " + err);
         } else {
             sails.log.info("in copyMapLocations.find() callback, no error.");
-            var result = true;
             if (locations) {
                 sails.log.info("in copyMapLocations.find() locations: " + JSON.stringify(locations));
-
-                locations.forEach(function(location) {
-                    sails.log.info("in copyMapLocations.find() location:  " + JSON.stringify(location));
-                    copyMapLocation(game, location);
+                async.each(locations, function(location, locationCallback) {
+                    sails.log.info("copy location: " + JSON.stringify(location));
+                    copyMapLocation(game, location, locationCallback);
+                },
+                function(err) {
+                    sails.log.info("finished copyMapLocations. err: " + err);
+                    locationsCopiedCallback(err);
                 });
             } else {
                 sails.log.info("in copyMapLocations.find() callback, none found.");
+                locationsCopiedCallback();
                 // Should this be an error? No point in creating a game with no locations.
             }
         }
     });
-
-    sails.log.info("leaving copyMapLocations()");
-    return true;
 }
 
-function copyMapLocation(game, location) {
+function copyMapLocation(game, location, locationCallback) {
+    sails.log.info("starting copyMapLocation " + JSON.stringify(location));
     MapLocation.create({
         realmId: game.id,
         x: location.x,
@@ -409,143 +417,136 @@ function copyMapLocation(game, location) {
         environment: location.environment,
         items: [],
         characters: []}).done(function(error, newLocation) {
-        if (error) {
-            sails.log.error("DB Error:" + error);
-            res.send(500, {error: "DB Error:" + error});
-        } else {
-            sails.log.info("cloned maplocation for game " + game.name);
-            copyItems(location, newLocation);
-            copyCharacters(location, newLocation);
+            if (error) {
+                sails.log.error("DB Error:" + error);
+                locationCallback("DB Error:" + error);
+            } else {
+                sails.log.info("cloned maplocation for game " + game.name);
+                async.parallel([
+                    function(itemsAndCharactersCallback) {
+                        async.map(location.items, copyItem, function (err, newItems) {
+                            if (err) {
+                                sails.log.error("Failed to clone items for location " +
+                                JSON.stringify(location) +
+                                ". Error: " + err);
+                                itemsAndCharactersCallback(err);
+                            } else {
+                                sails.log.info("cloned items for location " +
+                                JSON.stringify(location) +
+                                ". New items: " + JSON.stringify(newItems));
+                                newLocation.items = newItems;
+                                itemsAndCharactersCallback();
+                            }
+                        });
+                    },
+                    function(itemsAndCharactersCallback) {
+                        async.map(location.characters, copyCharacter, function (err, newCharacters) {
+                            if (err) {
+                                sails.log.error("Failed to clone characters for location " +
+                                JSON.stringify(location) +
+                                ". Error: " + err);
+                                itemsAndCharactersCallback(err);
+                            } else {
+                                sails.log.info("cloned characters for location " +
+                                JSON.stringify(location) +
+                                ". New characters: " + JSON.stringify(newCharacters));
+                                newLocation.characters = newCharacters;
+                                itemsAndCharactersCallback();
+                            }
+                        });
+                    }
+                ],
+                function(err) {
+                    sails.log.info("Finished copying maplocation. err: " + err);
+                    newLocation.save(function(err, obj) {
+                        if (err) {
+                            sails.log.info("in copyMapLocation() error saving location: " + err);
+                            locationCallback("in copyMapLocation() error saving location: " + err);
+                        } else {
+                            sails.log.info("in copyMapLocation() saved location: " + JSON.stringify(obj));
+                            locationCallback();
+                        }
+                    });
+                });
+            }
+        });
+}
 
-            // TODO: save newLocation after all the items and characters
-            // have been copied. How to know when to do this? I could
-            // save after each update but it would be cool to do it just once.
+function copyItem(itemRef, itemCallback) {
+    sails.log.info("cloning item: " + JSON.stringify(itemRef));
+
+    Item.findOne({"_id": itemRef.id}).done(function(err, item) {
+        sails.log.info("in copyItem.find() callback");
+        if (err) {
+            sails.log.info("in copyItem.find() callback, error. " + err);
+            itemCallback("in copyItem.find() callback, error. " + err);
+        } else {
+            sails.log.info("in copyItem.find() callback, no error.");
+            var result = true;
+            if (item) {
+                sails.log.info("in copyItem.find() item: " + JSON.stringify(item));
+
+                Item.create({
+                    name: item.name,
+                    type: item.type,
+                    description: item.description,
+                    damage: item.damage,
+                    image: item.image}).done(function(error, newItem) {
+                    if (error) {
+                        sails.log.error("DB Error:" + error);
+                        res.send(500, {error: "DB Error:" + error});
+                        itemCallback("DB Error:" + error);
+                    } else {
+                        sails.log.info("cloned item: " + JSON.stringify(newItem));
+                        itemCallback(null, newItem.id);
+                    }
+                });
+            } else {
+                sails.log.info("in copyItems.find() callback, none found.");
+                itemCallback();
+                // Should this be an error? No point in creating a game with no locations.
+            }
         }
     });
-
-    sails.log.info("leaving copyMapLocation()");
-    return true;
 }
 
-function copyItems(location, newLocation) {
-    sails.log.info("in copyItems. location.id = " + location.id + ", newLocation.id = " + newLocation.id);
+function copyCharacter(characterRef, characterCallback) {
+    sails.log.info("cloning character : " + JSON.stringify(characterRef));
 
-    location.items.forEach(function(itemRef) {
-        sails.log.info("in copyItems.find() item id:  " + JSON.stringify(itemRef));
+    Character.findOne({"_id": characterRef.id}).done(function(err, character) {
+        sails.log.info("in copyCharacter.find() callback");
+        if (err) {
+            sails.log.info("in copyCharacter.find() callback, error. " + err);
+            characterCallback("in copyCharacter.find() callback, error. " + err);
+        } else {
+            sails.log.info("in copyCharacter.find() callback, no error.");
+            if (character) {
+                sails.log.info("in copyCharacter.find() item: " + JSON.stringify(character));
 
-        Item.findOne({"_id": itemRef.id}).done(function(err, item) {
-            sails.log.info("in copyItems.find() callback");
-            if (err) {
-                sails.log.info("in copyItems.find() callback, error. " + err);
-                return false;
+                Character.create({
+                    name: character.name,
+                    type: character.type,
+                    description: character.description,
+                    additionalInfo: character.additionalInfo,
+                    damage: character.damage,
+                    health: character.health,
+                    drops: character.drops,
+                    image: character.image}).done(function(error, newCharacter) {
+                    if (error) {
+                        sails.log.error("DB Error:" + error);
+                        characterCallback("DB Error:" + error);
+                    } else {
+                        sails.log.info("cloned character: " + JSON.stringify(newCharacter));
+                        characterCallback(null, newCharacter.id);
+                    }
+                });
             } else {
-                sails.log.info("in copyItems.find() callback, no error.");
-                var result = true;
-                if (item) {
-                    sails.log.info("in copyItems.find() item: " + JSON.stringify(item));
-                    copyItem(item, newLocation);
-                    // I don't like saving newLocation after every item but I don't know
-                    // how to wait for all items to be processed.
-                    newLocation.save(function(err, obj) {
-                        if (err) {
-                            sails.log.info("in copyItems.find() error saving location: " + err);
-                        } else {
-                            sails.log.info("in copyItems.find() saved location: " + JSON.stringify(obj));
-                        }
-                    });
-                } else {
-                    sails.log.info("in copyItems.find() callback, none found.");
-                    // Should this be an error? No point in creating a game with no locations.
-                }
+                sails.log.info("in copyCharacters.find() callback, none found.");
+                characterCallback();
+                // Should this be an error? No point in creating a game with no locations.
             }
-        });
+        }
     });
-
-    sails.log.info("leaving copyItems()");
-    return true;
-}
-
-function copyItem(item, newLocation) {
-    sails.log.info("cloning item : " + JSON.stringify(item));
-    Item.create({
-        name: item.name,
-        type: item.type,
-        description: item.description,
-        damage: item.damage,
-        image: item.image}).done(function(error, newItem) {
-            if (error) {
-                sails.log.error("DB Error:" + error);
-                res.send(500, {error: "DB Error:" + error});
-            } else {
-                sails.log.info("cloned item: " + JSON.stringify(newItem));
-                newLocation.items.push(newItem.id);
-            }
-        });
-
-    sails.log.info("leaving copyItem()");
-    return true;
-}
-
-function copyCharacters(location, newLocation) {
-    sails.log.info("in copyCharacters. location.id = " + location.id + ", newLocation.id = " + newLocation.id);
-
-    location.characters.forEach(function(characterRef) {
-        sails.log.info("in copyCharacters.find() character id: " + JSON.stringify(characterRef));
-
-        Character.findOne({"_id": characterRef.id}).done(function(err, character) {
-            sails.log.info("in copyCharacters.find() callback");
-            if (err) {
-                sails.log.info("in copyCharacters.find() callback, error. " + err);
-                return false;
-            } else {
-                sails.log.info("in copyCharacters.find() callback, no error.");
-                var result = true;
-                if (character) {
-                    sails.log.info("in copyCharacters.find() item: " + JSON.stringify(character));
-                    copyCharacter(character, newLocation);
-                    // I don't like saving newLocation after every item but I don't know
-                    // how to wait for all items to be processed.
-                    newLocation.save(function(err, obj) {
-                        if (err) {
-                            sails.log.info("in copyCharacters.find() error saving location: " + err);
-                        } else {
-                            sails.log.info("in copyCharacters.find() saved location: " + JSON.stringify(obj));
-                        }
-                    });
-                } else {
-                    sails.log.info("in copyCharacters.find() callback, none found.");
-                    // Should this be an error? No point in creating a game with no locations.
-                }
-            }
-        });
-    });
-
-    sails.log.info("leaving copyCharacters()");
-    return true;
-}
-
-function copyCharacter(character, newLocation) {
-    sails.log.info("cloning character : " + JSON.stringify(character));
-    Character.create({
-        name: character.name,
-        type: character.type,
-        description: character.description,
-        additionalInfo: character.additionalInfo,
-        damage: character.damage,
-        health: character.health,
-        drops: character.drops,
-        image: character.image}).done(function(error, newCharacter) {
-            if (error) {
-                sails.log.error("DB Error:" + error);
-                res.send(500, {error: "DB Error:" + error});
-            } else {
-                sails.log.info("cloned character: " + JSON.stringify(newCharacter));
-                newLocation.characters.push(newCharacter.id);
-            }
-        });
-
-    sails.log.info("leaving copyCharacters()");
-    return true;
 }
 
 module.exports = QuestRealmController;
