@@ -10,11 +10,6 @@ Objectives editor
 Create game
 ===========
 
-1. What you create in the game editor is a game template. To actually play a game you need to clone the template.
-- How to do this in mongo? In an SQL db I'd just copy all rows in each table an increment the gameId column.
-  In mongo do I need to iterate through all the documents fixing up links manually?
-2. I haven't decided whether you'll create a game from the game menu (with a list of templates) or from
-   the templates menu (with a "Create game" option on each).
 
 
 Game menu

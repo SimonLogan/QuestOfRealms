@@ -1,0 +1,91 @@
+<html>
+<head></head>
+<body>
+
+<h1>QuestOfRealms setup procedure, Ubuntu 14</h1>
+
+<h2>Install and configure git</h2>
+From <a href="https://www.howtoforge.com/tutorial/install-git-and-github-on-ubuntu-14.04/">the howtoforge github install procedure</a>.
+<pre>
+sudo apt-get install git
+git config --global user.name "user_name"
+git config --global user.email "email_id"
+</pre>
+
+You can use the commandline tools but if you prefer a GUI you can check out <a href="https://git.wiki.kernel.org/index.php/InterfacesFrontendsAndTools#Graphical_Interfaces">a few</a>.
+<pre>
+sudo apt-get install gitk
+sudo apt-get install git-gui
+sudo apt-get install giggle
+</pre>
+
+<h2>Download the QuestOfRealms project</h2>
+Using <a href="https://git-scm.com/book/en/v2/Git-Basics-Getting-a-Git-Repository">this procedure</a>.
+<pre>
+git clone https://github.com/SimonLogan/QuestOfRealms
+</pre>
+
+Open the project using giggle
+<pre>
+cd QuestOfRealms
+giggle
+</pre>
+
+<h2>Install nodejs</h2>
+Using <a href="https://www.digitalocean.com/community/tutorials/how-to-install-node-js-on-an-ubuntu-14-04-server">this procedure</a>.
+<br/>
+On Debian-based systems like ubuntu, node needs to be installed as nodejs
+<pre>
+sudo apt-get update
+sudo apt-get install nodejs
+</pre>
+
+<h2>Install the node dependencies of QuestOfRealms</h2>
+
+<h3>Install npm</h3>
+Installing npm with "sudo apt-get install npm" seemed to cause version conflicts when I came to install sails.
+<br/>
+Installing a version of npm that is compatible with sails worked: follow <a href="http://sailsjs.org/get-started">this procedure</a>.
+
+<h3>Install sails</h3>
+Follow <a href="http://sailsjs.org/get-started#?getting-started-installation">this procedure</a>.
+
+QuestOfRelams/package.json lists the dependencies the app requires. Install these with npm
+<pre>
+cd QuestOfRealms
+npm install
+</pre>
+
+<h3>install the waterline mongodb adapter</h3>
+<pre>
+sudo npm install sails-mongo@0.9.x
+</pre>
+
+<h3>Install mongodb</h3>
+Follow <a href="https://docs.mongodb.org/manual/tutorial/install-mongodb-on-ubuntu/">this procedure</a>.
+
+<h1>Using QuestOfRealms</h1>
+Start mongodb
+<pre>sudo service mongod started</pre>
+
+Start the app
+<pre>
+cd QuestOfRealms
+sails lift
+</pre>
+
+You should see
+<pre>
+debug: --------------------------------------------------------
+debug: :: Sat Feb 06 2016 16:21:49 GMT+0000 (GMT Standard Time)
+debug:
+debug: Environment      : development
+debug: Port             : 1337
+debug: --------------------------------------------------------
+</pre>
+
+<h2>Connect to the app</h2>
+Point your browser to <a href="http://localhost:1337/">localhost:1337</a>
+
+</body>
+</html>
