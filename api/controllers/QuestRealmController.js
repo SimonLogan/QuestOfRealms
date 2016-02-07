@@ -56,7 +56,7 @@ var QuestRealmController = {
                     currentRealm = realm;
                     sails.log.info("in QuestRealm.findById() callback " + JSON.stringify(realm));
 
-                    return res.view({
+                    return res.view("questRealm/editRealm", {
                         realm: {
                             id: realm.id,
                             name: realm.name,
