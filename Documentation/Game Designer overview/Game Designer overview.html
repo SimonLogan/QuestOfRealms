@@ -1,0 +1,68 @@
+<html>
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=windows-1252">
+</head>
+
+<body lang=EN-GB link="#0563C1" vlink="#954F72" style='tab-interval:36.0pt'>
+
+Back to <a href="../QuestOfRealms%20overview.html">QuestOfRealms overview</a>
+
+<h1>Game Designer Overview</h1>
+
+<p>This is a multi-user app for designing games. A game template
+is created, from which playable game instances can be cloned.</p>
+
+<p>Ensure MongoDB is running:</p>
+<p style='margin-left:36.0pt'>windows: use the start-mongodb.bat file provided with QuestOfRealms</p>
+<p style='margin-left:36.0pt'>linux: ensure the mongod service is running)</p>
+
+<p>Launch the app (go to the QuestOfRealms directory and run &quot;sails lift&quot;).</p>
+<p>You should see something like this:</p>
+<p><img border=0 src="../QuestOfRealms%20overview_files/sails_lift.png"></p>
+
+<p>Connect your browser to localhost<span class=GramE>:1337</span>.
+You should see a page like this (click on the image for a bigger view):</p>
+<p><a href="Game%20Designer%20overview_files/frontpage1.png"><img
+border=0 src="Game%20Designer%20overview_files/frontpage1.png" width=480 height=237 title="Click for larger view"></a></p>
+
+<p>This shows existing game templates and games. To create a
+new game template, click the “start” button in the “New Realm Template” section
+and fill out the form, and click “create”. In this example we’ll create an 8x8
+map:</p>
+<p><a href="Game%20Designer%20overview_files/create_new_realm_template.png"><img
+border=0 src="Game%20Designer%20overview_files/create_new_realm_template.png" width=480 height=237 title="Click for larger view"></a></p>
+
+<p>This will launch the Realm Designer, with a map grid of the
+specified size.</p>
+<p><a href="Game%20Designer%20overview_files/realm_designer_new1.png"><img
+border=0 src="Game%20Designer%20overview_files/realm_designer_new1.png" width=511 height=345 title="Click for larger view"></a></p>
+
+<p>The map grid is surrounded by the various design tools.</p>
+<h2>Palette</h2>
+The palette tool has tabs for the categories "Environment", "Items" and "Characters" - for setting the type of landscape in a map location, or adding items and characters to map locations that have an environment set. Each tab presents a palette of the supported options in each category, and mousing-over each palette option will display its details.
+<p>
+<img border=0 src="Game%20Designer%20overview_files/palette-env.png">
+<img border=0 src="Game%20Designer%20overview_files/palette-items.png">
+<img border=0 src="Game%20Designer%20overview_files/palette-characters.png">
+
+<h2>Location Properties</h2>
+The Location properties tool has tabs for displaying information about a map location, or its items or characters. Mousing-over a map location will display the relevant properties. Clicking in a map location will allow it to be edited. The map location border will go red and the Location properties tool title will change to "Edit location properties". Clicking again will cancel edit mode for the current location, or clicking on another location will move straight to edit mode for the new location. When in edit mode, various properties on the Edit location properties tool will become editable.
+
+<p>On the Overview tab, the location name will be editable in location edit mode.
+<p><img border=0 src="Game%20Designer%20overview_files/location-overview.png">
+
+<p> The items tab displays an icon for each item in the current location. Mousing-over each will display its properties. Clicking on an item will allow it to be edited. The item border will go red and various properties will become editable. Clicking again will cancel edit mode for the current item, or clicking on another item will move straight to edit mode for the new item.
+<p><img border=0 src="Game%20Designer%20overview_files/location-items.png">
+
+<p> The characters tab displays an icon for each character in the current location. Mouse-over and edit behaviour is the same as the Items tab.
+<p><img border=0 src="Game%20Designer%20overview_files/location-characters.png">
+
+<h2>Objectives</h2>
+The objectives tool is used to create a set of objectives that must be completed in sequence before the game can bo completed. The first objective must be to set the start location, and all other options are disabled until this step has been completed, at which point it becomes disabled and the other options are enabled.
+Existing objectives can be deleted from the main objectives tool, and new ones added by pressing the "Add Objective" button, which launches the "Add Objective" dialog.
+<p></p>
+<div style="float:left; padding-right: 10px;"><img border=0 src="Game%20Designer%20overview_files/objectives.png"></div>
+<div><img border=0 src="Game%20Designer%20overview_files/objectives-dialog.png"></div>
+
+</body>
+</html>
