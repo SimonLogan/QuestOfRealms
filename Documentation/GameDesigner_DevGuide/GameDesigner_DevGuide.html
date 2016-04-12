@@ -1,0 +1,103 @@
+<html>
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=windows-1252">
+</head>
+
+<body lang=EN-GB link="#0563C1" vlink="#954F72" style='tab-interval:36.0pt'>
+
+Back to <a href="../QuestOfRealms_Overview.html">QuestOfRealms Overview</a>
+
+<h1>Game Designer Development Guide</h1>
+
+<h2>Hmm, tools you will need</h2>
+The tools you will need fall into three main areas:
+<ul>
+<li>Editing the files - you can use a plain text editor such as NotePad++ on Windows or vi or gedit on Linux perfectly well. An integrated development environment (IDE) can make the task easier by allowing you advanced features such as code navigation and refactoring. I use <a href="https://www.jetbrains.com/webstorm/">JetBrains WebStorm</a> which is <a href="https://www.jetbrains.com/buy/opensource/?product=webstorm">free for students and open-source projects.</a></li>
+<li>UI debugging and layout - any modern browser will have built-in development tools.</li>
+<li>Database inspection - This can be done using a simple command prompt, although there are probably fancier alternatives available.</li>
+</ul>
+
+<h2>Project Layout</h2>
+Sails.js is a model-view-controller (MVC) framework for building web apps. When building apps that have a user interface (UI) it is very easy to get into a mess where the code that performs the business logic is mixed in with the code that interacts with the screen. MVC is one of several approaches that have been developed to make code easier to maintain by trying to keep the display code separate from the business logic. Models are concerned with describing the data that the app works with. Views are concerned with how the data is displayed on the screen and how the user interacts with the screen. Controllers are concerned with manipulating the data in response to what the user does with the app, including communicating with the database.
+
+<p>If you've got this breakdown right then adding a new view (a screen that shows data in a different way) or changing how some business logic behaves should be easier than if the code were all munged in together.</p>
+
+<p>Read the sails documentation - it's excellent.
+<a href="http://sailsjs.org/documentation/concepts/models-and-orm">Models</a>
+<a href="http://sailsjs.org/documentation/concepts/views">Views</a>
+<a href="http://sailsjs.org/documentation/concepts/controllers">Controllers</a>
+</p>
+
+<p>The directory structure of the project as as follows. This is a standard layout for a Sails.js app. Only the most relevant parts are described here.</p>
+
+<h3>api</h3>
+API stands for "Application Programming Interface" and is the interface by which clients (like your web browser) interact with the business logic. In the case of a Sails.js app, the business logic runs on a node.js server. This can be on the same computer as the web browser, or it could be on the internet somewhere - it doesn't matter to how you write the app.
+
+<p><b>api/controllers</b>
+These handle the commands that the UI performs on the server. QuestOfRealms has controllers for dealing with characters, items, map locations etc. Each implements an API that provides calls to create, update, delete and fetch data.
+</p>
+
+<p><b>api/models</b>
+These help Sails.js know how to store your business data in the database.
+</p>
+
+<h3>assets</h3>
+This is where Sails.js stores <a href="http://sailsjs.org/documentation/concepts/assets">static files</a> that are needed by the web browser to enable client-side functionality. This can be javascript files to provide client-side interaction, <a href="https://en.wikipedia.org/wiki/Cascading_Style_Sheets">css</a> to control the appearance of your web pages, or images that are displayed in the pages.
+
+<p><b>assets/images</b>
+QuestOfRealms uses images for map location backgrounds and for the various kinds of items and characters that you can drag and drop in the realm template editor.
+
+<p><b>assets/js</b>
+The QuestOfRealms editor uses to JavaScript to control client-side interaction such as dragging and dropping items onto the real designer map, selecting and editing items and characters, and for sending messages to the server. Each screen will generally have its own javascript file.
+
+<p><b>assets/styles</b>
+This is where the cascading style sheets are defined. These allow you to customize the appearance and layout of your web pages.
+
+<h3>game-data</h3>
+This is where mongodb stores the data for the app. You don't need to edit anything in here.
+
+<h3>views</h3>
+This is where the html templates for the various pages in the app are stored. html defines the content of web pages, but has the limitation that the content must be static. Applications that require dynamic (i.e. changing) content must have a way of updating the html. This can be done on the client side (in the browser) by using JavaScript to update the page (and QuestOfRealms does this) but it is often necessary to provide templated html where placeholder tags are replaced in the html e.g.
+<pre>
+&lt;div&gt;&lt;%= customer.name %&gt;&lt;/div&gt;
+</pre>
+Sails.js implements client-side templates using <a href="http://www.embeddedjs.com/">EJS</a>
+<br>Each functional area in the QuestOfRealms app has html pages under the views folder.
+
+<h2>Functional Overview</h2>
+<h3>Main Page</h3>
+The <a href="../GameDesigner_Overview/GameDesigner_Overview_files/frontpage4.png">main page</a> use a plain html page template that contains empty tables for the realm template and games lists. This is defined in views/main/index.ejs. It uses javascript to load the data and update the html by inserting rows into the two tables. QuestOfRealms uses <a href="https://jquery.com/">jQuery</a> to make it efficient to update html dynamically. jQuery supports a special function called <code>$(document).ready()</code> that is called when the browser finishes drawing the page. The JavaScript for this page is implemented in assets/js/index.js and we tell the html that is needs this javascript by including it in the html as follows:
+<pre>&lt;script type="text/javascript" src="/js/index.js"&gt;&lt;/script&gt;</pre>
+<br>
+The index.js <code>$(document).ready()</code> function calls the <code>loadRealmDesigns()</code> and <code>loadGames()</code> functions to get the data from the server and update the page.
+
+Taking <code>loadRealmDesigns()</code> as an example:
+<br>
+First it uses the <a href="http://api.jquery.com/jquery.ajax/">jQuery <code>$.get()</code></a> function to make an <a href="https://en.wikipedia.org/wiki/Ajax_(programming)">AJAX</a> call to the server <code>/fetchRealms</code> API to load the realm templates list. This is handled by api/controllers/QuestRealmcontroller.js which returns a <a href="https://en.wikipedia.org/wiki/JSON">JSON</a> structure containing the list of reams templates.
+<br>If the call was successful, jQuery will call the <code>function (data)</code>, passing in the data from the server. This function will build the "Realm Designs" table based on the returned data.
+See the comments in assets/js/index.js for a detailed code walkthrough.
+
+<p>The main routes (server API calls) and redirects involved in this page are:</p>
+<p>
+
+<style>
+.tableEvenRow {
+   background-color: #c0c0c0;
+}
+</style>
+
+<table border="0">
+<tr style="background-color:#b0b0b0"><th>Route</th><th>Description</th></tr>
+<tr><td><code>/fetchRealms</code></td><td>Calls the <code>fetchRealms()</code> function in api/controllers/QuestRealmController.js to return a JSON list of existing Realm Designs.</td></tr>
+<tr class="tableEvenRow"><td><code>/fetchGames</code></td><td>Calls the <code>fetchGames()</code> function in api/controllers/QuestRealmController.js to return a JSON list of existing Games.</td></tr>
+<tr><td><code>/editRealm</code></td><td>This is not a server-side API call. This redirects the browser to the realm editor page.</td></tr>
+<tr class="tableEvenRow"><td><code>/deleteRealm</code></td><td>Calls the <code>deleteRealm()</code> function in api/controllers/QuestRealmController.js to delete the specified Realm Design. This will also delete all corresponding games.</td></tr>
+<tr><td><code>/createRealm</code></td><td>Calls the <code>createRealm()</code> function in api/controllers/QuestRealmController.js to create a new Realm Design.</td></tr>
+<tr class="tableEvenRow"><td><code>/createGame</code></td><td>Calls the <code>createGame()</code> function in api/controllers/QuestRealmController.js to create a new game based on the specified Realm Design.</td></tr>
+<tr><td><code>/deleteGame</code></td><td>Calls the <code>deleteGame()</code> function in api/controllers/QuestRealmController.js to delete the specified game.</td></tr>
+</table>
+</p>
+
+<h3>Realm Editor</h3>
+</body>
+</html>

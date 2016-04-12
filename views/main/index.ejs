@@ -14,14 +14,17 @@
 </div>
 
 <div id="createRealmDesignPanel" style="margin-top: 20px;">
-    <h2>New Realm Template</h2>
-    <input type="button" id="showCreateRealmDesignButton" value="Start" />
+    <input type="button" id="showCreateRealmDesignButton" value="New Realm Design" />
+
     <div id="realmDesignContainer" style="display: none;">
-        <div class="inputRow"><label class="inputLabel" for="realmName">Name:</label><input type="text" id="realmName" /></div>
-        <div class="inputRow"><label class="inputLabel" for="realmDescription">Description:</label><input type="text" id="realmDescription" /></div>
-        <div class="inputRow"><label class="inputLabel" for="realmWidth">Width:</label><input type="number" id="realmWidth" /></div>
-        <div class="inputRow"><label class="inputLabel" for="realmHeight">Height:</label><input type="number" id="realmHeight" /></div>
-        <div class="inputRow"><input type="button" id="createRealmButton" value="Create!" /></div>
+        <h2>New Realm Design</h2>
+        <div id="realmDesignForm">
+            <div class="inputRow"><label class="inputLabel" for="realmName">Name:</label><input type="text" id="realmName" /></div>
+            <div class="inputRow"><label class="inputLabel" for="realmDescription">Description:</label><input type="text" id="realmDescription" /></div>
+            <div class="inputRow"><label class="inputLabel" for="realmWidth">Width:</label><input type="number" id="realmWidth" /></div>
+            <div class="inputRow"><label class="inputLabel" for="realmHeight">Height:</label><input type="number" id="realmHeight" /></div>
+            <div class="inputRow"><input type="button" id="createRealmButton" value="Create!" /></div>
+        </div>
     </div>
 </div>
 
@@ -33,7 +36,7 @@
 </div>
 
 <div id="createGamePanel" style="margin-top: 20px; display: none">
-    <h2>Create New Game</h2>
+    <h2>New Game</h2>
     <div id="newGameContainer">
         <input type="hidden" id="parentRealmId" value="" />
         <div class="inputRow"><label class="inputLabel" for="gameName">Game Name:</label><input type="text" id="gameName" /></div>
