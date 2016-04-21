@@ -3,6 +3,7 @@
  * This file implements the interactions for the QuestOfRealms main page.
  */
 
+// When the page has finished rendering...
 $(document).ready(function() {
     // Fetch existing realm designs and games. This will populate the tables.
     loadRealmDesigns();
@@ -168,8 +169,9 @@ function editRealmDesign(target) {
     // was clicked. The jQuery selector target.closest('tr') traverses the
     // parents of the element that was clicked until it finds one of type "<tr>".
     // "window.location =" will redirect the user to the new web page. In this case
-    // the "/editRealm" is not calling a server route but rather redirects to another
-    // web page.
+    // the "/editRealm" route will render the questRealm/editRealm view instead of returning
+    // JSON data. This view will pass the realm data to views/questRealm/editRealm.ejs
+    // where it can be referenced using template parameters when drawing the page.
     window.location = "/editRealm?id=" + target.closest('tr').attr('id');
 }
 

@@ -77,7 +77,7 @@ First it uses the <a href="http://api.jquery.com/jquery.ajax/">jQuery <code>$.ge
 <br>If the call was successful, jQuery will call the <code>function (data)</code>, passing in the data from the server. This function will build the "Realm Designs" table based on the returned data.
 See the comments in assets/js/index.js for a detailed code walkthrough.
 
-<p>The main routes (server API calls) and redirects involved in this page are:</p>
+<p>The main routes (server API calls) involved in this page are:</p>
 <p>
 
 <style>
@@ -90,7 +90,7 @@ See the comments in assets/js/index.js for a detailed code walkthrough.
 <tr style="background-color:#b0b0b0"><th>Route</th><th>Description</th></tr>
 <tr><td><code>/fetchRealms</code></td><td>Calls the <code>fetchRealms()</code> function in api/controllers/QuestRealmController.js to return a JSON list of existing Realm Designs.</td></tr>
 <tr class="tableEvenRow"><td><code>/fetchGames</code></td><td>Calls the <code>fetchGames()</code> function in api/controllers/QuestRealmController.js to return a JSON list of existing Games.</td></tr>
-<tr><td><code>/editRealm</code></td><td>This is not a server-side API call. This redirects the browser to the realm editor page.</td></tr>
+<tr><td><code>/editRealm</code></td><td>Calls the <code>editRealm()</code> function in api/controllers/QuestRealmController.js to load the details of the specified Realm Design, but instead of returning a JSON data strucure it renders the view <code>questRealm/editRealm</code>, passing in the retrieved data.</td></tr>
 <tr class="tableEvenRow"><td><code>/deleteRealm</code></td><td>Calls the <code>deleteRealm()</code> function in api/controllers/QuestRealmController.js to delete the specified Realm Design. This will also delete all corresponding games.</td></tr>
 <tr><td><code>/createRealm</code></td><td>Calls the <code>createRealm()</code> function in api/controllers/QuestRealmController.js to create a new Realm Design.</td></tr>
 <tr class="tableEvenRow"><td><code>/createGame</code></td><td>Calls the <code>createGame()</code> function in api/controllers/QuestRealmController.js to create a new game based on the specified Realm Design.</td></tr>

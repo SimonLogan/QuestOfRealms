@@ -1,5 +1,6 @@
 /**
  * Created by Simon on 05/02/14.
+ * This file implements the interactions for the realm editor page.
  */
 
 // Constants
@@ -16,7 +17,23 @@ PaletteItemType = {
     CHARACTER : 2
 }
 
+// When the page has finished rendering...
 $(document).ready(function() {
+    // Get the size of the map grid that should be drawn. These values come from the HTML elements
+    // with id="realmWidth" and id="realmHeight".
+    // The jQuery selectors $(#XXX) below select the elements by id.
+    // The data was placed into these elements in the first place by the template parameters
+    //    value="<%= realm.width %>"
+    //    value="<%= realm.height %>"
+    // which get their values from the data passed to the view function by editRealm() in
+    // api/controllers/QuestRealmcontroller.js:
+    //    return res.view("questRealm/editRealm", {
+    //        realm: {
+    //            id: realm.id,
+    //            name: realm.name,
+    //            width: realm.width,
+    //            height: realm.height
+    //       }
     var realmWidth = parseInt($('#realmWidth').val());
     var realmHeight = parseInt($('#realmHeight').val());
     var realmId = $('#realmId').val();
@@ -30,11 +47,16 @@ $(document).ready(function() {
         $("#propertiesInnerPanel").tabs();
     });
 
+    // Call the various server functions to load details of the supported
+    // environments, items, characters, and objectives. Populate the various
+    // tool menus on the screen with this info.
     loadEnvPalette();
     loadItemsPalette();
     loadCharactersPalette();
     loadObjectivesPalette();
 
+    // Backbone is a Model-View-Controller (MVC) framework. Extend the
+    // default Model with additional attributes that we need.
     var MapLocationModel = Backbone.Model.extend({
         urlRoot: '/maplocation'
     });
@@ -42,8 +64,13 @@ $(document).ready(function() {
     // Maintain a local collection of map locations.
     // Backbone automatically synchronizes this with the server.
     var QuestCollection = Backbone.Collection.extend({
+        // Extend the default collection with functionality that we need.
+        // In this instance, questCollection will hold the data (later).
         questCollection: "",
+        // Socket will be used to automatically synchronize the collection
+        // with the server.
         socket: null,
+        // Call this function when a synchronization needs to occur.
         sync: function(method, model, options){
             var where = {};
             if (options.where) {
