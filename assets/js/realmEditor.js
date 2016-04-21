@@ -62,11 +62,9 @@ $(document).ready(function() {
     });
 
     // Maintain a local collection of map locations.
-    // Backbone automatically synchronizes this with the server.
-    var QuestCollection = Backbone.Collection.extend({
+    var MapLocationCollection = Backbone.Collection.extend({
         // Extend the default collection with functionality that we need.
-        // In this instance, questCollection will hold the data (later).
-        questCollection: "",
+        model: MapLocationModel,
         // Socket will be used to automatically synchronize the collection
         // with the server.
         socket: null,
@@ -79,32 +77,28 @@ $(document).ready(function() {
                 }
             }
 
-            if (typeof this.questCollection === "string" && this.questCollection !== "") {
-                this.socket = io.connect();
-                this.socket.on("connect", _.bind(function(){
-                    this.socket.request("/" + this.questCollection, where, _.bind(function(maplocation){
-                        // Let's not populate the collection initially.
-                        // Use it only for updates.
-                        this.set(maplocation);
-                        console.log("connection");
-                    }, this));
-
-                    this.socket.on("message", _.bind(function(msg){
-                        var m = msg.verb;
-                        console.log("collection message, verb: " + m);
-
-                        if (m === "create") {
-                            this.add(msg.data);
-                        } else if (m === "update") {
-                            this.get(msg.data.id).set(msg.data);
-                        } else if (m === "destroy") {
-                            this.remove(this.get(msg.id));
-                        }
-                    }, this));
+            this.socket = io.connect();
+            this.socket.on("connect", _.bind(function(){
+                this.socket.request("/maplocation", where, _.bind(function(maplocation){
+                    // Let's not populate the collection initially.
+                    // Use it only for updates.
+                    this.set(maplocation);
+                    console.log("connection");
                 }, this));
-            } else {
-                console.log("Error: Cannot retrieve models because property 'questCollection' not set on collection");
-            }
+
+                this.socket.on("message", _.bind(function(msg){
+                    var m = msg.verb;
+                    console.log("collection message, verb: " + m);
+
+                    if (m === "create") {
+                        this.add(msg.data);
+                    } else if (m === "update") {
+                        this.get(msg.data.id).set(msg.data);
+                    } else if (m === "destroy") {
+                        this.remove(this.get(msg.id));
+                    }
+                }, this));
+            }, this));
         }
     });
 
@@ -312,14 +306,8 @@ $(document).ready(function() {
         );
     });
 
-    var MapLocationCollection = QuestCollection.extend({
-        questCollection: 'maplocation',
-        model: MapLocationModel
-    });
-
     var locations = new MapLocationCollection();
-    // Load the existing data. We may choose not to do this if we are going to provide
-    // a /loadData API.
+    // Load the existing data into the collection.
     locations.fetch({ where: { realmId: realmId } });
 
     displayObjectives();
@@ -391,7 +379,6 @@ $(document).ready(function() {
     });
 
     var mView = new LocationsView({collection: locations});
-
 
     // Handle and item that was dragged and dropped. This could be:
     // 1. An item from the palette dropped onto the grid.
