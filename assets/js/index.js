@@ -49,7 +49,7 @@ function loadRealmDesigns() {
             header += "<th>Delete</th>";
             header += "<th>Create Game</th></tr>";
 
-            // Add a row tro the table for each realm that the server sent back.
+            // Add a row to the table for each realm that the server sent back.
             var row = 0;
             var body = "";
             // data.forEach() is a jQuery function for iterating over a data set.

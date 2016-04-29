@@ -61,7 +61,8 @@ $(document).ready(function() {
         urlRoot: '/maplocation'
     });
 
-    // Maintain a local collection of map locations.
+    // Maintain a local collection of map locations. This will be synchronized (both ways)
+    // with the server and so allows multi-user access to the data.
     var MapLocationCollection = Backbone.Collection.extend({
         // Extend the default collection with functionality that we need.
         model: MapLocationModel,
@@ -390,69 +391,10 @@ $(document).ready(function() {
             var target = $(this);
 
             if (target.is('#wastebasket')) {
-                console.log("Dropped item onto wastebasket");
-                if (droppedItem.is('.mapItem')) {
-                    removeAllItemsFromLocation(locations, droppedItem);
-                    removeAllCharactersFromLocation(locations, droppedItem);
-                    removeMapLocation(locations, droppedItem.attr('data-x'), droppedItem.attr('data-y'));
-                }
-
-                if (droppedItem.is('.propertiesPanelItem')) {
-                    if ($('#propertiesInnerPanel').tabs('option', 'active') === 1) {
-                        removeItemFromLocation(locations, droppedItem);
-                    }
-                    else if ($('#propertiesInnerPanel').tabs('option', 'active') === 2) {
-                        removeCharacterFromLocation(locations, droppedItem);
-                    }
-                }
-
-                // No need to do anything when a palette item is dropped
-                // on the wastebasket.
-                return;
+                moveToWasteBasket(locations, droppedItem);
             }
             else {
-                console.log("Dropped item onto map");
-                var droppedItemOriginalLocation = locations.where({
-                    x: droppedItem.attr('data-x'), y:droppedItem.attr('data-y')});
-
-                var droppedItemNewLocation = locations.where({
-                    x: target.attr('data-x'), y:target.attr('data-y')});
-
-                if (droppedItemNewLocation.length === 0) {
-                    // Dropped an item onto an empty map location.
-                    // Create the new location if dragging an environment.
-                    if ((droppedItem.is('.paletteItem') && droppedItem.attr('data-category') === "environment") ||
-                        droppedItem.is('.mapItem'))
-                    {
-                        addMapLocation(realmId, locations, droppedItem, droppedItemOriginalLocation, target)
-                    } else {
-                        console.error("can't drop item category '" +
-                            droppedItem.attr('data-category') +
-                            "' onto empty map location.");
-                    }
-                } else {
-                    if (droppedItem.is('.paletteItem')) {
-                        console.log("dropped paletteItem");
-                        if (droppedItem.attr('data-category') === 'item')
-                            addItemToLocation(droppedItem, droppedItemNewLocation);
-                        else if (droppedItem.attr('data-category') === 'character')
-                            addCharacterToLocation(droppedItem, droppedItemNewLocation);
-                        else
-                            console.log("dropped unexpected item category: " + droppedItem.attr('data-category'));
-                    }
-                    else if (droppedItem.is('.propertiesPanelItem')) {
-                        console.log("dropped propertiesPanelItem");
-                        if ($('#propertiesInnerPanel').tabs('option', 'active') === 1) {
-                            changeItemLocation(locations, droppedItem, droppedItemNewLocation);
-                        }
-                        else if ($('#propertiesInnerPanel').tabs('option', 'active') === 2) {
-                            changeCharacterLocation(locations, droppedItem, droppedItemNewLocation);
-                        }
-                    }
-                    else {
-                        console.log("Dropped unexpected item type.");
-                    }
-                }
+                droppedMapItem(realmId, locations, droppedItem, target);
             }
         }
     });
@@ -782,6 +724,72 @@ function removeMapLocation(collection, x, y)
 }
 
 
+function moveToWasteBasket(locations, droppedItem)
+{
+    console.log("Dropped item onto wastebasket");
+    if (droppedItem.is('.mapItem')) {
+        removeAllItemsFromLocation(locations, droppedItem);
+        removeAllCharactersFromLocation(locations, droppedItem);
+        removeMapLocation(locations, droppedItem.attr('data-x'), droppedItem.attr('data-y'));
+    }
+
+    if (droppedItem.is('.propertiesPanelItem')) {
+        if ($('#propertiesInnerPanel').tabs('option', 'active') === 1) {
+            removeItemFromLocation(locations, droppedItem);
+        }
+        else if ($('#propertiesInnerPanel').tabs('option', 'active') === 2) {
+            removeCharacterFromLocation(locations, droppedItem);
+        }
+    }
+}
+
+
+function droppedMapItem(realmId, locations, droppedItem, target)
+{
+    console.log("Dropped item onto map");
+    var droppedItemOriginalLocation = locations.where({
+        x: droppedItem.attr('data-x'), y:droppedItem.attr('data-y')});
+
+    var droppedItemNewLocation = locations.where({
+        x: target.attr('data-x'), y:target.attr('data-y')});
+
+    if (droppedItemNewLocation.length === 0) {
+        // Dropped an item onto an empty map location.
+        // Create the new location if dragging an environment.
+        if ((droppedItem.is('.paletteItem') && droppedItem.attr('data-category') === "environment") ||
+            droppedItem.is('.mapItem'))
+        {
+            addMapLocation(realmId, locations, droppedItem, droppedItemOriginalLocation, target)
+        } else {
+            console.error("can't drop item category '" +
+                droppedItem.attr('data-category') +
+                "' onto empty map location.");
+        }
+    } else {
+        if (droppedItem.is('.paletteItem')) {
+            console.log("dropped paletteItem");
+            if (droppedItem.attr('data-category') === 'item')
+                addItemToLocation(droppedItem, droppedItemNewLocation);
+            else if (droppedItem.attr('data-category') === 'character')
+                addCharacterToLocation(droppedItem, droppedItemNewLocation);
+            else
+                console.log("dropped unexpected item category: " + droppedItem.attr('data-category'));
+        }
+        else if (droppedItem.is('.propertiesPanelItem')) {
+            console.log("dropped propertiesPanelItem");
+            if ($('#propertiesInnerPanel').tabs('option', 'active') === 1) {
+                changeItemLocation(locations, droppedItem, droppedItemNewLocation);
+            }
+            else if ($('#propertiesInnerPanel').tabs('option', 'active') === 2) {
+                changeCharacterLocation(locations, droppedItem, droppedItemNewLocation);
+            }
+        }
+        else {
+            console.log("Dropped unexpected item type.");
+        }
+    }
+}
+
 function removeAllItemsFromLocation(collection, location)
 {
     var itemLocation = collection.where({id: location.attr('data-id')});
@@ -819,7 +827,6 @@ function removeItemFromLocation(collection, droppedItem)
                     // Now remove the item from the properties window if it is visible.
                     // We can't do it directly here as this would only update the local
                     // UI. Do it in the collection view function.
-                    //$('#itemList').find('div[data-id="'+ droppedItem.attr('data-id') + '"]').remove();
                 }
             ).fail(function(res){
                 alert("Error: " + res.getResponseHeader("error"));
@@ -841,7 +848,6 @@ function changeItemLocation(collection, droppedItem, newLocation)
             // Update the old location.
             originalLocationItems.splice(i, 1);
             originalLocation[0].save();
-            //$('#itemList').find('#' + droppedItem.attr('data-id')).remove();
 
             // Update the new location.
             newLocation[0].attributes.items.push({"id": droppedItem.attr('data-id')});
@@ -892,6 +898,7 @@ function saveItem(id, name, description, damage, callback)
     });
 }
 
+
 function removeAllCharactersFromLocation(collection, location)
 {
     var characterLocation = collection.where({id: location.attr('data-id')});
@@ -929,7 +936,6 @@ function removeCharacterFromLocation(collection, droppedItem)
                     // Now remove the item from the properties window if it is visible.
                     // We can't do it directly here as this would only update the local
                     // UI. Do it in the collection view function.
-                    //$('#itemList').find('div[data-id="'+ droppedItem.attr('data-id') + '"]').remove();
                 }
             ).fail(function(res){
                 alert("Error: " + res.getResponseHeader("error"));
@@ -1258,17 +1264,6 @@ function findPaletteItemByName(data, searchName) {
     return null; // The object was not found
 }
 
-
-/*
-function findObjectiveByType(data, searchType) {
-    for (var i = 0, len = data.length; i < len; i++) {
-        if (data[i].type === searchType)
-            return data[i]; // Return as soon as the object is found
-    }
-
-    return null; // The object was not found
-}
-*/
 
 function loadEnvPalette() {
     $.get(

@@ -37,6 +37,7 @@ var QuestRealmController = {
             } else {
                 sails.log.info("created Realm " + realm.name);
                 currentRealm = realm;
+                // Send the newly-created realm info back to the caller.
                 res.send(realm);
             }
         });
@@ -46,6 +47,10 @@ var QuestRealmController = {
         var realmId = req.param("id");
         sails.log.info("in editRealm. id = " + realmId);
 
+        // Find the QuestRealm object that has the _id value matching the specified realmId.
+        // If you want to check this in the db, use
+        //   use QuestOfRealms
+        //   db.questrealm.find({'_id': ObjectId('56d1d4ed3f5a79642a3ac0eb')});
         QuestRealm.findOne({'_id': realmId}).done(function(err, realm) {
             sails.log.info("in QuestRealm.findById() callback");
             if (err) {
@@ -131,6 +136,12 @@ var QuestRealmController = {
         });
     },
 
+    // Game creation is a fairly complex process. We need to clone all the components of the
+    // template realm. Waterline operations (the database interface layer of sails.js) are asynchronous
+    // and rely on callback functions to notify when the operation has completed. Since they are
+    // asynchronous, you can't easily use a normal sequential flow of steps, and it's very easy to
+    // get into the Javascript situation known as "callback hell".
+    // The async library provides useful constructs for dealing with asynchronous operations.
     createGame: function(req, res) {
         var gameName = req.param("name");
         var gameDescription = req.param("description");
@@ -145,14 +156,23 @@ var QuestRealmController = {
                 sails.log.error("DB Error:" + error);
                 res.send(500, {error: "DB Error:" + error});
             } else {
+                // This will perform the copyMapLocations() and copyObjectives()
+                // operations in parallel.
                 async.parallel([
+                    // The callback parameter is supplied by the async library so that each
+                    // parallel operation can let async know when it has completed.
                     function(callback) {
+                        // copyMapLocations() has it's own set of parallel operations.
                         copyMapLocations(game, parentRealmId, callback);
                     },
                     function(callback) {
+                        // copyObjectives() has it's own set of parallel operations.
                         copyObjectives(game, parentRealmId, callback);
                     }
                 ],
+                // This function will be called when all the parallel operations
+                // have been completed. The "err" parameter will be set if any
+                // operation encountered an error.
                 function(err) {
                     sails.log.info("createGame, finished parallel. err: " + err);
                     res.send(game);
@@ -352,6 +372,7 @@ function copyObjective(game, objective, objectiveCopiedCallback) {
         name: objective.name,
         description: objective.description,
         params: objective.params}).done(function(error, newObjective) {
+        // Error or success, call objectiveCopiedCallback to let async know the operation has finished.
         if (error) {
             sails.log.error("DB Error:" + error);
             objectiveCopiedCallback("DB Error:" + error);
@@ -391,6 +412,9 @@ function copyMapLocations(game, parentRealmId, locationsCopiedCallback) {
             sails.log.info("in copyMapLocations.find() callback, no error.");
             if (locations) {
                 sails.log.info("in copyMapLocations.find() locations: " + JSON.stringify(locations));
+                // Async will iterate over all the entries in locations, calling the function
+                // below for each. When all have been marked complete, call locationsCopiedCallback
+                // to let async know we are finished.
                 async.each(locations, function(location, locationCallback) {
                     sails.log.info("copy location: " + JSON.stringify(location));
                     copyMapLocation(game, location, locationCallback);
@@ -422,9 +446,16 @@ function copyMapLocation(game, location, locationCallback) {
                 locationCallback("DB Error:" + error);
             } else {
                 sails.log.info("cloned maplocation for game " + game.name);
+                // Copy the items and characters in parallel.
                 async.parallel([
                     function(itemsAndCharactersCallback) {
+                        // async.map() iterates through all the entries in location.items,
+                        // passing each in a call to copyItem(), which calls the function
+                        // below when it finishes the copy.
                         async.map(location.items, copyItem, function (err, newItems) {
+                            // An item has finsihed copying. Call itemsAndCharactersCallback to let
+                            // async.map know this. When async.map sees that all items in the collection
+                            // have been processed, the parallel operation will marked complete.
                             if (err) {
                                 sails.log.error("Failed to clone items for location " +
                                 JSON.stringify(location) +
@@ -492,6 +523,7 @@ function copyItem(itemRef, itemCallback) {
                     description: item.description,
                     damage: item.damage,
                     image: item.image}).done(function(error, newItem) {
+                    // Error or success, call itemCallback to let async know the operation has finished.
                     if (error) {
                         sails.log.error("DB Error:" + error);
                         res.send(500, {error: "DB Error:" + error});
@@ -532,6 +564,7 @@ function copyCharacter(characterRef, characterCallback) {
                     health: character.health,
                     drops: character.drops,
                     image: character.image}).done(function(error, newCharacter) {
+                    // Error or success, call characterCallback to let async know the operation has finished.
                     if (error) {
                         sails.log.error("DB Error:" + error);
                         characterCallback("DB Error:" + error);
