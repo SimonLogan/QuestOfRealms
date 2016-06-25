@@ -93,6 +93,11 @@ module.exports.routes = {
         action: 'deleteGame'
     },
 
+    '/playGame' : {
+        controller: 'game',
+        action: 'playGame'
+    },
+
     '/createItem' : {
         controller: 'item',
         action: 'createItem'

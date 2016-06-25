@@ -125,7 +125,8 @@ function loadGames() {
             header += "<tr><th class='realmListName'>Name</th>";
             header += "<th class='realmListDescription'>Description</th>";
             header += "<th>Create Date</th>";
-            header += "<th>Delete</th></tr>";
+            header += "<th>Delete</th>";
+            header += "<th>Play</th></tr>";
 
             var row = 0;
             var body = "";
@@ -137,6 +138,7 @@ function loadGames() {
                 body += "<td>" + game.description + "</td>";
                 body += "<td>" + game.updatedAt + "</td>";
                 body += "<td><input type='button' class='deleteGame' value='Delete'/></td>";
+                body += "<td><input type='button' class='playGame' value='Play'/></td>";
                 body += "</tr>";
             });
 
@@ -154,6 +156,10 @@ function loadGames() {
 
                 $('.deleteGame').on('click', function () {
                     deleteGame($(this));
+                });
+
+                $('.playGame').on('click', function () {
+                    playGame($(this));
                 });
             }
         }
@@ -308,4 +314,17 @@ function deleteGame(target) {
             alert("Error: " + JSON.parse(res.responseText).error);
         });
     }
+}
+
+
+// The "Play" button was clicked on one of the Game table rows.
+function playGame(target) {
+    // Build a URL to invoke the game, passing the id of the row that
+    // was clicked. The jQuery selector target.closest('tr') traverses the
+    // parents of the element that was clicked until it finds one of type "<tr>".
+    // "window.location =" will redirect the user to the new web page. In this case
+    // the "/editRealm" route will render the questRealm/editRealm view instead of returning
+    // JSON data. This view will pass the realm data to views/questRealm/editRealm.ejs
+    // where it can be referenced using template parameters when drawing the page.
+    window.location = "/playGame?id=" + target.closest('tr').attr('id');
 }

@@ -160,35 +160,55 @@ var QuestRealmController = {
         var parentRealmId = req.param("parentRealmId");
 
         sails.log.info("in createGame, name = " + gameName);
-        Game.create({
-            name: gameName,
-            description: gameDescription,
-            parentRealmId: parentRealmId}).done(function(error, game) {
-            if (error) {
-                sails.log.error("DB Error:" + error);
-                res.send(500, {error: "DB Error:" + error});
+
+        // Look up some additional info from the parent realm.
+        QuestRealm.findOne({'_id': parentRealmId}).done(function(err, realm) {
+            sails.log.info("in QuestRealm.findById() callback");
+            if (err) {
+                res.send(500, { error: "DB Error1" + err });
             } else {
-                // This will perform the copyMapLocations() and copyObjectives()
-                // operations in parallel.
-                async.parallel([
-                    // The callback parameter is supplied by the async library so that each
-                    // parallel operation can let async know when it has completed.
-                    function(callback) {
-                        // copyMapLocations() has its own set of parallel operations.
-                        copyMapLocations(game, parentRealmId, callback);
-                    },
-                    function(callback) {
-                        // copyObjectives() has its own set of parallel operations.
-                        copyObjectives(game, parentRealmId, callback);
-                    }
-                ],
-                // This function will be called when all the parallel operations
-                // have been completed. The "err" parameter will be set if any
-                // operation encountered an error.
-                function(err) {
-                    sails.log.info("createGame, finished parallel. err: " + err);
-                    res.send(game);
-                });
+                sails.log.info("in QuestRealm.findById() callback, no error.");
+                if (realm) {
+                    sails.log.info("in QuestRealm.findById() callback " + JSON.stringify(realm));
+
+                    // Generate the game.
+                    Game.create({
+                        name: gameName,
+                        description: gameDescription,
+                        parentRealmId: parentRealmId,
+                        width: realm.width,
+                        height: realm.height}).done(function(error, game) {
+                        if (error) {
+                            sails.log.error("DB Error:" + error);
+                            res.send(500, {error: "DB Error:" + error});
+                        } else {
+                            // This will perform the copyMapLocations() and copyObjectives()
+                            // operations in parallel.
+                            async.parallel([
+                                    // The callback parameter is supplied by the async library so that each
+                                    // parallel operation can let async know when it has completed.
+                                    function(callback) {
+                                        // copyMapLocations() has its own set of parallel operations.
+                                        copyMapLocations(game, parentRealmId, callback);
+                                    },
+                                    function(callback) {
+                                        // copyObjectives() has its own set of parallel operations.
+                                        copyObjectives(game, parentRealmId, callback);
+                                    }
+                                ],
+                                // This function will be called when all the parallel operations
+                                // have been completed. The "err" parameter will be set if any
+                                // operation encountered an error.
+                                function(err) {
+                                    sails.log.info("createGame, finished parallel. err: " + err);
+                                    res.send(game);
+                                });
+                        }
+                    });
+                } else {
+                    sails.log.info("in QuestRealm.findById() callback, realm is null.");
+                    res.send(404, { error: "realm not Found" });
+                }
             }
         });
     },
