@@ -15,8 +15,29 @@
  * @docs        :: http://sailsjs.org/#!documentation/controllers
  */
 
+// Set up the global parser for all incoming game commands.
+var Parser = require("jison").Parser;
+
+var grammar = {
+    "lex": {
+        "rules": [
+            ["\\s+", "/* skip whitespace */"],
+            ["[a-f0-9]+", "return 'HEX';"]
+        ]
+    },
+
+    "bnf": {
+        "hex_strings" :[ "hex_strings HEX",
+            "HEX" ]
+    }
+};
+
+var parser = new Parser(grammar);
+
+
 module.exports = {
 
+    /* Start playing a game */
     playGame: function(req, res) {
         var gameId = req.param("id");
         sails.log.info("in playGame. id = " + gameId);
@@ -48,6 +69,22 @@ module.exports = {
                 }
             }
         });
+    },
+
+    /* Send commands during a game. */
+    gameCommand: function(req, res) {
+        var command = req.param("command");
+        sails.log.info("in gameCommand. command = " + command);
+
+        // TODO: figure out how to make the parser handle the business logic.
+        // Does it need to worry about threading?
+        var parsedOk = parser.parse(command);
+        if (parsedOk) {
+            res.send(200, {});
+        } else {
+            res.send(500, {"error": "invalid command"});
+        }
+
     },
 
   /**

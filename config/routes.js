@@ -98,6 +98,11 @@ module.exports.routes = {
         action: 'playGame'
     },
 
+    '/gameCommand' : {
+        controller: 'game',
+        action: 'gameCommand'
+    },
+
     '/createItem' : {
         controller: 'item',
         action: 'createItem'

@@ -173,7 +173,21 @@ $(document).ready(function() {
     var mView = new LocationsView({collection: locations});
 
 
-
+    // Handle game commands
+    $('#inputArea').keypress(function(event) {
+        if (event.keyCode == 13) {
+            // ajax send command
+            $.post(
+                '/gameCommand',
+                { "command": $('#inputArea').val() },
+                function (data) {
+                    console.log(data);
+                }
+            ).fail(function(res){
+                alert("Error: " + res.getResponseHeader("error"));
+            });
+        }
+    });
 
     // Show / edit map locations
     $(document).on('mouseenter', '#mapPanel', function() {});
