@@ -103,6 +103,30 @@ See the comments in assets/js/index.js for a detailed code walkthrough.
 <a href="https://github.com/zaach/jison">jison language parser</a>
 <a href="http://dinosaur.compilertools.net/bison/bison_4.html">bison manual</a>
 
+cd Documents\GitHub
+npm install jison -g
+
+clone https://github.com/zaach/jison in github desktop to use examples.
+cd Documents\GitHub\jison\examples
+jison calculator.jison
+
+Use Jison to generate parsers from an example, e.g.:
+$ node ../lib/cli.js basic_lex.jison
+
+This builds a standlone parser. I could probably include the resultant calculator.js in my QuestOfRealms andinclude it via Require.
+
+I'll try the dynamically generated one though to avoid this manual step.
+Install requirejs on the server.
+cd GitHub\QuestOfRealms
+npm install requirejs
+nmp install jison
+
+
+
+
+IguanaPetrolCabbage3
+
+
 
 <h3>Realm Editor</h3>
 </body>

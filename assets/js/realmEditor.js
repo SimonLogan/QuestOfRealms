@@ -242,6 +242,21 @@ $(document).ready(function() {
 
             if (saveParams.length > 0) {
                 var dropdown = $('#objectiveChoice');
+                var objectiveType = dropdown.val();
+                // Validate "start at" and "navigate to".
+                if (objectiveType === "1" || objectiveType === "2") {
+                    // Assume saveParams[0] is x and [1] is y.
+                    // The supplied start position must actually exist.
+                    var mapCell = $('#mapTable td#cell_'
+                        + saveParams[0].value
+                        + '_'
+                        + saveParams[1].value
+                        + ' > div');
+                    if (!mapCell.hasClass('mapItem')) {
+                        alert('The specified location does not exist.');
+                        return;
+                    }
+                }
 
                 saveObjective(
                     dropdown.val(),

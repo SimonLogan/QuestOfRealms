@@ -266,12 +266,14 @@ function launchGameWizard(target) {
 function createGame(parentRealmId) {
     var gameName = $('#gameName').val().trim();
     var gameDesc = $('#gameDescription').val().trim();
+    var playerName = $('#playerName').val().trim();
 
     $.post(
         '/createGame',
         {
             name: gameName,
             description: gameDesc,
+            playerName: playerName,
             parentRealmId: parentRealmId
         },
         function (data) {

@@ -157,9 +157,11 @@ var QuestRealmController = {
     createGame: function(req, res) {
         var gameName = req.param("name");
         var gameDescription = req.param("description");
+        var playerName = req.param("playerName");
         var parentRealmId = req.param("parentRealmId");
 
-        sails.log.info("in createGame, name = " + gameName);
+        sails.log.info("in createGame, name =" + gameName +
+                       ", playerName =" + playerName);
 
         // Look up some additional info from the parent realm.
         QuestRealm.findOne({'_id': parentRealmId}).done(function(err, realm) {
@@ -178,33 +180,61 @@ var QuestRealmController = {
                         parentRealmId: parentRealmId,
                         width: realm.width,
                         height: realm.height}).done(function(error, game) {
-                        if (error) {
-                            sails.log.error("DB Error:" + error);
-                            res.send(500, {error: "DB Error:" + error});
-                        } else {
-                            // This will perform the copyMapLocations() and copyObjectives()
-                            // operations in parallel.
-                            async.parallel([
-                                    // The callback parameter is supplied by the async library so that each
-                                    // parallel operation can let async know when it has completed.
-                                    function(callback) {
-                                        // copyMapLocations() has its own set of parallel operations.
-                                        copyMapLocations(game, parentRealmId, callback);
-                                    },
-                                    function(callback) {
-                                        // copyObjectives() has its own set of parallel operations.
-                                        copyObjectives(game, parentRealmId, callback);
+                            if (error) {
+                                sails.log.error("DB Error:" + error);
+                                res.send(500, {error: "DB Error:" + error});
+                            } else {
+                                // This will perform the copyMapLocations() and copyObjectives()
+                                // operations in parallel.
+                                async.parallel([
+                                        // The callback parameter is supplied by the async library so that each
+                                        // parallel operation can let async know when it has completed.
+                                        function(callback) {
+                                            // copyMapLocations() has its own set of parallel operations.
+                                            copyMapLocations(game, parentRealmId, callback);
+                                        },
+                                        function(callback) {
+                                            // copyObjectives() has its own set of parallel operations.
+                                            copyObjectives(game, parentRealmId, callback);
+                                        }
+                                    ],
+                                    // This function will be called when all the parallel operations
+                                    // have been completed. The "err" parameter will be set if any
+                                    // operation encountered an error.
+                                    function(err) {
+                                        sails.log.info("createGame, finished parallel. err: " + err);
+
+                                        Objective.findOne({'realmId': parentRealmId, 'type': '1'}).done(function(err, objective) {
+                                            sails.log.info("in Objective.findById() callback");
+                                            if (err) {
+                                                res.send(500, { error: "DB Error1" + err });
+                                            } else {
+                                                sails.log.info("in Objective.findById() callback, no error.");
+                                                if (objective) {
+                                                    sails.log.info("in Objective.findById() callback " + JSON.stringify(objective));
+                                                    sails.log.info("creating player, name=" + playerName);
+                                                    Player.create({
+                                                        name: playerName,
+                                                        game: game.id,
+                                                        // params[0] is { "name" : "x", "value" : "1" }
+                                                        // params[1] is { "name" : "y", "value" : "1" }
+                                                        location: {'x': objective.params[0]['value'],
+                                                                   'y': objective.params[1]['value']}}).done(function(error, player) {
+                                                        if (error) {
+                                                            sails.log.error("DB Error:" + error);
+                                                            res.send(500, {error: "DB Error:" + error});
+                                                        }
+
+                                                        sails.log.info("created player " + JSON.stringify(player));
+                                                        res.send(game);
+                                                     });
+                                                }
+                                            }
+                                        });
                                     }
-                                ],
-                                // This function will be called when all the parallel operations
-                                // have been completed. The "err" parameter will be set if any
-                                // operation encountered an error.
-                                function(err) {
-                                    sails.log.info("createGame, finished parallel. err: " + err);
-                                    res.send(game);
-                                });
-                        }
-                    });
+                                );
+                            }
+                        });
                 } else {
                     sails.log.info("in QuestRealm.findById() callback, realm is null.");
                     res.send(404, { error: "realm not Found" });

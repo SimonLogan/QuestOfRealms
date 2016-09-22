@@ -16,23 +16,26 @@
  */
 
 // Set up the global parser for all incoming game commands.
-var Parser = require("jison").Parser;
+//var Parser = require("jison").Parser;
 
-var grammar = {
-    "lex": {
-        "rules": [
-            ["\\s+", "/* skip whitespace */"],
-            ["[a-f0-9]+", "return 'HEX';"]
-        ]
-    },
-
-    "bnf": {
-        "hex_strings" :[ "hex_strings HEX",
-            "HEX" ]
-    }
-};
-
-var parser = new Parser(grammar);
+//var grammar = {
+//    "lex": {
+//        "rules": [
+//            ["\\s+", "/* skip whitespace */"],
+//            ["move", "return 'MOVE';"],
+//            ["[a-zA-Z]+", "return 'TARGET';"]
+//        ]
+//    },
+//
+//    "bnf": {
+//        "expressions" :[[ "e EOF",   "print($1); return $1;" ]],
+//
+//        "e" :[[ "MOVE e",   "$$ = $2;" ],
+//              [ "TARGET",  "$$ = yytext;" ]]
+//    }
+//};
+//
+//var parser = new Parser(grammar);
 
 
 module.exports = {
@@ -76,15 +79,36 @@ module.exports = {
         var command = req.param("command");
         sails.log.info("in gameCommand. command = " + command);
 
+        var tokens = command.split(" ");
+        var success = false;
+        sails.log.info("in gameCommand. tokens[0].toUpperCase = " + tokens[0].toUpperCase());
+        switch (tokens[0].toUpperCase()) {
+            case "MOVE":
+                success = handleMove(tokens);
+                break;
+            case "LOOK":
+                success = handleLook(tokens);
+                break;
+            default:
+                handleBadCommand(tokens);
+        }
+
+        if (success) {
+            res.send(200, {});
+        } else {
+            res.send(500, {"error": "invalid command"});
+        }
+
         // TODO: figure out how to make the parser handle the business logic.
         // Does it need to worry about threading?
+        /* overkill. just use a simple parser for the simple command structure.
         var parsedOk = parser.parse(command);
         if (parsedOk) {
             res.send(200, {});
         } else {
             res.send(500, {"error": "invalid command"});
         }
-
+        */
     },
 
   /**
@@ -93,3 +117,18 @@ module.exports = {
    */
   _config: {}
 };
+
+
+function handleMove(tokens) {
+    sails.log.info("MOVE: " + tokens[1]);
+    return true;
+}
+
+function handleLook(tokens) {
+    sails.log.info("LOOK");
+    return true;
+}
+
+function handleBadCommand(tokens) {
+    sails.log.info("huh? " + tokens);
+}

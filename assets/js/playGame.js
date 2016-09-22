@@ -27,21 +27,11 @@ $(document).ready(function() {
     //       }
     var realmWidth = parseInt($('#realmWidth').val());
     var realmHeight = parseInt($('#realmHeight').val());
-    var realmId = $('#realmId').val();
+    var realmId = $('#realmId').val(); // Really gameId in this context.
 
-    // Draw an empty map grid.
+    // Draw the map grid.
     drawMapGrid(realmWidth, realmHeight);
     buildMessageArea();
-
-    // Call the various server functions to load details of the supported
-    // environments, items, characters, and objectives. Populate the various
-    // tool menus on the screen with this info.
-    /*
-    loadEnvPalette();
-    loadItemsPalette();
-    loadCharactersPalette();
-    loadObjectivesPalette();
-*/
 
     // Look into custom namespaces or rooms for the game.
     // Subscribing to a game-specific room means a single server can support multiple games.
@@ -73,13 +63,21 @@ $(document).ready(function() {
 
             this.socket = io.connect();
             this.socket.on("connect", _.bind(function(){
+                // https://code.tutsplus.com/tutorials/working-with-data-in-sailsjs--net-31525 says
+                // What this means is, you can call any of the HTTP routes through web sockets.
+                // So it would be nice to be able to populate the collection through a "get everything"
+                // http call:
+                //this.socket.request("/getAllGameData", where, _.bind(function(maplocation){
+                // But I'm not sure how backbone would synchronize this as the data isn't from a single collection.
+                // TODO: check out https://github.com/balderdashy/backbone-to-sails
                 this.socket.request("/maplocation", where, _.bind(function(maplocation){
-                    // Let's not populate the collection initially.
-                    // Use it only for updates.
                     this.set(maplocation);
                     console.log("connection");
                 }, this));
 
+                // TODO: Don't accept client-side updates to the collection
+
+                // This is the subscription that allows the server to push out collection updates.
                 this.socket.on("message", _.bind(function(msg){
                     var m = msg.verb;
                     console.log("collection message, verb: " + m);
@@ -127,8 +125,10 @@ $(document).ready(function() {
                 target.append('<img src="images/' + item.attributes.environment + '.png" />');
 
                 // To allow it to be dragged to the wastebasket.
-                target.addClass('draggable mapItem');
-                target.draggable({helper: 'clone', revert: 'invalid'});
+                //target.addClass('draggable mapItem');
+                //target.draggable({helper: 'clone', revert: 'invalid'});
+
+                // TODO: draw the player icon
             }
         },
         remove: function(item) {
