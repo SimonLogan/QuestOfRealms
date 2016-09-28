@@ -103,46 +103,6 @@ module.exports.routes = {
         action: 'gameCommand'
     },
 
-    '/createItem' : {
-        controller: 'item',
-        action: 'createItem'
-    },
-
-    '/editItem' : {
-        controller: 'item',
-        action: 'editItem'
-    },
-
-    '/deleteItems' : {
-        controller: 'item',
-        action: 'deleteItems'
-    },
-
-    '/fetchItems' : {
-        controller: 'item',
-        action: 'fetchItems'
-    },
-
-    '/createCharacter' : {
-        controller: 'character',
-        action: 'createCharacter'
-    },
-
-    '/editCharacter' : {
-        controller: 'character',
-        action: 'editCharacter'
-    },
-
-    '/deleteCharacters' : {
-        controller: 'character',
-        action: 'deleteCharacters'
-    },
-
-    '/fetchCharacters' : {
-        controller: 'character',
-        action: 'fetchCharacters'
-    },
-
     '/createObjective' : {
         controller: 'objective',
         action: 'createObjective'

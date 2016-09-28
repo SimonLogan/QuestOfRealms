@@ -80,10 +80,9 @@ $(document).ready(function() {
 
             this.socket = io.connect();
             this.socket.on("connect", _.bind(function(){
-                this.socket.request("/maplocation", where, _.bind(function(maplocation){
-                    // Let's not populate the collection initially.
-                    // Use it only for updates.
-                    this.set(maplocation);
+                this.socket.request("/maplocation", where, _.bind(function(maplocations){
+                    // Populate the collection initially.
+                    this.set(maplocations);
                     console.log("connection");
                 }, this));
 
@@ -113,19 +112,24 @@ $(document).ready(function() {
             damage = $("#editItemDamage"),
             allFields = $([]).add(name).add(description).add(damage);
 
+        function close () {
+            form[0].reset();
+            allFields.removeClass("ui-state-error");
+            dialog.dialog("close");
+        };
+
         function save() {
             var selectedItem = $('#itemList').find(".propertiesPanelItem.selected");
-            saveItem(
-                selectedItem.attr('data-id'),
-                $('#editItemName').val().trim(),
-                $('#editItemDescription').val(),
-                $('#editItemDamage').val(),
-                function () {
-                    dialog.dialog("close");
-                    var selectedMapCell = $('#characterList').find(".propertiesPanelItem.selected");
-                    populateMapLocationDetails(locations, selectedMapCell, false);
-                }
-            );
+            var thisCell = locations.where({
+                x: selectedItem.attr('data-x'), y:selectedItem.attr('data-y')});
+
+            var newItem = thisCell[0].attributes.items[selectedItem.attr('data-index')];
+            newItem.name = $('#editItemName').val().trim();
+            newItem.description = $('#editItemDescription').text();
+            newItem.damage = $('#editItemDamage').text();
+            thisCell[0].attributes.items[selectedItem.attr('data-index')] = newItem;
+            thisCell[0].save();
+            close();
         };
 
         dialog = $("#editItemDialog").dialog({
@@ -135,14 +139,9 @@ $(document).ready(function() {
             modal: true,
             buttons: {
                 "Save": save,
-                Cancel: function() {
-                    dialog.dialog("close");
-                }
+                "Cancel": close
             },
-            close: function() {
-                form[0].reset();
-                allFields.removeClass("ui-state-error");
-            }
+            close: close
         });
 
         form = dialog.find("form").on("submit", function(event) {
@@ -170,22 +169,27 @@ $(document).ready(function() {
             drops = $("#editCharacterDrops"),
             allFields = $([]).add(name).add(description).add(addInfo).add(health).add(damage).add(drops);
 
+        function close () {
+            form[0].reset();
+            allFields.removeClass("ui-state-error");
+            dialog.dialog("close");
+        };
+
         function save() {
             var selectedCharacter = $('#characterList').find(".propertiesPanelItem.selected");
-            saveCharacter(
-                selectedCharacter.attr('data-id'),
-                $('#editCharacterName').val().trim(),
-                $('#editCharacterDescription').val(),
-                $('#editCharacterAddInfo').val(),
-                $('#editCharacterDamage').val(),
-                $('#editCharacterHealth').val(),
-                $('#editCharacterDrops').val(),
-                function () {
-                    dialog.dialog("close");
-                    var selectedMapCell = $('#characterList').find(".propertiesPanelItem.selected");
-                    populateMapLocationDetails(locations, selectedMapCell, false);
-                }
-            );
+            var thisCell = locations.where({
+                x: selectedCharacter.attr('data-x'), y:selectedCharacter.attr('data-y')});
+
+            var newCharacter = thisCell[0].attributes.characters[selectedCharacter.attr('data-index')];
+            newCharacter.name = $('#editCharacterName').val().trim();
+            newCharacter.description = $('#editCharacterDescription').text();
+            newCharacter.additionalInfo = $('#editCharacterAddInfo').text();
+            newCharacter.damage = $('#editCharacterDamage').text();
+            newCharacter.health = $('#editCharacterHealth').text();
+            newCharacter.drops = $('#editCharacterDrops').text();
+            thisCell[0].attributes.characters[selectedCharacter.attr('data-index')] = newCharacter;
+            thisCell[0].save();
+            close();
         };
 
         dialog = $("#editCharacterDialog").dialog({
@@ -195,14 +199,9 @@ $(document).ready(function() {
             modal: true,
             buttons: {
                 "Save": save,
-                Cancel: function() {
-                    dialog.dialog("close");
-                }
+                "Cancel": close
             },
-            close: function() {
-                form[0].reset();
-                allFields.removeClass("ui-state-error");
-            }
+            close: close
         });
 
         form = dialog.find("form").on("submit", function(event) {
@@ -604,34 +603,32 @@ $(document).ready(function() {
     $(document).on('change', '.itemProperty', function() {
         console.log("itemProperty change");
         var selectedItem = $('#itemList').find(".propertiesPanelItem.selected");
-        saveItem(
-            selectedItem.attr('data-id'),
-            $('#itemName').val().trim(),
-            $('#itemDescription').text(),
-            $('#itemDamage').text(),
-            function () {
-                var selectedMapCell = $('#itemList').find(".propertiesPanelItem.selected");
-                populateMapLocationDetails(locations, selectedMapCell, false);
-            }
-        );
+        var thisCell = locations.where({
+            x: selectedItem.attr('data-x'), y:selectedItem.attr('data-y')});
+
+        var newItem = thisCell[0].attributes.items[selectedItem.attr('data-index')];
+        newItem.name = $('#itemName').val().trim();
+        newItem.description = $('#itemDescription').text();
+        newItem.damage = $('#itemDamage').text();
+        thisCell[0].attributes.items[selectedItem.attr('data-index')] = newItem;
+        thisCell[0].save();
     });
 
     $(document).on('change', '.characterProperty', function() {
         console.log("characterProperty change");
         var selectedCharacter = $('#characterList').find(".propertiesPanelItem.selected");
-        saveCharacter(
-            selectedCharacter.attr('data-id'),
-            $('#characterName').val().trim(),
-            $('#characterDescription').text(),
-            $('#characterAddInfo').text(),
-            $('#characterDamage').text(),
-            $('#characterHealth').text(),
-            $('#characterDrops').text(),
-            function () {
-                var selectedMapCell = $('#characterList').find(".propertiesPanelItem.selected");
-                populateMapLocationDetails(locations, selectedMapCell, false);
-            }
-        );
+        var thisCell = locations.where({
+            x: selectedCharacter.attr('data-x'), y:selectedCharacter.attr('data-y')});
+
+        var newCharacter = thisCell[0].attributes.characters[selectedCharacter.attr('data-index')];
+        newCharacter.name = $('#characterName').val().trim();
+        newCharacter.description = $('#characterDescription').text();
+        newCharacter.additionalInfo = $('#characterAddInfo').text();
+        newCharacter.damage = $('#characterDamage').text();
+        newCharacter.health = $('#characterHealth').text();
+        newCharacter.drops = $('#characterDrops').text();
+        thisCell[0].attributes.characters[selectedCharacter.attr('data-index')] = newCharacter;
+        thisCell[0].save();
     });
 });
 
@@ -743,12 +740,9 @@ function moveToWasteBasket(locations, droppedItem)
 {
     console.log("Dropped item onto wastebasket");
     if (droppedItem.is('.mapItem')) {
-        removeAllItemsFromLocation(locations, droppedItem);
-        removeAllCharactersFromLocation(locations, droppedItem);
         removeMapLocation(locations, droppedItem.attr('data-x'), droppedItem.attr('data-y'));
     }
-
-    if (droppedItem.is('.propertiesPanelItem')) {
+    else if (droppedItem.is('.propertiesPanelItem')) {
         if ($('#propertiesInnerPanel').tabs('option', 'active') === 1) {
             removeItemFromLocation(locations, droppedItem);
         }
@@ -805,51 +799,14 @@ function droppedMapItem(realmId, locations, droppedItem, target)
     }
 }
 
-function removeAllItemsFromLocation(collection, location)
-{
-    var itemLocation = collection.where({id: location.attr('data-id')});
-    items = [];
-    itemLocation[0].attributes.items.forEach(function(thisItem) {
-        items.push(thisItem.id);
-    });
-
-    $.post(
-        '/deleteItems',
-        { "ids": JSON.stringify(items) },
-        function (data) {
-            var j=5;
-        }
-    ).fail(function(res){
-        alert("Error: " + res.getResponseHeader("error"));
-    });
-}
-
 
 function removeItemFromLocation(collection, droppedItem)
 {
-    var itemLocation = collection.where({id: $('#propertiesPanel').attr('data-id')});
-    var locationItems = itemLocation[0].attributes['items'];
-    items = [droppedItem.attr('data-id')];
+    var thisCell = collection.where({
+        x: droppedItem.attr('data-x'), y:droppedItem.attr('data-y')});
 
-    for (var i=0; i<locationItems.length; i++) {
-        if (locationItems[i].id == droppedItem.attr('data-id')) {
-            $.post(
-                '/deleteItems',
-                { ids: JSON.stringify(items) },
-                function (data) {
-                    locationItems.splice(i, 1);
-                    itemLocation[0].save();
-                    // Now remove the item from the properties window if it is visible.
-                    // We can't do it directly here as this would only update the local
-                    // UI. Do it in the collection view function.
-                }
-            ).fail(function(res){
-                alert("Error: " + res.getResponseHeader("error"));
-            });
-
-            break;
-        }
-    }
+    thisCell[0].attributes.items.splice(droppedItem.attr('data-index'), 1);
+    thisCell[0].save();
 }
 
 
@@ -857,108 +814,41 @@ function changeItemLocation(collection, droppedItem, newLocation)
 {
     var originalLocation = collection.where({id: $('#propertiesPanel').attr('data-id')});
     var originalLocationItems = originalLocation[0].attributes['items'];
+    var originalLocationItemIndex = droppedItem.attr('data-index');
 
-    for (var i=0; i<originalLocationItems.length; i++) {
-        if (originalLocationItems[i].id == droppedItem.attr('data-id')) {
-            // Update the old location.
-            originalLocationItems.splice(i, 1);
-            originalLocation[0].save();
+    // Add the selected item to the new location.
+    newLocation[0].attributes['items'].push(originalLocationItems[originalLocationItemIndex]);
+    // Remove it from the original location.
+    originalLocationItems.splice(originalLocationItemIndex, 1);
 
-            // Update the new location.
-            newLocation[0].attributes.items.push({"id": droppedItem.attr('data-id')});
-            newLocation[0].save();
-
-            break;
-        }
-    }
+    originalLocation[0].save();
+    newLocation[0].save();
 }
 
 
 function addItemToLocation(droppedItem, location)
 {
-    $.post(
-        '/createItem',
+    location[0].attributes.items.push(
         {
             type: droppedItem.attr('data-type'),
             name: '',
             description: droppedItem.attr('data-description'),
             damage: droppedItem.attr('data-damage'),
             image: droppedItem.find('img').attr('src')
-        },
-        function (data) {
-            location[0].attributes.items.push({"id": data.id});
-            location[0].save();
         }
-    ).fail(function (res) {
-        alert("Error: " + res.getResponseHeader("error"));
-    });
-}
+    );
 
-
-function saveItem(id, name, description, damage, callback)
-{
-    $.post(
-        '/editItem',
-        {
-            id: id,
-            name: name,
-            description: description,
-            damage: damage
-        },
-        function (data) {
-            callback();
-        }
-    ).fail(function(res){
-        alert("Error: " + res.getResponseHeader("error"));
-    });
-}
-
-
-function removeAllCharactersFromLocation(collection, location)
-{
-    var characterLocation = collection.where({id: location.attr('data-id')});
-    characters = [];
-    characterLocation[0].attributes.characters.forEach(function(thisCharacter) {
-        characters.push(thisCharacter.id);
-    });
-
-    $.post(
-        '/deleteCharacters',
-        { "ids": JSON.stringify(characters) },
-        function (data) {
-            var j=5;
-        }
-    ).fail(function(res){
-        alert("Error: " + res.getResponseHeader("error"));
-    });
+    location[0].save();
 }
 
 
 function removeCharacterFromLocation(collection, droppedItem)
 {
-    var characterLocation = collection.where({id: $('#propertiesPanel').attr('data-id')});
-    var locationCharacters = characterLocation[0].attributes['characters'];
-    characters = [droppedItem.attr('data-id')];
+    var thisCell = collection.where({
+        x: droppedItem.attr('data-x'), y:droppedItem.attr('data-y')});
 
-    for (var i=0; i<locationCharacters.length; i++) {
-        if (locationCharacters[i].id == droppedItem.attr('data-id')) {
-            $.post(
-                '/deleteCharacters',
-                { ids: JSON.stringify(characters) },
-                function (data) {
-                    locationCharacters.splice(i, 1);
-                    characterLocation[0].save();
-                    // Now remove the item from the properties window if it is visible.
-                    // We can't do it directly here as this would only update the local
-                    // UI. Do it in the collection view function.
-                }
-            ).fail(function(res){
-                alert("Error: " + res.getResponseHeader("error"));
-            });
-
-            break;
-        }
-    }
+    thisCell[0].attributes.characters.splice(droppedItem.attr('data-index'), 1);
+    thisCell[0].save();
 }
 
 
@@ -966,28 +856,21 @@ function changeCharacterLocation(collection, droppedItem, newLocation)
 {
     var originalLocation = collection.where({id: $('#propertiesPanel').attr('data-id')});
     var originalLocationCharacters = originalLocation[0].attributes['characters'];
+    var originalLocationCharacterIndex = droppedItem.attr('data-index');
 
-    for (var i=0; i<originalLocationCharacters.length; i++) {
-        if (originalLocationCharacters[i].id == droppedItem.attr('data-id')) {
-            // Update the old location.
-            originalLocationCharacters.splice(i, 1);
-            originalLocation[0].save();
-            //$('#characterList').find('#' + droppedItem.attr('data-id')).remove();
+    // Add the selected item to the new location.
+    newLocation[0].attributes['characters'].push(originalLocationCharacters[originalLocationCharacterIndex]);
+    // Remove it from the original location.
+    originalLocationCharacters.splice(originalLocationCharacterIndex, 1);
 
-            // Update the new location.
-            newLocation[0].attributes.characters.push({"id": droppedItem.attr('data-id')});
-            newLocation[0].save();
-
-            break;
-        }
-    }
+    originalLocation[0].save();
+    newLocation[0].save();
 }
 
 
 function addCharacterToLocation(droppedCharacter, location)
 {
-    $.post(
-        '/createCharacter',
+    location[0].attributes.characters.push(
         {
             type: droppedCharacter.attr('data-type'),
             name: '',
@@ -997,36 +880,10 @@ function addCharacterToLocation(droppedCharacter, location)
             health: droppedCharacter.attr('data-health'),
             drops: droppedCharacter.attr('data-drops'),
             image: droppedCharacter.find('img').attr('src')
-        },
-        function (data) {
-            location[0].attributes.characters.push({"id": data.id});
-            location[0].save();
         }
-    ).fail(function (res) {
-        alert("Error: " + res.getResponseHeader("error"));
-    });
-}
+    );
 
-
-function saveCharacter(id, name, description, additionalInfo, damage, health, drops, callback)
-{
-    $.post(
-        '/editCharacter',
-        {
-            id: id,
-            name: name,
-            description: description,
-            additionalInfo: additionalInfo,
-            damage: damage,
-            health: health,
-            drops: drops
-        },
-        function (data) {
-            callback();
-        }
-    ).fail(function(res){
-        alert("Error: " + res.getResponseHeader("error"));
-    });
+    location[0].save();
 }
 
 
@@ -1045,7 +902,7 @@ function saveObjective(id, name, description, realmId, params, callback)
             callback();
         }
     ).fail(function(res){
-        alert("Error: " + res.getResponseHeader("error"));
+        alert("Error: " + JSON.parse(res.responseText).error);
     });
 }
 
@@ -1061,7 +918,7 @@ function deleteObjective(id, callback)
             callback();
         }
     ).fail(function(res){
-        alert("Error: " + res.getResponseHeader("error"));
+        alert("Error: " + JSON.parse(res.responseText).error);
     });
 }
 
@@ -1141,6 +998,7 @@ function enableLocationItemEdits()
 
 function populateLocationItemDetails(item)
 {
+    $('#itemIndex').val(item.attr('data-index'));
     $('#itemName').val(item.attr('data-name'));
     $('#itemType').text(item.attr('data-type'));
     $('#itemDescription').text(item.attr('data-description'));
@@ -1172,6 +1030,7 @@ function disableLocationCharacterEdits()
 
 function populateLocationCharacterDetails(character)
 {
+    $('#characterIndex').val(character.attr('data-index'));
     $('#characterName').val(character.attr('data-name'));
     $('#characterType').text(character.attr('data-type'));
     $('#characterDescription').text(character.attr('data-description'));
@@ -1303,7 +1162,7 @@ function loadEnvPalette() {
             });
         }
     ).fail(function(res){
-        alert("Error: " + res.getResponseHeader("error"));
+        alert("Error: " + JSON.parse(res.responseText).error);
     });
 }
 
@@ -1334,7 +1193,7 @@ function loadItemsPalette() {
             });
         }
     ).fail(function(res){
-        alert("Error: " + res.getResponseHeader("error"));
+        alert("Error: " + JSON.parse(res.responseText).error);
     });
 }
 
@@ -1368,7 +1227,7 @@ function loadCharactersPalette() {
             });
         }
     ).fail(function(res){
-        alert("Error: " + res.getResponseHeader("error"));
+        alert("Error: " + JSON.parse(res.responseText).error);
     });
 }
 
@@ -1389,7 +1248,7 @@ function loadObjectivesPalette() {
             $('#objectiveChoice').html(html);
         }
     ).fail(function(res){
-        alert("Error: " + res.getResponseHeader("error"));
+        alert("Error: " + JSON.parse(res.responseText).error);
     });
 }
 
@@ -1429,38 +1288,26 @@ function checkObjectivePriority() {
 function displayLocationItems(location)
 {
     console.log(Date.now() + ' displayLocationItems at x:' + location.attributes['x'] + " y: " + location.attributes['y']);
-    items = [];
-    location.attributes.items.forEach(function(thisItem) {
-       items.push(thisItem.id);
-    });
 
-    $.get(
-        '/fetchItems',
-        { "ids": JSON.stringify(items) },
-        function (data) {
-            var target = $('#itemList').html("");
-
-            data.forEach(function(item) {
-                var container = $("<div style='display: inline-block; padding: 2px;'></div>");
-                var html = "<div class='propertiesPanelItem draggable ui-widget-content' " +
-                    "data-id='" + item.id + "' " +
-                    "data-name='" + item.name + "' " +  // eg; "the sword of destiny"
-                    "data-category='item' " +
-                    "data-type='" + item.type + "' " +  // eg; "long sword"
-                    "data-description='" + item.description + "' " +  // eg; "useful for killing orcs"
-                    "data-damage='" + item.damage + "' " +
-                    "data-x='" + location.attributes['x'] + "' " +
-                    "data-y='" + location.attributes['y'] + "' " +
-                    "><img src='" + item.image + "'/>";
-                html += "</div>";
-                var locationItem = $(html);
-                locationItem.draggable({helper: 'clone', revert: 'invalid'});
-                locationItem.appendTo(container);
-                container.appendTo(target);
-            });
-        }
-    ).fail(function(res){
-        alert("Error: " + res.getResponseHeader("error"));
+    var target = $('#itemList').html("");
+    var itemIndex = 0;
+    location.attributes.items.forEach(function(item) {
+        var container = $("<div style='display: inline-block; padding: 2px;'></div>");
+        var html = "<div class='propertiesPanelItem draggable ui-widget-content' " +
+            "data-index='" + itemIndex++ + "' " +
+            "data-name='" + item.name + "' " +  // eg; "the sword of destiny"
+            "data-category='item' " +
+            "data-type='" + item.type + "' " +  // eg; "long sword"
+            "data-description='" + item.description + "' " +  // eg; "useful for killing orcs"
+            "data-damage='" + item.damage + "' " +
+            "data-x='" + location.attributes['x'] + "' " +
+            "data-y='" + location.attributes['y'] + "' " +
+            "><img src='" + item.image + "'/>";
+        html += "</div>";
+        var locationItem = $(html);
+        locationItem.draggable({helper: 'clone', revert: 'invalid'});
+        locationItem.appendTo(container);
+        container.appendTo(target);
     });
 
     $('#itemName').prop('disabled', true);
@@ -1470,41 +1317,29 @@ function displayLocationItems(location)
 function displayLocationCharacters(location)
 {
     console.log(Date.now() + ' displayLocationCharacters at x:' + location.attributes['x'] + " y: " + location.attributes['y']);
-    characters = [];
-    location.attributes.characters.forEach(function(thisCharacter) {
-        characters.push(thisCharacter.id);
-    });
 
-    $.get(
-        '/fetchCharacters',
-        { "ids": JSON.stringify(characters) },
-        function (data) {
-            var target = $('#characterList').html("");
-
-            data.forEach(function(item) {
-                var container = $("<div style='display: inline-block; padding: 2px;'></div>");
-                var html = "<div class='propertiesPanelItem draggable ui-widget-content' " +
-                    "data-id='" + item.id + "' " +
-                    "data-name='" + item.name + "' " +  // eg; "turnip stealer"
-                    "data-category='character' " +
-                    "data-type='" + item.type + "' " +  // eg; "iron boar"
-                    "data-description='" + item.description + "' " +
-                    "data-additionalInfo='" + item.additionalInfo + "' " +
-                    "data-health='" + item.health + "' " +
-                    "data-damage='" + item.damage + "' " +
-                    "data-drops='" + item.drops + "' " +
-                    "data-x='" + location.attributes['x'] + "' " +
-                    "data-y='" + location.attributes['y'] + "' " +
-                    "><img src='" + item.image + "'/>";
-                html += "</div>";
-                var locationCharacter = $(html);
-                locationCharacter.draggable({helper: 'clone', revert: 'invalid'});
-                locationCharacter.appendTo(container);
-                container.appendTo(target);
-            });
-        }
-    ).fail(function(res){
-        alert("Error: " + res.getResponseHeader("error"));
+    var target = $('#characterList').html("");
+    var characterIndex = 0;
+    location.attributes.characters.forEach(function(character) {
+        var container = $("<div style='display: inline-block; padding: 2px;'></div>");
+        var html = "<div class='propertiesPanelItem draggable ui-widget-content' " +
+            "data-index='" + characterIndex++ + "' " +
+            "data-name='" + character.name + "' " +  // eg; "turnip stealer"
+            "data-category='character' " +
+            "data-type='" + character.type + "' " +  // eg; "iron boar"
+            "data-description='" + character.description + "' " +
+            "data-additionalInfo='" + character.additionalInfo + "' " +
+            "data-health='" + character.health + "' " +
+            "data-damage='" + character.damage + "' " +
+            "data-drops='" + character.drops + "' " +
+            "data-x='" + location.attributes['x'] + "' " +
+            "data-y='" + location.attributes['y'] + "' " +
+            "><img src='" + character.image + "'/>";
+        html += "</div>";
+        var locationCharacter = $(html);
+        locationCharacter.draggable({helper: 'clone', revert: 'invalid'});
+        locationCharacter.appendTo(container);
+        container.appendTo(target);
     });
 
     $('#characterName').prop('disabled', true);
@@ -1551,7 +1386,7 @@ function displayObjectives()
             checkObjectivePriority();
         }
     ).fail(function(res){
-        alert("Error: " + res.getResponseHeader("error"));
+        alert("Error: " + JSON.parse(res.responseText).error);
     });
 
     $('#itemName').prop('disabled', true);

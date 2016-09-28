@@ -129,7 +129,6 @@ var QuestRealmController = {
 
     fetchRealms: function(req, res) {
         sails.log.info("in fetchRealms");
-
         QuestRealm.find().done(function(err, items) {
             sails.log.info("in QuestRealm.find() callback");
             if (err) {
@@ -150,7 +149,7 @@ var QuestRealmController = {
 
     // Game creation is a fairly complex process. We need to clone all the components of the
     // template realm. Waterline operations (the database interface layer of sails.js) are asynchronous
-    // and rely on callback functions to notify when the operation has completed. Since they are
+    // and relies on callback functions to notify when the operation has completed. Since they are
     // asynchronous, you can't easily use a normal sequential flow of steps, and it's very easy to
     // get into the Javascript situation known as "callback hell".
     // The async library provides useful constructs for dealing with asynchronous operations.
@@ -228,6 +227,10 @@ var QuestRealmController = {
                                                         sails.log.info("created player " + JSON.stringify(player));
                                                         res.send(game);
                                                      });
+                                                }
+                                                else {
+                                                    sails.log.info("no \"start at\" objective found.");
+                                                    res.send(500, { error: "no \"start at\" objective found." });
                                                 }
                                             }
                                         });
@@ -338,7 +341,15 @@ function deleteMapLocations(realm, locationsDeletedCallback) {
                 // to let async know we are finished.
                 async.each(locations, function(location, locationCallback) {
                     sails.log.info("delete location: " + JSON.stringify(location));
-                    deleteMapLocation(location, locationCallback);
+                    MapLocation.destroy({'_id': location.id}).exec(function(err, deletedLocation) {
+                        if (err) {
+                            sails.log.info("in deleteMapLocation.find() callback, error. " + err);
+                            locationCallback(err);
+                        } else {
+                            sails.log.info("in deleteMapLocation.find() callback, success. ");
+                            locationCallback();
+                        }
+                    });
                 },
                 function(err) {
                     sails.log.info("finished deleteMaplocations. err: " + err);
@@ -350,71 +361,6 @@ function deleteMapLocations(realm, locationsDeletedCallback) {
                 // It's ok for there to be none.
             }
         }
-    });
-}
-
-function deleteMapLocation(location, locationCallback) {
-    sails.log.info("starting deleteMaplocation " + JSON.stringify(location));
-
-    // TODO: deleteItems() and deleteCharacters() functions already exist, so use async.parallel to call them.
-    async.parallel([
-        function(itemsAndCharactersCallback) {
-            deleteItems(location, itemsAndCharactersCallback);
-        },
-        function(itemsAndCharactersCallback) {
-            deleteCharacters(location, itemsAndCharactersCallback);
-        }
-    ],
-    function(err) {
-        sails.log.info("Finished deleting items and characters. err: " + err);
-        if (err === null)
-        {
-            sails.log.info("now delete the maplocation");
-            MapLocation.destroy({'_id': location.id}).exec(function(err, location) {
-                if (err) {
-                    sails.log.info("in deleteMapLocation.find() callback, error. " + err);
-                } else {
-                    sails.log.info("in deleteMapLocation.find() callback, success. ");
-                }
-            });
-        }
-
-        locationCallback(err);
-    });
-}
-
-function deleteItems(location, callback) {
-    sails.log.info("in deleteItems. location = " + JSON.stringify(location));
-    var itemIds = [];
-    location.items.forEach(function(item) { itemIds.push(item.id); });
-
-    sails.log.info("in deleteItems. itemIds = " + JSON.stringify(itemIds));
-    Item.destroy({'_id': itemIds}).exec(function(err, items) {
-        if (err) {
-            sails.log.info("in deleteItems.find() callback, error. " + err);
-        } else {
-            sails.log.info("in deleteItems.find() callback, success. ");
-        }
-
-        callback(err);
-    });
-}
-
-function deleteCharacters(location, callback) {
-    sails.log.info("in deleteCharacters. location = " + JSON.stringify(location));
-    var characterIds = [];
-    location.characters.forEach(function(character) {
-        characterIds.push(character.id);
-    });
-
-    sails.log.info("in deleteCharacters. characterIds = " + JSON.stringify(characterIds));
-    Character.destroy({'_id': characterIds}).exec(function(err, characters) {
-        if (err) {
-            sails.log.info("in deleteCharacters.find() callback, error. " + err);
-        } else {
-            sails.log.info("in deleteCharacters.find() callback, success. ");
-        }
-        callback(err);
     });
 }
 
@@ -518,152 +464,22 @@ function copyMapLocations(game, parentRealmId, locationsCopiedCallback) {
 
 function copyMapLocation(game, location, locationCallback) {
     sails.log.info("starting copyMapLocation " + JSON.stringify(location));
+
     MapLocation.create({
         realmId: game.id,
         x: location.x,
         y: location.y,
         environment: location.environment,
-        items: [],
-        characters: []}).done(function(error, newLocation) {
+        items: location.items,
+        characters: location.characters}).done(function(error, newLocation) {
             if (error) {
                 sails.log.error("DB Error:" + error);
                 locationCallback("DB Error:" + error);
             } else {
                 sails.log.info("cloned maplocation for game " + game.name);
-                // Copy the items and characters in parallel.
-                async.parallel([
-                    function(itemsAndCharactersCallback) {
-                        // async.map() iterates through all the entries in location.items,
-                        // passing each in a call to copyItem(), which calls the function
-                        // below when it finishes the copy.
-                        async.map(location.items, copyItem, function (err, newItems) {
-                            // An item has finsihed copying. Call itemsAndCharactersCallback to let
-                            // async.map know this. When async.map sees that all items in the collection
-                            // have been processed, the parallel operation will marked complete.
-                            if (err) {
-                                sails.log.error("Failed to clone items for location " +
-                                JSON.stringify(location) +
-                                ". Error: " + err);
-                                itemsAndCharactersCallback(err);
-                            } else {
-                                sails.log.info("cloned items for location " +
-                                JSON.stringify(location) +
-                                ". New items: " + JSON.stringify(newItems));
-                                newLocation.items = newItems;
-                                itemsAndCharactersCallback();
-                            }
-                        });
-                    },
-                    function(itemsAndCharactersCallback) {
-                        async.map(location.characters, copyCharacter, function (err, newCharacters) {
-                            if (err) {
-                                sails.log.error("Failed to clone characters for location " +
-                                JSON.stringify(location) +
-                                ". Error: " + err);
-                                itemsAndCharactersCallback(err);
-                            } else {
-                                sails.log.info("cloned characters for location " +
-                                JSON.stringify(location) +
-                                ". New characters: " + JSON.stringify(newCharacters));
-                                newLocation.characters = newCharacters;
-                                itemsAndCharactersCallback();
-                            }
-                        });
-                    }
-                ],
-                function(err) {
-                    sails.log.info("Finished copying maplocation. err: " + err);
-                    newLocation.save(function(err, obj) {
-                        if (err) {
-                            sails.log.info("in copyMapLocation() error saving location: " + err);
-                            locationCallback("in copyMapLocation() error saving location: " + err);
-                        } else {
-                            sails.log.info("in copyMapLocation() saved location: " + JSON.stringify(obj));
-                            locationCallback();
-                        }
-                    });
-                });
+                locationCallback();
             }
         });
-}
-
-function copyItem(itemRef, itemCallback) {
-    sails.log.info("cloning item: " + JSON.stringify(itemRef));
-
-    Item.findOne({"_id": itemRef.id}).done(function(err, item) {
-        sails.log.info("in copyItem.find() callback");
-        if (err) {
-            sails.log.info("in copyItem.find() callback, error. " + err);
-            itemCallback("in copyItem.find() callback, error. " + err);
-        } else {
-            sails.log.info("in copyItem.find() callback, no error.");
-            var result = true;
-            if (item) {
-                sails.log.info("in copyItem.find() item: " + JSON.stringify(item));
-
-                Item.create({
-                    name: item.name,
-                    type: item.type,
-                    description: item.description,
-                    damage: item.damage,
-                    image: item.image}).done(function(error, newItem) {
-                    // Error or success, call itemCallback to let async know the operation has finished.
-                    if (error) {
-                        sails.log.error("DB Error:" + error);
-                        res.send(500, {error: "DB Error:" + error});
-                        itemCallback("DB Error:" + error);
-                    } else {
-                        sails.log.info("cloned item: " + JSON.stringify(newItem));
-                        itemCallback(null, {"id": newItem.id});
-                    }
-                });
-            } else {
-                sails.log.info("in copyItems.find() callback, none found.");
-                itemCallback();
-                // Should this be an error? No point in creating a game with no locations.
-            }
-        }
-    });
-}
-
-function copyCharacter(characterRef, characterCallback) {
-    sails.log.info("cloning character : " + JSON.stringify(characterRef));
-
-    Character.findOne({"_id": characterRef.id}).done(function(err, character) {
-        sails.log.info("in copyCharacter.find() callback");
-        if (err) {
-            sails.log.info("in copyCharacter.find() callback, error. " + err);
-            characterCallback("in copyCharacter.find() callback, error. " + err);
-        } else {
-            sails.log.info("in copyCharacter.find() callback, no error.");
-            if (character) {
-                sails.log.info("in copyCharacter.find() item: " + JSON.stringify(character));
-
-                Character.create({
-                    name: character.name,
-                    type: character.type,
-                    description: character.description,
-                    additionalInfo: character.additionalInfo,
-                    damage: character.damage,
-                    health: character.health,
-                    drops: character.drops,
-                    image: character.image}).done(function(error, newCharacter) {
-                    // Error or success, call characterCallback to let async know the operation has finished.
-                    if (error) {
-                        sails.log.error("DB Error:" + error);
-                        characterCallback("DB Error:" + error);
-                    } else {
-                        sails.log.info("cloned character: " + JSON.stringify(newCharacter));
-                        characterCallback(null, {"id": newCharacter.id});
-                    }
-                });
-            } else {
-                sails.log.info("in copyCharacters.find() callback, none found.");
-                characterCallback();
-                // Should this be an error? No point in creating a game with no locations.
-            }
-        }
-    });
 }
 
 module.exports = QuestRealmController;

@@ -238,7 +238,7 @@ function createRealmDesign() {
             window.location = '/editRealm?id=' + data.id;
         }
     ).fail(function(res){
-        alert("Error: " + res.getResponseHeader("error"));
+        alert("Error: " + JSON.parse(res.responseText).error);
     });
 }
 
@@ -281,7 +281,9 @@ function createGame(parentRealmId) {
             loadGames();
         }
     ).fail(function(res){
-        alert("Error: " + res.getResponseHeader("error"));
+        alert("Error: " + JSON.parse(res.responseText).error);
+        cleanAndHideCreateGamePanel();
+        loadGames();
     });
 }
 
@@ -314,6 +316,7 @@ function deleteGame(target) {
             }
         ).fail(function(res){
             alert("Error: " + JSON.parse(res.responseText).error);
+            loadGames();
         });
     }
 }
