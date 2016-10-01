@@ -879,7 +879,8 @@ function addCharacterToLocation(droppedCharacter, location)
             damage: droppedCharacter.attr('data-damage'),
             health: droppedCharacter.attr('data-health'),
             drops: droppedCharacter.attr('data-drops'),
-            image: droppedCharacter.find('img').attr('src')
+            image: droppedCharacter.find('img').attr('src'),
+            npc: true
         }
     );
 

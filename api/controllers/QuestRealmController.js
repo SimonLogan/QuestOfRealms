@@ -149,7 +149,7 @@ var QuestRealmController = {
 
     // Game creation is a fairly complex process. We need to clone all the components of the
     // template realm. Waterline operations (the database interface layer of sails.js) are asynchronous
-    // and relies on callback functions to notify when the operation has completed. Since they are
+    // and rely on callback functions to notify when the operation has completed. Since they are
     // asynchronous, you can't easily use a normal sequential flow of steps, and it's very easy to
     // get into the Javascript situation known as "callback hell".
     // The async library provides useful constructs for dealing with asynchronous operations.
@@ -159,90 +159,111 @@ var QuestRealmController = {
         var playerName = req.param("playerName");
         var parentRealmId = req.param("parentRealmId");
 
-        sails.log.info("in createGame, name =" + gameName +
-                       ", playerName =" + playerName);
+        sails.log.info("in createGame, name:" + gameName + ", playerName:" + playerName);
 
-        // Look up some additional info from the parent realm.
-        QuestRealm.findOne({'_id': parentRealmId}).done(function(err, realm) {
-            sails.log.info("in QuestRealm.findById() callback");
-            if (err) {
-                res.send(500, { error: "DB Error1" + err });
-            } else {
-                sails.log.info("in QuestRealm.findById() callback, no error.");
-                if (realm) {
-                    sails.log.info("in QuestRealm.findById() callback " + JSON.stringify(realm));
+        async.waterfall([
+            function findStartLocation(foundCallback) {
+                sails.log.info("starting findStartLocation");
 
-                    // Generate the game.
-                    Game.create({
-                        name: gameName,
-                        description: gameDescription,
-                        parentRealmId: parentRealmId,
-                        width: realm.width,
-                        height: realm.height}).done(function(error, game) {
-                            if (error) {
-                                sails.log.error("DB Error:" + error);
-                                res.send(500, {error: "DB Error:" + error});
-                            } else {
-                                // This will perform the copyMapLocations() and copyObjectives()
-                                // operations in parallel.
-                                async.parallel([
-                                        // The callback parameter is supplied by the async library so that each
-                                        // parallel operation can let async know when it has completed.
-                                        function(callback) {
-                                            // copyMapLocations() has its own set of parallel operations.
-                                            copyMapLocations(game, parentRealmId, callback);
-                                        },
-                                        function(callback) {
-                                            // copyObjectives() has its own set of parallel operations.
-                                            copyObjectives(game, parentRealmId, callback);
-                                        }
-                                    ],
-                                    // This function will be called when all the parallel operations
-                                    // have been completed. The "err" parameter will be set if any
-                                    // operation encountered an error.
-                                    function(err) {
-                                        sails.log.info("createGame, finished parallel. err: " + err);
+                // Find where to place the player initially.
+                Objective.findOne({'realmId': parentRealmId, 'type': '1'}).done(function(err, objective) {
+                    sails.log.info("in Objective.findById() callback");
+                    if (err) {
+                        foundCallback("findStartLocation db err:" + err);
+                    } else {
+                        sails.log.info("in Objective.findById() callback, no error.");
+                        if (objective) {
+                            sails.log.info("in Objective.findById() callback " + JSON.stringify(objective));
+                            startx = objective.params[0]['value'];
+                            starty = objective.params[1]['value'];
+                            foundCallback(null, startx, starty);
+                        }
+                        else {
+                            sails.log.info("no \"start at\" objective found.");
+                            foundCallback("no \"start at\" objective found.");
+                        }
+                    }
+                });
+            },
+            function findOrCreatePlayer(startx, starty, playerCallback) {
+                sails.log.info("starting findOrCreatePlayer. startx:" + startx + " starty:" + starty);
+                // Add the player to the global list of players (for possible
+                // use across games, recording high-scores etc.
+                var player;
+                Player.findOrCreate(
+                    {name: playerName},
+                    {name: playerName}).done(function(error, dbPlayer) {
+                    if (error) {
+                        sails.log.error("DB Error:" + error);
+                        playerCallback("findOrCreatePlayer db err:" + err);
+                    }
 
-                                        Objective.findOne({'realmId': parentRealmId, 'type': '1'}).done(function(err, objective) {
-                                            sails.log.info("in Objective.findById() callback");
-                                            if (err) {
-                                                res.send(500, { error: "DB Error1" + err });
-                                            } else {
-                                                sails.log.info("in Objective.findById() callback, no error.");
-                                                if (objective) {
-                                                    sails.log.info("in Objective.findById() callback " + JSON.stringify(objective));
-                                                    sails.log.info("creating player, name=" + playerName);
-                                                    Player.create({
-                                                        name: playerName,
-                                                        game: game.id,
-                                                        // params[0] is { "name" : "x", "value" : "1" }
-                                                        // params[1] is { "name" : "y", "value" : "1" }
-                                                        location: {'x': objective.params[0]['value'],
-                                                                   'y': objective.params[1]['value']}}).done(function(error, player) {
-                                                        if (error) {
-                                                            sails.log.error("DB Error:" + error);
-                                                            res.send(500, {error: "DB Error:" + error});
-                                                        }
+                    sails.log.info("found player " + JSON.stringify(dbPlayer));
+                    playerCallback(null, dbPlayer, startx, starty)
+                });
+            },
+            function createTheGame(player, startx, starty, gameCallback) {
+                sails.log.info("starting createTheGame. player: " + JSON.stringify(player) + " startx:"+ startx + " starty:" + starty);
 
-                                                        sails.log.info("created player " + JSON.stringify(player));
-                                                        res.send(game);
-                                                     });
-                                                }
-                                                else {
-                                                    sails.log.info("no \"start at\" objective found.");
-                                                    res.send(500, { error: "no \"start at\" objective found." });
-                                                }
+                // Look up some additional info from the parent realm.
+                QuestRealm.findOne({'_id': parentRealmId}).done(function (err, realm) {
+                    sails.log.info("in QuestRealm.findById() callback");
+                    if (err) {
+                        gameCallback("createTheGame db err:" + err);
+                    } else {
+                        sails.log.info("in QuestRealm.findById() callback, no error.");
+                        if (realm) {
+                            sails.log.info("in QuestRealm.findById() callback " + JSON.stringify(realm));
+
+                            // Generate the game.
+                            Game.create({
+                                name: gameName,
+                                description: gameDescription,
+                                parentRealmId: parentRealmId,
+                                width: realm.width,
+                                height: realm.height
+                            }).done(function (error, game) {
+                                if (error) {
+                                    sails.log.error("DB Error:" + error);
+                                    gameCallback("createTheGame db err:" + error);
+                                } else {
+                                    // This will perform the copyMapLocations() and copyObjectives()
+                                    // operations in parallel.
+                                    async.parallel([
+                                            // The callback parameter is supplied by the async library so that each
+                                            // parallel operation can let async know when it has completed.
+                                            function (callback) {
+                                                // copyMapLocations() has its own set of parallel operations.
+                                                copyMapLocations(game, parentRealmId, player, startx, starty, callback);
+                                            },
+                                            function (callback) {
+                                                // copyObjectives() has its own set of parallel operations.
+                                                copyObjectives(game, parentRealmId, callback);
                                             }
-                                        });
-                                    }
-                                );
-                            }
-                        });
-                } else {
-                    sails.log.info("in QuestRealm.findById() callback, realm is null.");
-                    res.send(404, { error: "realm not Found" });
-                }
+                                        ],
+                                        // This function will be called when all the parallel operations
+                                        // have been completed. The "err" parameter will be set if any
+                                        // operation encountered an error.
+                                        function (err) {
+                                            sails.log.info("createGame, finished parallel. err: " + err);
+                                            gameCallback(err, game);
+                                        }
+                                    );
+                                }
+                            });
+                        } else {
+                            sails.log.info("in QuestRealm.findById() callback, realm is null.");
+                            gameCallback("createTheGame realm not Found");
+                        }
+                    }
+                });
             }
+        ], function (err, result) {
+            sails.log.info("in createGame() all done. err:" + err + " result:" + JSON.stringify(result));
+            if (err)
+                res.send(500, {error: err});
+            else
+                res.send(result);
         });
     },
 
@@ -375,7 +396,7 @@ function copyObjectives(game, parentRealmId, objectivesCopiedCallback) {
         } else {
             sails.log.info("in copyObjectives.find() callback, no error.");
             if (objectives) {
-                sails.log.info("in copyObjectives.find() locations: " + JSON.stringify(objectives));
+                sails.log.info("in copyObjectives.find() objectives: " + JSON.stringify(objectives));
                 async.each(objectives, function(objective, objectiveCallback) {
                         sails.log.info("copy objective: " + JSON.stringify(objective));
                         copyObjective(game, objective, objectiveCallback);
@@ -430,7 +451,7 @@ function deleteObjectives(realm, objectivesDeletedCallback) {
     });
 }
 
-function copyMapLocations(game, parentRealmId, locationsCopiedCallback) {
+function copyMapLocations(game, parentRealmId, player, startx, starty, locationsCopiedCallback) {
     sails.log.info("in copyMapLocations. game.id = " + game.id + ", parentRealmId = " + parentRealmId);
 
     MapLocation.find({"realmId": parentRealmId}).done(function(err, locations) {
@@ -446,13 +467,13 @@ function copyMapLocations(game, parentRealmId, locationsCopiedCallback) {
                 // below for each. When all have been marked complete, call locationsCopiedCallback
                 // to let async know we are finished.
                 async.each(locations, function(location, locationCallback) {
-                    sails.log.info("copy location: " + JSON.stringify(location));
-                    copyMapLocation(game, location, locationCallback);
-                },
-                function(err) {
-                    sails.log.info("finished copyMapLocations. err: " + err);
-                    locationsCopiedCallback(err);
-                });
+                        sails.log.info("copy location: " + JSON.stringify(location));
+                        copyMapLocation(game, location, player, startx, starty, locationCallback);
+                    },
+                    function(err) {
+                        sails.log.info("finished copyMapLocations. err: " + err);
+                        locationsCopiedCallback(err);
+                    });
             } else {
                 sails.log.info("in copyMapLocations.find() callback, none found.");
                 locationsCopiedCallback();
@@ -462,8 +483,14 @@ function copyMapLocations(game, parentRealmId, locationsCopiedCallback) {
     });
 }
 
-function copyMapLocation(game, location, locationCallback) {
+function copyMapLocation(game, location, player, startx, starty, locationCallback) {
     sails.log.info("starting copyMapLocation " + JSON.stringify(location));
+
+    var characters = location.characters;
+    if (location.x === startx && location.y === starty) {
+        sails.log.info("copyMapLocation. found start location.");
+        characters.push(player);
+    }
 
     MapLocation.create({
         realmId: game.id,
@@ -471,15 +498,15 @@ function copyMapLocation(game, location, locationCallback) {
         y: location.y,
         environment: location.environment,
         items: location.items,
-        characters: location.characters}).done(function(error, newLocation) {
-            if (error) {
-                sails.log.error("DB Error:" + error);
-                locationCallback("DB Error:" + error);
-            } else {
-                sails.log.info("cloned maplocation for game " + game.name);
-                locationCallback();
-            }
-        });
+        characters: characters}).done(function(error, newLocation) {
+        if (error) {
+            sails.log.error("DB Error:" + error);
+            locationCallback("DB Error:" + error);
+        } else {
+            sails.log.info("cloned maplocation for game " + game.name);
+            locationCallback();
+        }
+    });
 }
 
 module.exports = QuestRealmController;
