@@ -100,8 +100,6 @@ $(document).ready(function() {
     // Load the existing data into the collection.
     locations.fetch({ where: { realmId: realmId } });
 
-    //displayObjectives();
-
     _.templateSettings = {
         interpolate : /\{\{(.+?)\}\}/g
     };
@@ -124,11 +122,13 @@ $(document).ready(function() {
                 target.html('');
                 target.append('<img src="images/' + item.attributes.environment + '.png" />');
 
-                // To allow it to be dragged to the wastebasket.
-                //target.addClass('draggable mapItem');
-                //target.draggable({helper: 'clone', revert: 'invalid'});
-
-                // TODO: draw the player icon
+                var playerLocation = findPlayerLocation(locations, $('#playerName').val());
+                if (playerLocation) {
+                    describeLocation(playerLocation);
+                    // TODO: draw the player icon
+                } else {
+                    alert("Could not find player " + $('#playerName').val() + " on the map.");
+                }
             }
         },
         remove: function(item) {
@@ -176,16 +176,39 @@ $(document).ready(function() {
     // Handle game commands
     $('#inputArea').keypress(function(event) {
         if (event.keyCode == 13) {
-            // ajax send command
-            $.post(
-                '/gameCommand',
-                { "command": $('#inputArea').val() },
-                function (data) {
-                    console.log(data);
-                }
-            ).fail(function(res){
-                alert("Error: " + res.getResponseHeader("error"));
-            });
+            var commandTextBox = $('#inputArea');
+            var commandText = commandTextBox.val().trim().toLowerCase();
+
+            var playerLocation = findPlayerLocation(locations, $('#playerName').val());
+            if (!playerLocation) {
+                alert("Could not find player " + $('#playerName').val() + " on the map.");
+                return;
+            }
+
+            displayMessage(commandText);
+
+            // Some commands can be handled on the client side.
+            if (!handleClientSideCommand(locations, playerLocation, commandText)) {
+                // This command can't be handled locally. Send to the server.
+                $.post(
+                    '/gameCommand', {
+                        command: commandText,
+                        player: $('#playerName').val(),
+                        gameId: $('#realmId').val(),
+                        location: {x: playerLocation.attributes.x, y: playerLocation.attributes.y}
+                    },
+                    function (data) {
+                        console.log(data);
+                        if (data.error) {
+                            displayMessage(escapeHtml(data.message));
+                        }
+                    }
+                ).fail(function (res) {
+                    alert("Error: " + res.responseJSON.error);
+                });
+            }
+
+            commandTextBox.val("");
         }
     });
 
@@ -194,27 +217,6 @@ $(document).ready(function() {
 
     $(document).on('mouseleave', '#mapPanel', function() {});
 
-    $(document).on('mouseenter', '.mapItem', function(e) {
-        /*
-        var selectedMapCell = $('#mapTable').find(".mapItem.selected");
-        if (selectedMapCell.length === 0) {
-            $('#currentCell').val($(this).prop('id'));
-            $(this).closest('td').css('border-color', 'red');
-            populateMapLocationDetails(locations, $(this), false);
-        }
-        */
-    });
-
-    $(document).on('mouseleave', '.mapItem', function(e) {
-        /*
-        var selectedMapCell = $('#mapTable').find(".mapItem.selected");
-        if (selectedMapCell.length === 0) {
-            $('#currentCell').val('');
-            $(this).closest('td').css('border-color', '');
-            clearLocationDetails();
-        }
-        */
-    });
 });
 
 
@@ -281,8 +283,73 @@ function buildMessageArea() {
     var html = "";
     var numRows = 25;
     for (var row=0; row <numRows; row++) {
-        html += "<tr><td><input id='text_row_" + row + "' class='messageRow' size='80' readonly /></td></tr>";
+        html += "<tr><td><input class='messageRow' size='80' readonly /></td></tr>";
     }
 
     $('#messageTable').html(html);
+}
+
+function displayMessage(message) {
+    var table = $('#messageTable');
+    var topRow = table.find('tr:first');
+    var bottomRowTextField = table.find('tr:last input');
+
+    if (0 === bottomRowTextField.val().length) {
+        bottomRowTextField.val(">\t" + message);
+    } else {
+        topRow.remove();
+        table.append("<tr><td><input class='messageRow' size='80' readonly value='>\t" + message + "'/></td></tr>");
+    }
+}
+
+function findPlayerLocation(locations, playerName) {
+    if (0 === locations.length) {
+        return null;
+    } else {
+        var playerLocation = null;
+        locations.each(function (location) {
+            console.log(JSON.stringify(location));
+
+            $.each(location.attributes.characters, function (characterIndex, character) {
+                if (character.name === playerName) {
+                    console.log("found player " + playerName);
+                    playerLocation = location;
+                    return false;
+                }
+            });
+        });
+
+        return playerLocation;
+    }
+}
+
+function describeLocation(location) {
+    var message = "You are at location [" + location.attributes.x + ", " + location.attributes.y + "]. Terrain: " + location.attributes.environment;
+    displayMessage(message);
+}
+
+function handleClientSideCommand(locations, playerLocation, commandText) {
+    if (commandText === "describe location") {
+        describeLocation(playerLocation);
+        return true;
+    }
+
+    return false;
+}
+
+// escapeHtml implementation taken from mustache.js
+// https://github.com/janl/mustache.js/blob/eae8aa3ba9396bd994f2d5bbe3b9fc14d702a7c2/mustache.js#L60
+var entityMap = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': '&quot;',
+    "'": '&#39;',
+    "/": '&#x2F;'
+};
+
+function escapeHtml(string) {
+    return String(string).replace(/[&<>"'\/]/g, function (s) {
+        return entityMap[s];
+    });
 }

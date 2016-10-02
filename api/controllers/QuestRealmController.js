@@ -221,7 +221,8 @@ var QuestRealmController = {
                                 description: gameDescription,
                                 parentRealmId: parentRealmId,
                                 width: realm.width,
-                                height: realm.height
+                                height: realm.height,
+                                players: [{name: playerName}]
                             }).done(function (error, game) {
                                 if (error) {
                                     sails.log.error("DB Error:" + error);

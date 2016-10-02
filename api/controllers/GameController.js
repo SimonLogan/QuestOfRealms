@@ -63,7 +63,8 @@ module.exports = {
                             id: game.id,
                             name: game.name,
                             width: game.width,
-                            height: game.height
+                            height: game.height,
+                            playerName: game.players[0].name
                         }
                     });
                 } else {
@@ -76,39 +77,41 @@ module.exports = {
 
     /* Send commands during a game. */
     gameCommand: function(req, res) {
-        var command = req.param("command");
+        var command = req.param("command").trim().toLowerCase();
+        var playerName = req.param("player").trim();
+        var location = req.param("location");
+        var gameId = req.param("gameId");
         sails.log.info("in gameCommand. command = " + command);
+        sails.log.info("in gameCommand. req = " + req);
 
         var tokens = command.split(" ");
-        var success = false;
-        sails.log.info("in gameCommand. tokens[0].toUpperCase = " + tokens[0].toUpperCase());
-        switch (tokens[0].toUpperCase()) {
-            case "MOVE":
-                success = handleMove(tokens);
+        switch (tokens[0]) {
+            case "move":
+                result = handleMove(tokens, gameId, playerName, location, function(handlerResult) {
+                    sails.log.info("in gameCommand. handleMove result = " + JSON.stringify(handlerResult));
+
+                    if (!handlerResult.error) {
+                        // TODO: remove player from location.characters[].
+                        //       add player to handlerResult.newLocation.characters[]
+                        //       and save both in the db.
+                        res.send(200, handlerResult);
+                    } else {
+                        res.send(200, handlerResult);
+                    }
+                });
                 break;
-            case "LOOK":
-                success = handleLook(tokens);
+            case "look":
+                result = handleLook(tokens, gameId, playerName, location, function(handlerResult) {
+                    sails.log.info("in gameCommand. handleLook result = " + handlerResult);
+                    res.send(200, handlerResult);
+                });
                 break;
             default:
-                handleBadCommand(tokens);
+                result = handleCommand(tokens, gameId, playerName, location, function(handlerResult) {
+                    sails.log.info("in gameCommand. handleCommand result = " + handlerResult);
+                    res.send(200, handlerResult);
+                });
         }
-
-        if (success) {
-            res.send(200, {});
-        } else {
-            res.send(500, {"error": "invalid command"});
-        }
-
-        // TODO: figure out how to make the parser handle the business logic.
-        // Does it need to worry about threading?
-        /* overkill. just use a simple parser for the simple command structure.
-        var parsedOk = parser.parse(command);
-        if (parsedOk) {
-            res.send(200, {});
-        } else {
-            res.send(500, {"error": "invalid command"});
-        }
-        */
     },
 
   /**
@@ -119,16 +122,67 @@ module.exports = {
 };
 
 
-function handleMove(tokens) {
-    sails.log.info("MOVE: " + tokens[1]);
-    return true;
+function handleMove(commandTokens, gameId, playerName, location, statusCallback) {
+    var direction = commandTokens[1];
+    sails.log.info("MOVE: " + direction);
+
+    var deltaX = 0;
+    var deltaY = 0;
+    if ("north" === direction) deltaY = 1;
+    else if ("south" === direction) deltaY = -1;
+    else if ("east" === direction) deltaY = -1;
+    else if ("west" === direction) deltaY = 1;
+    else {
+        var errorMessage = "Unknown direction " + direction;
+        sails.log.info(errorMessage);
+        statusCallback({error:true, message:errorMessage});
+    }
+
+    // Does the requested location exist?
+    var newX = parseInt(location.x);
+    var newY = parseInt(location.y);
+    if (isNaN(newX) || isNaN(newY)) {
+        sails.log.info("in handleMove.find() invalid start location [" + newX + ", " + newY + "].");
+    }
+
+    newX += deltaX;
+    newY += deltaY;
+    sails.log.info("in handleMove.find() searching for location [" + newX + ", " + newY + "].");
+    // TODO: store the coordinates as int instead of string.
+    MapLocation.findOne({'realmId': gameId, 'x': newX.toString(), 'y': newY.toString()}).done(function(err, newLocation) {
+        sails.log.info("in handleMove.find() callback");
+        if (err) {
+            sails.log.info("handleMove db err:" + err);
+        } else {
+            sails.log.info("in handleMove.find() callback, no error.");
+            if (newLocation) {
+                sails.log.info("in handleMove.find() callback " + JSON.stringify(newLocation));
+                statusCallback({error:false, newLocation:newLocation});
+            }
+            else {
+                var errorMessage = "Don't be daft, you'll fall off the end of the world!";
+                sails.log.info("new location not found");
+                statusCallback({error:true, message:errorMessage});
+            }
+        }
+    });
 }
 
-function handleLook(tokens) {
+function handleLook(commandTokens, gameId, playerName, location, statusCallback) {
     sails.log.info("LOOK");
-    return true;
+    statusCallback({error:false});
 }
 
-function handleBadCommand(tokens) {
-    sails.log.info("huh? " + tokens);
+function handleCommand(commandTokens, gameId, playerName, location, statusCallback) {
+    var errorMessage = "Unknown comand";
+    sails.log.info(errorMessage);
+    statusCallback({error:true, message:errorMessage});
+}
+
+function sendCommandResponse(responseStream, response) {
+    if (!response.error) {
+        responseStream.send(200, response);
+    } else {
+        responseStream.send(500, response);
+    }
 }

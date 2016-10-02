@@ -7,6 +7,7 @@
 
 <!-- -->
 <h2>Play Game <%= realm.name %></h2>
+<h3>Playing as <%= realm.playerName %></h3>
 <input type="hidden" id="realmId" value="<%= realm.id %>" />
 
 <link rel="stylesheet" href="/styles/editRealm.css">
@@ -15,6 +16,7 @@
 <script src="//code.jquery.com/ui/1.11.1/jquery-ui.js"></script>
 
 <div id="workArea">
+    <input type="hidden" id="playerName" value="<%= realm.playerName %>" />
     <div id="workPanel" class="displayPanel">
         <%- partial ('mapPartial.ejs') %>
     </div>
