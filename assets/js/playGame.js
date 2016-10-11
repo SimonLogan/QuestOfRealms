@@ -6,7 +6,10 @@
 // Constants
 
 // Global data
-
+// The actual game you will be playing.
+// TODO: work out how to notify the client when game data changes in the db.
+// I think if it uses a backbone collection for the game object it will get notified.
+var gameData;
 
 // When the page has finished rendering...
 $(document).ready(function() {
@@ -25,13 +28,18 @@ $(document).ready(function() {
     //            width: realm.width,
     //            height: realm.height
     //       }
-    var realmWidth = parseInt($('#realmWidth').val());
-    var realmHeight = parseInt($('#realmHeight').val());
     var realmId = $('#realmId').val(); // Really gameId in this context.
 
-    // Draw the map grid.
-    drawMapGrid(realmWidth, realmHeight);
-    buildMessageArea();
+    // Load the realm and call the function below when it has been retrieved.
+    // You need to use this callback approach because the AJAX call is
+    // asynchronous. This means the code here won't wait for it to complete,
+    // so you have to provide a function that can be called when the data is ready.
+    loadGame(function() {
+        $('#gameName').text("Play Game " + gameData.name);
+        $('#playerName').text("Playing as " + gameData.players[0].name);
+        drawMapGrid(gameData.width, gameData.height);
+        buildMessageArea();
+    });
 
     // Look into custom namespaces or rooms for the game.
     // Subscribing to a game-specific room means a single server can support multiple games.
@@ -124,6 +132,7 @@ $(document).ready(function() {
 
                 var playerLocation = findPlayerLocation(locations, $('#playerName').val());
                 if (playerLocation) {
+                    // TODO: don't do this here as it will log for every maplocation id draws.
                     describeLocation(playerLocation);
                     // TODO: draw the player icon
                 } else {
@@ -194,8 +203,7 @@ $(document).ready(function() {
                     '/gameCommand', {
                         command: commandText,
                         player: $('#playerName').val(),
-                        gameId: $('#realmId').val(),
-                        location: {x: playerLocation.attributes.x, y: playerLocation.attributes.y}
+                        gameId: $('#realmId').val()
                     },
                     function (data) {
                         console.log(data);
@@ -224,6 +232,22 @@ $(document).ready(function() {
 // Utility functions
 //
 
+function loadGame(callback)
+{
+    console.log(Date.now() + ' loadGame');
+
+    $.get(
+        '/fetchGame',
+        { "id": $('#realmId').val() },
+        function (data) {
+            gameData = data;
+            callback();
+        }
+    ).fail(function(res){
+        alert("Error: " + JSON.parse(res.responseText).error);
+    });
+}
+
 function drawMapGrid(realmWidth, realmHeight)
 {
     var mapTable = $('#mapTable');
@@ -235,6 +259,9 @@ function drawMapGrid(realmWidth, realmHeight)
     */
 
     // Allow an extra cell at the top and bottom of the table for the cell labels.
+    realmWidth = parseInt(realmWidth);
+    realmHeight = parseInt(realmHeight);
+
     for (var yCounter = realmHeight +1; yCounter >= 0; yCounter--) {
         if ((yCounter === realmHeight +1) || (yCounter === 0)) {
             tableContents += '<tr>';
@@ -303,24 +330,21 @@ function displayMessage(message) {
 }
 
 function findPlayerLocation(locations, playerName) {
-    if (0 === locations.length) {
-        return null;
-    } else {
-        var playerLocation = null;
-        locations.each(function (location) {
-            console.log(JSON.stringify(location));
+    var playerLocation = null;
 
-            $.each(location.attributes.characters, function (characterIndex, character) {
-                if (character.name === playerName) {
-                    console.log("found player " + playerName);
-                    playerLocation = location;
-                    return false;
-                }
-            });
-        });
+    $.each(gameData.players, function(index, player) {
+        if (player.name === playerName) {
+            var found = locations.where({
+                x: player.location.x, y:player.location.y});
 
-        return playerLocation;
-    }
+            if (found)
+                playerLocation = found[0];
+
+            return false;
+        }
+    });
+
+    return playerLocation;
 }
 
 function describeLocation(location) {

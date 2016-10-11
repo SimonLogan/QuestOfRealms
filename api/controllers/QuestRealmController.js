@@ -136,7 +136,6 @@ var QuestRealmController = {
             } else {
                 sails.log.info("in QuestRealm.findById() callback, no error.");
                 if (realm) {
-                    currentRealm = realm;
                     sails.log.info("in QuestRealm.findById() callback " + JSON.stringify(realm));
                     res.send(realm);
                 } else {
@@ -285,6 +284,32 @@ var QuestRealmController = {
                      });
                 } else {
                     sails.log.info("in QuestRealm.deleteGame() callback, realm is null.");
+                    res.send(404, { error: "game not Found" });
+                }
+            }
+        });
+    },
+
+    // Load a single game, by Id.
+    fetchGame: function(req, res) {
+        var gameId = req.param("id");
+        sails.log.info("in fetchGame. id = " + gameId);
+
+        // Find the Game object that has the _id value matching the specified realmId.
+        // If you want to check this in the db, use
+        //   use QuestOfRealms
+        //   db.game.find({'_id': ObjectId('56d1d4ed3f5a79642a3ac0eb')});
+        Game.findOne({'_id': gameId}).done(function(err, game) {
+            sails.log.info("in Game.findById() callback");
+            if (err) {
+                res.send(500, { error: "DB Error1" + err });
+            } else {
+                sails.log.info("in Game.findById() callback, no error.");
+                if (game) {
+                    sails.log.info("in Game.findById() callback " + JSON.stringify(game));
+                    res.send(game);
+                } else {
+                    sails.log.info("in Game.findById() callback, realm is null.");
                     res.send(404, { error: "game not Found" });
                 }
             }

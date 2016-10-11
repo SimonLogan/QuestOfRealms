@@ -93,6 +93,11 @@ module.exports.routes = {
         action: 'createGame'
     },
 
+    '/fetchGame' : {
+        controller: 'questRealm',
+        action: 'fetchGame'
+    },
+
     '/fetchGames' : {
         controller: 'questRealm',
         action: 'fetchGames'

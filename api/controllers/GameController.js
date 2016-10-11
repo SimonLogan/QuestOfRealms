@@ -79,39 +79,52 @@ module.exports = {
     gameCommand: function(req, res) {
         var command = req.param("command").trim().toLowerCase();
         var playerName = req.param("player").trim();
-        var location = req.param("location");
         var gameId = req.param("gameId");
+
         sails.log.info("in gameCommand. command = " + command);
         sails.log.info("in gameCommand. req = " + req);
 
-        var tokens = command.split(" ");
-        switch (tokens[0]) {
-            case "move":
-                result = handleMove(tokens, gameId, playerName, location, function(handlerResult) {
-                    sails.log.info("in gameCommand. handleMove result = " + JSON.stringify(handlerResult));
+        Game.findOne({'_id': gameId}).done(function(err, game) {
+            sails.log.info("in Game.findById() callback");
+            if (err) {
+                res.send(500, { error: "DB Error1" + err });
+            } else {
+                sails.log.info("in Game.findById() callback, no error.");
+                if (game) {
+                    sails.log.info("in Game.findById() callback " + JSON.stringify(game));
 
-                    if (!handlerResult.error) {
-                        // TODO: remove player from location.characters[].
-                        //       add player to handlerResult.newLocation.characters[]
-                        //       and save both in the db.
-                        res.send(200, handlerResult);
-                    } else {
-                        res.send(200, handlerResult);
+                    var tokens = command.split(" ");
+                    switch (tokens[0]) {
+                        case "move":
+                            result = handleMove(tokens, game, playerName, function(handlerResult) {
+                                sails.log.info("in gameCommand. handleMove result = " + JSON.stringify(handlerResult));
+
+                                if (!handlerResult.error) {
+                                    res.send(200);
+                                } else {
+                                    res.send(200, handlerResult);
+                                }
+                            });
+                            break;
+                        case "look":
+                            result = handleLook(tokens, game, playerName, function(handlerResult) {
+                                sails.log.info("in gameCommand. handleLook result = " + handlerResult);
+                                res.send(200, handlerResult);
+                            });
+                            break;
+                        default:
+                            result = handleCommand(tokens, game, playerName, function(handlerResult) {
+                                sails.log.info("in gameCommand. handleCommand result = " + handlerResult);
+                                res.send(200, handlerResult);
+                            });
                     }
-                });
-                break;
-            case "look":
-                result = handleLook(tokens, gameId, playerName, location, function(handlerResult) {
-                    sails.log.info("in gameCommand. handleLook result = " + handlerResult);
-                    res.send(200, handlerResult);
-                });
-                break;
-            default:
-                result = handleCommand(tokens, gameId, playerName, location, function(handlerResult) {
-                    sails.log.info("in gameCommand. handleCommand result = " + handlerResult);
-                    res.send(200, handlerResult);
-                });
-        }
+
+                } else {
+                    sails.log.info("in Game.findById() callback, realm is null.");
+                    res.send(404, { error: "game not Found" });
+                }
+            }
+        });
     },
 
   /**
@@ -122,7 +135,7 @@ module.exports = {
 };
 
 
-function handleMove(commandTokens, gameId, playerName, location, statusCallback) {
+function handleMove(commandTokens, game, playerName, statusCallback) {
     var direction = commandTokens[1];
     sails.log.info("MOVE: " + direction);
 
@@ -138,26 +151,58 @@ function handleMove(commandTokens, gameId, playerName, location, statusCallback)
         statusCallback({error:true, message:errorMessage});
     }
 
-    // Does the requested location exist?
-    var newX = parseInt(location.x);
-    var newY = parseInt(location.y);
-    if (isNaN(newX) || isNaN(newY)) {
-        sails.log.info("in handleMove.find() invalid start location [" + newX + ", " + newY + "].");
+    // Does the requested location exist? First get the current player location.
+    var playerIndex = null;
+    for (var i=0; i<game.players.length; i++) {
+        if (game.players[i].name === playerName) {
+            playerIndex = i;
+            break;
+        }
     }
 
-    newX += deltaX;
-    newY += deltaY;
+    if (null === playerIndex) {
+        sails.log.info("in handleMove.find() invalid current location.");
+        statusCallback({error:true, message:"Invalid current location"});
+    }
+
+    var newX = parseInt(game.players[playerIndex].location.x) + deltaX;
+    var newY = parseInt(game.players[playerIndex].location.y) + deltaY;
     sails.log.info("in handleMove.find() searching for location [" + newX + ", " + newY + "].");
+
     // TODO: store the coordinates as int instead of string.
-    MapLocation.findOne({'realmId': gameId, 'x': newX.toString(), 'y': newY.toString()}).done(function(err, newLocation) {
+    MapLocation.findOne({'realmId': game.id, 'x': newX.toString(), 'y': newY.toString()}).done(function(err, newLocation) {
         sails.log.info("in handleMove.find() callback");
         if (err) {
             sails.log.info("handleMove db err:" + err);
+            statusCallback({error:true, message:err});
         } else {
             sails.log.info("in handleMove.find() callback, no error.");
             if (newLocation) {
                 sails.log.info("in handleMove.find() callback " + JSON.stringify(newLocation));
-                statusCallback({error:false, newLocation:newLocation});
+
+                game.players[playerIndex].location.x = newX.toString();
+                game.players[playerIndex].location.y = newY.toString();
+
+                // TODO: work out how to notify the client. I think if it uses a
+                // backbone collection for the game object it will get notified.
+                Game.update(
+                    {'_id': game.id},
+                    game).done(function(err, updatedGame) {
+                    sails.log.info("in Game.update() callback");
+                    if (err) {
+                        sails.log.info("in Game.update() callback, error. " + err);
+                        statusCallback({error:true, message:err});
+                    } else {
+                        sails.log.info("in Game.update() callback, no error.");
+                        if (updatedGame) {
+                            sails.log.info("in Game.update() callback " + JSON.stringify(updatedGame));
+                            statusCallback({error:false});
+                        } else {
+                            sails.log.info("in Game.update() callback, item is null.");
+                            statusCallback({error:true, message:"failed to find game"});
+                        }
+                    }
+                });
             }
             else {
                 var errorMessage = "Don't be daft, you'll fall off the end of the world!";
@@ -168,12 +213,12 @@ function handleMove(commandTokens, gameId, playerName, location, statusCallback)
     });
 }
 
-function handleLook(commandTokens, gameId, playerName, location, statusCallback) {
+function handleLook(commandTokens, game, playerName, statusCallback) {
     sails.log.info("LOOK");
     statusCallback({error:false});
 }
 
-function handleCommand(commandTokens, gameId, playerName, location, statusCallback) {
+function handleCommand(commandTokens, game, playerName, statusCallback) {
     var errorMessage = "Unknown comand";
     sails.log.info(errorMessage);
     statusCallback({error:true, message:errorMessage});
