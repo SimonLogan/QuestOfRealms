@@ -5,11 +5,11 @@
 
 // Constants
 
-// Global data
-var envData;
-var itemData;
-var characterData;
-var objectiveData;
+// Global data: options available in the various tabs in the palette window.
+var envPaletteData;
+var itemPaletteData;
+var characterPaletteData;
+var objectivePaletteData;
 
 PaletteItemType = {
     ENV : 0,
@@ -17,29 +17,52 @@ PaletteItemType = {
     CHARACTER : 2
 }
 
+// The actual realm you will be editing.
+var realmData;
+
 // When the page has finished rendering...
 $(document).ready(function() {
-    // Get the size of the map grid that should be drawn. These values come from the HTML elements
-    // with id="realmWidth" and id="realmHeight".
+    // Get the id of the realm we're editing so that we can look it up wity AJAX.
+    // This value comes from the HTML element with id="realmId".
     // The jQuery selectors $(#XXX) below select the elements by id.
-    // The data was placed into these elements in the first place by the template parameters
-    //    value="<%= realm.width %>"
-    //    value="<%= realm.height %>"
-    // which get their values from the data passed to the view function by editRealm() in
+    // The data was placed into this element in the first place by the template parameter
+    //    value="<%= realm.id %>"
+    // which gets its value from the data passed to the view function by editRealm() in
     // api/controllers/QuestRealmcontroller.js:
     //    return res.view("questRealm/editRealm", {
     //        realm: {
-    //            id: realm.id,
-    //            name: realm.name,
-    //            width: realm.width,
-    //            height: realm.height
+    //            id: realm.id
     //       }
-    var realmWidth = parseInt($('#realmWidth').val());
-    var realmHeight = parseInt($('#realmHeight').val());
     var realmId = $('#realmId').val();
 
-    // Draw an empty map grid.
-    drawMapGrid(realmWidth, realmHeight);
+    // Load the realm and call the function below when it has been retrieved.
+    // You need to use this callback approach because the AJAX call is
+    // asynchronous. This means the code here won't wait for it to complete,
+    // so you have to provide a function that can be called when the data is ready.
+    loadRealm(function() {
+        $('#realmName').text("Realm Designer: Editing realm " + realmData.name);
+        drawMapGrid(realmData.width, realmData.height);
+
+        // Handle and item that was dragged and dropped. This could be:
+        // 1. An item from the palette dropped onto the grid.
+        // 2. An item moved in the grid.
+        // 3. An item (from palette or grid) dropped onto the wastebasket.
+        $('.droppable').droppable({
+            drop: function (event, ui) {
+                var droppedItem = $(ui.draggable);
+                var target = $(this);
+
+                if (target.is('#wastebasket')) {
+                    moveToWasteBasket(locations, droppedItem);
+                }
+                else {
+                    droppedMapItem(realmId, locations, droppedItem, target);
+                }
+            }
+        });
+
+        displayObjectives();
+    });
 
     // Create the tabbed panels and load the data.
     $(function() {
@@ -251,23 +274,24 @@ $(document).ready(function() {
                         + '_'
                         + saveParams[1].value
                         + ' > div');
+
                     if (!mapCell.hasClass('mapItem')) {
                         alert('The specified location does not exist.');
                         return;
                     }
                 }
 
-                saveObjective(
-                    dropdown.val(),
-                    dropdown.find('option:selected').text(),
-                    dropdown.find('option:selected').attr('title'),
-                    $('#realmId').val(),
-                    JSON.stringify(saveParams),
-                    function () {
-                        dialog.dialog("close");
-                        displayObjectives();
-                    }
-                );
+                realmData.objectives.push({
+                    type: dropdown.val(),
+                    typeStr: dropdown.find('option:selected').text(),
+                    description: dropdown.find('option:selected').attr('title'),
+                    params: saveParams
+                });
+
+                saveRealm(function() {
+                    dialog.dialog("close");
+                    displayObjectives();
+                });
             }
         }
 
@@ -300,7 +324,7 @@ $(document).ready(function() {
         $('#objectiveChoice').change(function() {
             var selectedObjectiveType = $('#objectiveChoice').val();
             var html = "<table>";
-            objectiveData[selectedObjectiveType -1].parameters.forEach(function (item) {
+            objectivePaletteData[selectedObjectiveType -1].parameters.forEach(function (item) {
                 html += "<tr><th class='detailsHeading'>" + item.name + "</th>";
                 html += "<td><input type='text'/></td></tr>";
             });
@@ -311,21 +335,21 @@ $(document).ready(function() {
 
     $(document).on('click', '.deleteObjective', function(e) {
         var target = $(e.target.closest('tr'));
-        var deleteId = target.attr('id');
-        //var deleteType = target.attr('data-value');
-        deleteObjective(
-            deleteId,
-            function () {
-                displayObjectives();
-            }
-        );
+
+        if (1 === realmData.objectives.length) {
+            realmData.objectives = [];
+        } else {
+            realmData.objectives.splice(parseInt(target.attr('data-id')), 1);
+        }
+
+        saveRealm(function() {
+            displayObjectives();
+        });
     });
 
     var locations = new MapLocationCollection();
     // Load the existing data into the collection.
     locations.fetch({ where: { realmId: realmId } });
-
-    displayObjectives();
 
     _.templateSettings = {
         interpolate : /\{\{(.+?)\}\}/g
@@ -392,26 +416,7 @@ $(document).ready(function() {
             }
         }
     });
-
     var mView = new LocationsView({collection: locations});
-
-    // Handle and item that was dragged and dropped. This could be:
-    // 1. An item from the palette dropped onto the grid.
-    // 2. An item moved in the grid.
-    // 3. An item (from palette or grid) dropped onto the wastebasket.
-    $('.droppable').droppable({
-        drop: function (event, ui) {
-            var droppedItem = $(ui.draggable);
-            var target = $(this);
-
-            if (target.is('#wastebasket')) {
-                moveToWasteBasket(locations, droppedItem);
-            }
-            else {
-                droppedMapItem(realmId, locations, droppedItem, target);
-            }
-        }
-    });
 
     $(document).on('mouseenter', '.paletteItem', function() {
         if ($(this).prop('id').length == 0)
@@ -422,13 +427,13 @@ $(document).ready(function() {
         var activeTab = $('#paletteInnerPanel').tabs('option', 'active');
         switch (activeTab) {
             case PaletteItemType.ENV:
-                tabData = {class: activeTab, data: envData};
+                tabData = {class: activeTab, data: envPaletteData};
                 break;
             case PaletteItemType.ITEM:
-                tabData = {class: activeTab, data: itemData};
+                tabData = {class: activeTab, data: itemPaletteData};
                 break;
             case PaletteItemType.CHARACTER:
-                tabData = {class: activeTab, data: characterData};
+                tabData = {class: activeTab, data: characterPaletteData};
                 break;
             default:
                 console.log("Got invalid active tab " + activeTab);
@@ -648,6 +653,9 @@ function drawMapGrid(realmWidth, realmHeight)
     */
 
     // Allow an extra cell at the top and bottom of the table for the cell labels.
+    realmWidth = parseInt(realmWidth);
+    realmHeight = parseInt(realmHeight);
+
     for (var yCounter = realmHeight +1; yCounter >= 0; yCounter--) {
         if ((yCounter === realmHeight +1) || (yCounter === 0)) {
             tableContents += '<tr>';
@@ -888,42 +896,6 @@ function addCharacterToLocation(droppedCharacter, location)
 }
 
 
-function saveObjective(id, name, description, realmId, params, callback)
-{
-    $.post(
-        '/createObjective',
-        {
-            type: id,
-            name: name,
-            description: description,
-            realmId: realmId,
-            params: params
-        },
-        function (data) {
-            callback();
-        }
-    ).fail(function(res){
-        alert("Error: " + JSON.parse(res.responseText).error);
-    });
-}
-
-
-function deleteObjective(id, callback)
-{
-    $.post(
-        '/deleteObjective',
-        {
-            id: id
-        },
-        function (data) {
-            callback();
-        }
-    ).fail(function(res){
-        alert("Error: " + JSON.parse(res.responseText).error);
-    });
-}
-
-
 // Populate the properties window for the specified palette item.
 // params:
 //   paletteItem: the palette item.
@@ -1145,7 +1117,7 @@ function loadEnvPalette() {
         '/loadEnvPalette',
         function (data) {
             var target = $('#paletteEnvList');
-            envData = data;
+            envPaletteData = data;
 
             var envNum = 1;
             data.forEach(function(item) {
@@ -1173,7 +1145,7 @@ function loadItemsPalette() {
         '/loadItemsPalette',
         function (data) {
             var target = $('#paletteItemList');
-            itemData = data;
+            itemPaletteData = data;
 
             var itemNum = 1;
             data.forEach(function(item) {
@@ -1204,7 +1176,7 @@ function loadCharactersPalette() {
         '/loadCharactersPalette',
         function (data) {
             var target = $('#paletteCharactersList');
-            characterData = data;
+            characterPaletteData = data;
 
             var itemNum = 1;
             data.forEach(function(item) {
@@ -1237,7 +1209,7 @@ function loadObjectivesPalette() {
     $.get(
         '/loadObjectivesPalette',
         function (data) {
-            objectiveData = data;
+            objectivePaletteData = data;
             var html = "<option value='0' title='choose' disabled selected>Choose</option>";
 
             data.forEach(function(item) {
@@ -1367,28 +1339,55 @@ function displayObjectiveDetails(item) {
 function displayObjectives()
 {
     console.log(Date.now() + ' displayObjectives');
+    var target = $('#objectiveList').html("");
+    var html = "";
+
+    var i=0;
+    realmData.objectives.forEach(function(item) {
+        html += "<tr data-id='" + (i++) + "'>";
+        html += "<td class='objectiveName' data-value='" + item.type + "'>" + item.typeStr + "</td>";
+        html += "<td class='objectiveDetails'>" + displayObjectiveDetails(item) + "</td>";
+        html += "<td><input class='deleteObjective' type='image' src='images/wastebasket.png' alt='Delete' width='14' height='14'></td>";
+        html += "</tr>";
+    });
+
+    target.append(html);
+    checkObjectivePriority();
+}
+
+
+function loadRealm(callback)
+{
+    console.log(Date.now() + ' loadRealm');
 
     $.get(
-        '/fetchObjectives',
-        { "realmId": $('#realmId').val() },
+        '/fetchRealm',
+        { "id": $('#realmId').val() },
         function (data) {
-            var target = $('#objectiveList').html("");
-            var html = "";
-
-            data.forEach(function(item) {
-                html += "<tr id='" + item.id + "'>";
-                html += "<td class='objectiveName' data-value='" + item.type + "'>" + item.name + "</td>";
-                html += "<td class='objectiveDetails'>" + displayObjectiveDetails(item) + "</td>";
-                html += "<td><input class='deleteObjective' type='image' src='images/wastebasket.png' alt='Delete' width='14' height='14'></td>";
-                html += "</tr>";
-            });
-
-            target.append(html);
-            checkObjectivePriority();
+            realmData = data;
+            callback();
         }
     ).fail(function(res){
         alert("Error: " + JSON.parse(res.responseText).error);
     });
 
-    $('#itemName').prop('disabled', true);
+    // TODO: still required?
+    //$('#itemName').prop('disabled', true);
+}
+
+
+function saveRealm(callback)
+{
+    console.log(Date.now() + ' saveRealm');
+
+    $.post(
+        '/saveRealm',
+        { "realm": realmData },
+        function (data) {
+            realmData = data;
+            callback();
+        }
+    ).fail(function(res){
+        alert("Error: " + JSON.parse(res.responseText).error);
+    });
 }

@@ -73,6 +73,16 @@ module.exports.routes = {
         action: 'deleteRealm'
     },
 
+    '/saveRealm' : {
+        controller: 'questRealm',
+        action: 'saveRealm'
+    },
+
+    '/fetchRealm' : {
+        controller: 'questRealm',
+        action: 'fetchRealm'
+    },
+
     '/fetchRealms' : {
         controller: 'questRealm',
         action: 'fetchRealms'
@@ -102,21 +112,6 @@ module.exports.routes = {
         controller: 'game',
         action: 'gameCommand'
     },
-
-    '/createObjective' : {
-        controller: 'objective',
-        action: 'createObjective'
-    },
-
-    '/deleteObjective' : {
-        controller: 'objective',
-        action: 'deleteObjective'
-    },
-
-    '/fetchObjectives' : {
-        controller: 'objective',
-        action: 'fetchObjectives'
-    }
 
     // By default, your root route (aka home page) points to a view
   // located at `views/home/index.ejs`

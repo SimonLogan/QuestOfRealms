@@ -15,8 +15,6 @@
  * @docs        :: http://sailsjs.org/#!documentation/controllers
  */
 
-var currentRealm;
-
 var QuestRealmController = {
 
     createRealm: function(req, res) {
@@ -30,13 +28,13 @@ var QuestRealmController = {
             name: realmName,
             description: realmDescription,
             width: realmWidth,
-            height: realmHeight}).done(function(error, realm) {
+            height: realmHeight,
+            objectives: []}).done(function(error, realm) {
             if (error) {
                 sails.log.error("DB Error:" + error);
                 res.send(500, {error: "DB Error:" + error});
             } else {
                 sails.log.info("created Realm " + realm.name);
-                currentRealm = realm;
                 // Send the newly-created realm info back to the caller.
                 res.send(realm);
             }
@@ -47,33 +45,8 @@ var QuestRealmController = {
         var realmId = req.param("id");
         sails.log.info("in editRealm. id = " + realmId);
 
-        // Find the QuestRealm object that has the _id value matching the specified realmId.
-        // If you want to check this in the db, use
-        //   use QuestOfRealms
-        //   db.questrealm.find({'_id': ObjectId('56d1d4ed3f5a79642a3ac0eb')});
-        QuestRealm.findOne({'_id': realmId}).done(function(err, realm) {
-            sails.log.info("in QuestRealm.findById() callback");
-            if (err) {
-                res.send(500, { error: "DB Error1" + err });
-            } else {
-                sails.log.info("in QuestRealm.findById() callback, no error.");
-                if (realm) {
-                    currentRealm = realm;
-                    sails.log.info("in QuestRealm.findById() callback " + JSON.stringify(realm));
-
-                    return res.view("questRealm/editRealm", {
-                        realm: {
-                            id: realm.id,
-                            name: realm.name,
-                            width: realm.width,
-                            height: realm.height
-                        }
-                    });
-                } else {
-                    sails.log.info("in QuestRealm.findById() callback, realm is null.");
-                    res.send(404, { error: "realm not Found" });
-                }
-            }
+        return res.view("questRealm/editRealm", {
+            realm: {id: realmId}
         });
     },
 
@@ -89,24 +62,13 @@ var QuestRealmController = {
                 sails.log.info("in QuestRealm.deleteRealm() callback, no error.");
                 if (realm) {
                     sails.log.info("in QuestRealm.deleteRealm() callback " + JSON.stringify(realm));
-                    // This will perform the deleteMaplocations() and deleteObjectives()
-                    // operations in parallel.
-                    async.parallel([
-                        // The callback parameter is supplied by the async library so that each
-                        // parallel operation can let async know when it has completed.
-                        function(callback) {
-                            // deleteMaplocations() has its own set of parallel operations.
-                            deleteMapLocations(realm, callback);
-                        },
-                        function(callback) {
-                            // deleteObjectives() has its own set of parallel operations.
-                            deleteObjectives(realm, callback);
-                        }
-                    ],
-                    // This function will be called when all the parallel operations
-                    // have been completed. The "err" parameter will be set if any
-                    // operation encountered an error.
-                    function(err) {
+                    // The callback parameter is supplied by the async library so that each
+                    // parallel operation can let async know when it has completed.
+                    // deleteMaplocations() has its own set of parallel operations.
+                    deleteMapLocations(realm, function(err) {
+                        // This function will be called when all the parallel operations
+                        // have been completed. The "err" parameter will be set if any
+                        // operation encountered an error.
                         sails.log.info("deleteRealm, finished parallel. err: " + err);
                         sails.log.info("now delete the realm");
                         QuestRealm.destroy({'_id': realmId}).exec(function(err, realm) {
@@ -127,6 +89,65 @@ var QuestRealmController = {
         });
     },
 
+    saveRealm: function(req, res) {
+        var realm = req.param("realm");
+        sails.log.info("in saveRealm. realm = " + JSON.stringify(realm));
+
+        if (undefined === realm.objectives) {
+            // I don't understand why this is needed. The client side sent
+            // objectives: [] but it seems to get stripped out by the time it gets here.
+            realm.objectives = [];
+        }
+
+        // TODO: removing the last objective and passing [] doesn't update the db.
+        QuestRealm.update(
+            {'_id': realm.id},
+            realm).done(function(err, updatedRealm) {
+            sails.log.info("in QuestRealm.update() callback");
+            if (err) {
+                sails.log.info("in QuestRealm.update() callback, error. " + err);
+                res.send(500, { error: "DB Error1" + err });
+            } else {
+                sails.log.info("in QuestRealm.update() callback, no error.");
+                if (updatedRealm) {
+                    sails.log.info("in QuestRealm.update() callback " + JSON.stringify(updatedRealm));
+                    res.send(updatedRealm[0]);
+                } else {
+                    sails.log.info("in QuestRealm.update() callback, item is null.");
+                    res.send(404, { error: "realm not Found" });
+                }
+            }
+        });
+    },
+
+    // Load a single realm, by Id.
+    fetchRealm: function(req, res) {
+        var realmId = req.param("id");
+        sails.log.info("in fetchRealm. id = " + realmId);
+
+        // Find the QuestRealm object that has the _id value matching the specified realmId.
+        // If you want to check this in the db, use
+        //   use QuestOfRealms
+        //   db.questrealm.find({'_id': ObjectId('56d1d4ed3f5a79642a3ac0eb')});
+        QuestRealm.findOne({'_id': realmId}).done(function(err, realm) {
+            sails.log.info("in QuestRealm.findById() callback");
+            if (err) {
+                res.send(500, { error: "DB Error1" + err });
+            } else {
+                sails.log.info("in QuestRealm.findById() callback, no error.");
+                if (realm) {
+                    currentRealm = realm;
+                    sails.log.info("in QuestRealm.findById() callback " + JSON.stringify(realm));
+                    res.send(realm);
+                } else {
+                    sails.log.info("in QuestRealm.findById() callback, realm is null.");
+                    res.send(404, { error: "realm not Found" });
+                }
+            }
+        });
+    },
+
+    // Load all realms.
     fetchRealms: function(req, res) {
         sails.log.info("in fetchRealms");
         QuestRealm.find().done(function(err, items) {
@@ -162,31 +183,8 @@ var QuestRealmController = {
         sails.log.info("in createGame, name:" + gameName + ", playerName:" + playerName);
 
         async.waterfall([
-            function findStartLocation(foundCallback) {
-                sails.log.info("starting findStartLocation");
-
-                // Find where to place the player initially.
-                Objective.findOne({'realmId': parentRealmId, 'type': '1'}).done(function(err, objective) {
-                    sails.log.info("in Objective.findById() callback");
-                    if (err) {
-                        foundCallback("findStartLocation db err:" + err);
-                    } else {
-                        sails.log.info("in Objective.findById() callback, no error.");
-                        if (objective) {
-                            sails.log.info("in Objective.findById() callback " + JSON.stringify(objective));
-                            startx = objective.params[0]['value'];
-                            starty = objective.params[1]['value'];
-                            foundCallback(null, startx, starty);
-                        }
-                        else {
-                            sails.log.info("no \"start at\" objective found.");
-                            foundCallback("no \"start at\" objective found.");
-                        }
-                    }
-                });
-            },
-            function findOrCreatePlayer(startx, starty, playerCallback) {
-                sails.log.info("starting findOrCreatePlayer. startx:" + startx + " starty:" + starty);
+            function findOrCreatePlayer(playerCallback) {
+                sails.log.info("starting findOrCreatePlayer.");
                 // Add the player to the global list of players (for possible
                 // use across games, recording high-scores etc.
                 var player;
@@ -199,11 +197,11 @@ var QuestRealmController = {
                     }
 
                     sails.log.info("found player " + JSON.stringify(dbPlayer));
-                    playerCallback(null, dbPlayer, startx, starty)
+                    playerCallback(null, dbPlayer);
                 });
             },
-            function createTheGame(player, startx, starty, gameCallback) {
-                sails.log.info("starting createTheGame. player: " + JSON.stringify(player) + " startx:"+ startx + " starty:" + starty);
+            function createTheGame(player, gameCallback) {
+                sails.log.info("starting createTheGame. player: " + JSON.stringify(player));
 
                 // Look up some additional info from the parent realm.
                 QuestRealm.findOne({'_id': parentRealmId}).done(function (err, realm) {
@@ -215,41 +213,28 @@ var QuestRealmController = {
                         if (realm) {
                             sails.log.info("in QuestRealm.findById() callback " + JSON.stringify(realm));
 
+                            var startx = realm.objectives[0].params[0].value;
+                            var starty = realm.objectives[0].params[1].value;
+
                             // Generate the game.
-                            Game.create({
+                            var game = {
                                 name: gameName,
                                 description: gameDescription,
-                                parentRealmId: parentRealmId,
+                                parentRealmId: realm.id,
                                 width: realm.width,
                                 height: realm.height,
-                                players: [{name: playerName}]
-                            }).done(function (error, game) {
+                                objectives: realm.objectives,
+                                players: [{name: playerName,
+                                           location: {x: startx, y: starty}}]};
+
+                            Game.create(game).done(function (error, newGame) {
                                 if (error) {
                                     sails.log.error("DB Error:" + error);
                                     gameCallback("createTheGame db err:" + error);
                                 } else {
-                                    // This will perform the copyMapLocations() and copyObjectives()
-                                    // operations in parallel.
-                                    async.parallel([
-                                            // The callback parameter is supplied by the async library so that each
-                                            // parallel operation can let async know when it has completed.
-                                            function (callback) {
-                                                // copyMapLocations() has its own set of parallel operations.
-                                                copyMapLocations(game, parentRealmId, player, startx, starty, callback);
-                                            },
-                                            function (callback) {
-                                                // copyObjectives() has its own set of parallel operations.
-                                                copyObjectives(game, parentRealmId, callback);
-                                            }
-                                        ],
-                                        // This function will be called when all the parallel operations
-                                        // have been completed. The "err" parameter will be set if any
-                                        // operation encountered an error.
-                                        function (err) {
-                                            sails.log.info("createGame, finished parallel. err: " + err);
-                                            gameCallback(err, game);
-                                        }
-                                    );
+                                    copyMapLocations(newGame, parentRealmId, function() {
+                                        gameCallback(null, newGame);
+                                    });
                                 }
                             });
                         } else {
@@ -280,36 +265,24 @@ var QuestRealmController = {
                 sails.log.info("in QuestRealm.deleteGame() callback, no error.");
                 if (game) {
                     sails.log.info("in QuestRealm.deleteGame() callback " + JSON.stringify(game));
-                    // This will perform the deleteMaplocations() and deleteObjectives()
-                    // operations in parallel.
-                    async.parallel([
-                            // The callback parameter is supplied by the async library so that each
-                            // parallel operation can let async know when it has completed.
-                            function(callback) {
-                                // deleteMaplocations() has its own set of parallel operations.
-                                deleteMapLocations(game, callback);
-                            },
-                            function(callback) {
-                                // deleteObjectives() has its own set of parallel operations.
-                                deleteObjectives(game, callback);
-                            }
-                        ],
-                        // This function will be called when all the parallel operations
-                        // have been completed. The "err" parameter will be set if any
-                        // operation encountered an error.
-                        function(err) {
-                            sails.log.info("deleteGame, finished parallel. err: " + err);
-                            sails.log.info("now delete the game");
-                            Game.destroy({'_id': gameId}).exec(function(err, game) {
-                                if (err) {
-                                    sails.log.info("in deleteGame.find() callback, error. " + err);
-                                    res.send(500, { error: "failed to delete game" });
-                                } else {
-                                    sails.log.info("in deleteGame.find() callback, success. ");
-                                    res.send();
-                                }
-                            });
-                        });
+
+                     // deleteMaplocations() has its own set of parallel operations.
+                     deleteMapLocations(game, function(err) {
+                         // This function will be called when all the parallel operations
+                         // have been completed. The "err" parameter will be set if any
+                         // operation encountered an error.
+                         sails.log.info("deleteGame, finished parallel. err: " + err);
+                         sails.log.info("now delete the game");
+                         Game.destroy({'_id': gameId}).exec(function (err, game) {
+                             if (err) {
+                                 sails.log.info("in deleteGame.find() callback, error. " + err);
+                                 res.send(500, {error: "failed to delete game"});
+                             } else {
+                                 sails.log.info("in deleteGame.find() callback, success. ");
+                                 res.send();
+                             }
+                         });
+                     });
                 } else {
                     sails.log.info("in QuestRealm.deleteGame() callback, realm is null.");
                     res.send(404, { error: "game not Found" });
@@ -386,73 +359,7 @@ function deleteMapLocations(realm, locationsDeletedCallback) {
     });
 }
 
-function copyObjectives(game, parentRealmId, objectivesCopiedCallback) {
-    sails.log.info("in copyObjectives. game.id = " + game.id + ", parentRealmId = " + parentRealmId);
-
-    Objective.find({"realmId": parentRealmId}).done(function(err, objectives) {
-        sails.log.info("in copyObjectives.find() callback");
-        if (err) {
-            sails.log.info("in copyObjectives.find() callback, error. " + err);
-            objectivesCopiedCallback("in copyObjectives.find() callback, error. " + err);
-        } else {
-            sails.log.info("in copyObjectives.find() callback, no error.");
-            if (objectives) {
-                sails.log.info("in copyObjectives.find() objectives: " + JSON.stringify(objectives));
-                async.each(objectives, function(objective, objectiveCallback) {
-                        sails.log.info("copy objective: " + JSON.stringify(objective));
-                        copyObjective(game, objective, objectiveCallback);
-                    },
-                    function(err) {
-                        sails.log.info("finished copyObjectives. err: " + err);
-                        objectivesCopiedCallback(err);
-                    });
-            } else {
-                sails.log.info("in copyObjectives.find() callback, none found.");
-                objectivesCopiedCallback();
-                // Should this be an error? No point in creating a game with no locations.
-            }
-        }
-    });
-
-    sails.log.info("leaving copyObjectives()");
-}
-
-function copyObjective(game, objective, objectiveCopiedCallback) {
-    sails.log.info("starting copyObjective " + JSON.stringify(objective));
-    Objective.create({
-        realmId: game.id,
-        type: objective.type,
-        name: objective.name,
-        description: objective.description,
-        params: objective.params}).done(function(error, newObjective) {
-        // Error or success, call objectiveCopiedCallback to let async know the operation has finished.
-        if (error) {
-            sails.log.error("DB Error:" + error);
-            objectiveCopiedCallback("DB Error:" + error);
-        } else {
-            sails.log.info("cloned objective for game " + game.name);
-            objectiveCopiedCallback();
-        }
-    });
-
-    return true;
-}
-
-function deleteObjectives(realm, objectivesDeletedCallback) {
-    sails.log.info("in deleteObjectives. realm = " + JSON.stringify(realm));
-    Objective.destroy({'realmId': realm.id}).done(function(err, item) {
-        sails.log.info("in deleteObjectives.find() callback");
-        if (err) {
-            sails.log.info("in deleteObjectives.find() callback, error. " + err);
-        } else {
-            sails.log.info("in deleteObjectives.find() callback, success. ");
-        }
-
-        objectivesDeletedCallback(err);
-    });
-}
-
-function copyMapLocations(game, parentRealmId, player, startx, starty, locationsCopiedCallback) {
+function copyMapLocations(game, parentRealmId, locationsCopiedCallback) {
     sails.log.info("in copyMapLocations. game.id = " + game.id + ", parentRealmId = " + parentRealmId);
 
     MapLocation.find({"realmId": parentRealmId}).done(function(err, locations) {
@@ -469,7 +376,7 @@ function copyMapLocations(game, parentRealmId, player, startx, starty, locations
                 // to let async know we are finished.
                 async.each(locations, function(location, locationCallback) {
                         sails.log.info("copy location: " + JSON.stringify(location));
-                        copyMapLocation(game, location, player, startx, starty, locationCallback);
+                        copyMapLocation(game, location, locationCallback);
                     },
                     function(err) {
                         sails.log.info("finished copyMapLocations. err: " + err);
@@ -484,14 +391,10 @@ function copyMapLocations(game, parentRealmId, player, startx, starty, locations
     });
 }
 
-function copyMapLocation(game, location, player, startx, starty, locationCallback) {
+function copyMapLocation(game, location, locationCallback) {
     sails.log.info("starting copyMapLocation " + JSON.stringify(location));
 
     var characters = location.characters;
-    if (location.x === startx && location.y === starty) {
-        sails.log.info("copyMapLocation. found start location.");
-        characters.push(player);
-    }
 
     MapLocation.create({
         realmId: game.id,
