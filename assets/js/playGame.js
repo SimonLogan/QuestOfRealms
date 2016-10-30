@@ -6,10 +6,20 @@
 // Constants
 
 // Global data
-// The actual game you will be playing.
-// TODO: work out how to notify the client when game data changes in the db.
-// I think if it uses a backbone collection for the game object it will get notified.
+
+// The game data. This will be retrieved initially and then kept updated
+// via socket messages.
 var gameData;
+var maplocationData;
+
+// Socket management.
+// If joining a multiplayer game that is already in progress, you may receive game update
+// messages before you have finished processing the initial data-load operations. Set a busy
+// flag so that these messages are queued for subsequent processing.
+// This can be tested by calling the dummyCommand API as shown below.
+var gamesocket;
+var messageQueue = [];
+var busy = true;
 
 // When the page has finished rendering...
 $(document).ready(function() {
@@ -30,156 +40,84 @@ $(document).ready(function() {
     //       }
     var realmId = $('#realmId').val(); // Really gameId in this context.
 
-    // Load the realm and call the function below when it has been retrieved.
-    // You need to use this callback approach because the AJAX call is
-    // asynchronous. This means the code here won't wait for it to complete,
-    // so you have to provide a function that can be called when the data is ready.
-    loadGame(function() {
-        $('#gameName').text("Play Game " + gameData.name);
-        $('#playerName').text("Playing as " + gameData.players[0].name);
-        drawMapGrid(gameData.width, gameData.height);
-        buildMessageArea();
-    });
+    // There's no point in having a backbone collection to only ever run "fetch" on it.
+    // The client will fetch the data once at the start and then keep it in syn using the
+    // socket messages.
 
-    // Look into custom namespaces or rooms for the game.
-    // Subscribing to a game-specific room means a single server can support multiple games.
-    // http://sailsjs.org/documentation/concepts/realtime/on-the-server
-    // http://sailsjs.org/documentation/reference/web-sockets/resourceful-pub-sub
+    // Temporarily make it global for debug purposes.
+    /*var*/ gamesocket = io.connect();
+    gamesocket.on('connect', function socketConnected() {
 
-    // Backbone is a Model-View-Controller (MVC) framework. Extend the
-    // default Model with additional attributes that we need.
-    var MapLocationModel = Backbone.Model.extend({
-        urlRoot: '/maplocation'
-    });
+        // Listen for socket messages from the server
+        gamesocket.on(realmId + '-status', function messageReceived(message) {
+            messageQueue.push(message);
+            console.log("Push message onto queue: " + JSON.stringify(messageQueue));
+            if (busy) {
+                console.log("Busy, process message later");
+            } else {
+                console.log("Not busy, process message.");
+                processMessages();
+            }
+        });
 
-    // Maintain a local collection of map locations. This will be synchronized (both ways)
-    // with the server and so allows multi-user access to the data.
-    var MapLocationCollection = Backbone.Collection.extend({
-        // Extend the default collection with functionality that we need.
-        model: MapLocationModel,
-        // Socket will be used to automatically synchronize the collection
-        // with the server.
-        socket: null,
-        // Call this function when a synchronization needs to occur.
-        sync: function(method, model, options){
-            var where = {};
-            if (options.where) {
-                where = {
-                    where: options.where
+        ///////////////////////////////////////////////////////////
+        // Here's where you'll want to add any custom logic for
+        // when the browser establishes its socket connection to
+        // the Sails.js server.
+        ///////////////////////////////////////////////////////////
+        /*
+        console.log(
+            '22 Socket is now connected and globally accessible as `socket`.\n' +
+            'e.g. to send a GET request to Sails, try \n' +
+            '`socket.get("/", function (response) ' +
+            '{ console.log(response); })`'
+        );
+        */
+        ///////////////////////////////////////////////////////////
+
+
+        // Load the realm and call the function below when it has been retrieved.
+        // You need to use this callback approach because the AJAX call is
+        // asynchronous. This means the code here won't wait for it to complete,
+        // so you have to provide a function that can be called when the data is ready.
+        loadGame(function() {
+            $('#gameName').text("Play Game " + gameData.name);
+            $('#playerName').text("Playing as " + gameData.players[0].name);
+
+            loadMaplocations(function() {
+                drawMapGrid(gameData.width, gameData.height);
+                buildMessageArea();
+                busy = false;
+                processMessages();
+
+                var playerLocation = findPlayerLocation(maplocationData, gameData.players[0].name);
+                describeLocation(playerLocation);
+            });
+        });
+
+        // DEBUG
+        /*
+        {
+            // Trigger a command that will send an AJAX reponse and immediately publish a few
+            // socket messsages. Ensure that the client is busy and that the messages get
+            // queued and are successfully processed later.
+            console.log("starting dummycommand");
+            $.get(
+                '/dummyCommand',
+                function (data) {
+                    console.log("after dummycommand, starting delay.");
+                    setTimeout(function(){
+                        console.log("after delay");
+                        busy = false;
+                        processMessages();
+                    }, 10000);
                 }
-            }
-
-            this.socket = io.connect();
-            this.socket.on("connect", _.bind(function(){
-                // https://code.tutsplus.com/tutorials/working-with-data-in-sailsjs--net-31525 says
-                // What this means is, you can call any of the HTTP routes through web sockets.
-                // So it would be nice to be able to populate the collection through a "get everything"
-                // http call:
-                //this.socket.request("/getAllGameData", where, _.bind(function(maplocation){
-                // But I'm not sure how backbone would synchronize this as the data isn't from a single collection.
-                // TODO: check out https://github.com/balderdashy/backbone-to-sails
-                this.socket.request("/maplocation", where, _.bind(function(maplocation){
-                    this.set(maplocation);
-                    console.log("connection");
-                }, this));
-
-                // TODO: Don't accept client-side updates to the collection
-
-                // This is the subscription that allows the server to push out collection updates.
-                this.socket.on("message", _.bind(function(msg){
-                    var m = msg.verb;
-                    console.log("collection message, verb: " + m);
-
-                    if (m === "create") {
-                        this.add(msg.data);
-                    } else if (m === "update") {
-                        this.get(msg.data.id).set(msg.data);
-                    } else if (m === "destroy") {
-                        this.remove(this.get(msg.id));
-                    }
-                }, this));
-            }, this));
+            ).fail(function(res){
+                alert("Error: " + JSON.parse(res.responseText).error);
+            });
         }
+        */
     });
-
-    /* Dialogs */
-
-    var locations = new MapLocationCollection();
-    // Load the existing data into the collection.
-    locations.fetch({ where: { realmId: realmId } });
-
-    _.templateSettings = {
-        interpolate : /\{\{(.+?)\}\}/g
-    };
-
-    // Display incoming updates to the Backbone collection.
-    var LocationsView = Backbone.View.extend({
-        initialize: function () {
-            this.listenTo(this.collection, 'add', this.render);
-            this.listenTo(this.collection, 'remove', this.remove);
-            this.listenTo(this.collection, 'change', this.change);
-        },
-        render: function(item) {
-            if (item != undefined) {
-                console.log("in view.render:  " + JSON.stringify(item));
-
-                // Update the local display with the message data.
-                var target = $('#mapTable td[id="cell_' + item.attributes.x + '_' + item.attributes.y + '"]').find('div');
-                target.attr('data-env', item.attributes.environment);
-                target.attr('data-id', item.id);
-                target.html('');
-                target.append('<img src="images/' + item.attributes.environment + '.png" />');
-
-                var playerLocation = findPlayerLocation(locations, $('#playerName').val());
-                if (playerLocation) {
-                    // TODO: don't do this here as it will log for every maplocation id draws.
-                    describeLocation(playerLocation);
-                    // TODO: draw the player icon
-                } else {
-                    alert("Could not find player " + $('#playerName').val() + " on the map.");
-                }
-            }
-        },
-        remove: function(item) {
-            console.log("in view.remove: " + JSON.stringify(item));
-            var target = $('#mapTable td[id="cell_' + item.attributes.x + '_' + item.attributes.y + '"]').find('div');
-            target.html('');
-
-            // To allow it to be dragged to the wastebasket.
-            target.removeClass('draggable mapItem');
-        },
-        change: function(item) {
-            console.log("in view.change:  " + JSON.stringify(item));
-
-            // Update the local display with the message data.
-            var target = $('#mapTable td[id="cell_' + item.attributes.x + '_' + item.attributes.y + '"]').find('div');
-            target.attr('data-env', item.attributes.environment);
-
-            if (item.attributes.startLocation !== undefined) {
-                target.attr('data-startLocation', item.attributes.startLocation);
-            }
-
-            target.html('');
-            target.append('<img src="images/' + item.attributes.environment + '.png" />');
-
-            // To allow it to be dragged to the wastebasket.
-            target.addClass('draggable mapItem');
-            target.draggable({helper: 'clone', revert: 'invalid'});
-
-            // Populate the relevant location properties if this location is currently
-            // open in the properties window.
-            // use $('#propertiesPanel').attr('data-id');  and look up the location
-            // or add x and y attributes to the propertiesPanel.
-            var selectedMapCell = $('#mapTable').find(".mapItem.selected");
-            if ((selectedMapCell.length > 0) &&
-                (selectedMapCell.attr('data-x') === item.attributes['x']) &&
-                (selectedMapCell.attr('data-y') === item.attributes['y'])) {
-                populateLocationDetails(locations, item, true);
-            }
-        }
-    });
-
-    var mView = new LocationsView({collection: locations});
 
 
     // Handle game commands
@@ -187,8 +125,11 @@ $(document).ready(function() {
         if (event.keyCode == 13) {
             var commandTextBox = $('#inputArea');
             var commandText = commandTextBox.val().trim().toLowerCase();
+            if (0 === commandText.length) {
+                return;
+            }
 
-            var playerLocation = findPlayerLocation(locations, $('#playerName').val());
+            var playerLocation = findPlayerLocation(maplocationData, $('#playerName').val());
             if (!playerLocation) {
                 alert("Could not find player " + $('#playerName').val() + " on the map.");
                 return;
@@ -197,7 +138,7 @@ $(document).ready(function() {
             displayMessage(commandText);
 
             // Some commands can be handled on the client side.
-            if (!handleClientSideCommand(locations, playerLocation, commandText)) {
+            if (!handleClientSideCommand(playerLocation, commandText)) {
                 // This command can't be handled locally. Send to the server.
                 $.post(
                     '/gameCommand', {
@@ -232,6 +173,36 @@ $(document).ready(function() {
 // Utility functions
 //
 
+function processMessages() {
+    console.log("starting processMessages()");
+    if (busy) {
+        console.log("busy. leaving processMessages()");
+    }
+
+    while (messageQueue.length > 0) {
+        var thisMessage = messageQueue.shift();
+        console.log("processing message: " + JSON.stringify(thisMessage));
+
+        if (thisMessage.description.action === "move") {
+            processMoveNotification(thisMessage);
+        }
+    }
+    console.log("finished processMessages()");
+}
+
+function processMoveNotification(message) {
+    var aboutMe = (message.player === gameData.players[0].name);
+
+    gameData = message.data.game[0];
+
+    if (aboutMe) {
+        console.log("You have moved to location [" + message.description.to.x + "," + message.description.to.y + "].");
+        describeLocation(maplocationData[message.description.to.y-1][message.description.to.x-1]);
+    }
+
+
+}
+
 function loadGame(callback)
 {
     console.log(Date.now() + ' loadGame');
@@ -241,6 +212,31 @@ function loadGame(callback)
         { "id": $('#realmId').val() },
         function (data) {
             gameData = data;
+            callback();
+        }
+    ).fail(function(res){
+        alert("Error: " + JSON.parse(res.responseText).error);
+    });
+}
+
+function loadMaplocations(callback)
+{
+    console.log(Date.now() + ' loadMaplocations');
+
+    $.get(
+        '/maplocation?realmId=' + $('#realmId').val(),
+        function (data) {
+            // Make a sparse array for the map area.
+            maplocationData = new Array(parseInt(gameData.height));
+            $.each(data, function(index, item) {
+                console.log("iter: " + JSON.stringify(item));
+
+                if (maplocationData[parseInt(item.y)-1] === undefined) {
+                    maplocationData[parseInt(item.y)-1] = new Array(parseInt(gameData.width));
+                }
+                maplocationData[parseInt(item.y)-1][parseInt(item.x)-1] = item;
+            });
+
             callback();
         }
     ).fail(function(res){
@@ -304,6 +300,26 @@ function drawMapGrid(realmWidth, realmHeight)
         tableContents += '</tr>';
     }
     mapTable.html(tableContents);
+
+    // Now draw all the data initially.
+    for (var y=0; y<realmHeight; y++) {
+        var thisRow = maplocationData[y];
+        if (thisRow !== undefined) {
+            for (var x = 0; x < realmWidth; x++) {
+                if (thisRow[x] !== undefined) {
+                    drawMaplocation(thisRow[x]);
+                }
+            }
+        }
+    }
+}
+
+function drawMaplocation(locationData) {
+    var target = $('#mapTable td[id="cell_' + locationData.x + '_' + locationData.y + '"]').find('div');
+    target.attr('data-env', locationData.environment);
+    target.attr('data-id', locationData.id);
+    target.html('');
+    target.append('<img src="images/' + locationData.environment + '.png" />');
 }
 
 function buildMessageArea() {
@@ -334,11 +350,10 @@ function findPlayerLocation(locations, playerName) {
 
     $.each(gameData.players, function(index, player) {
         if (player.name === playerName) {
-            var found = locations.where({
-                x: player.location.x, y:player.location.y});
+            var location = maplocationData[parseInt(player.location.y)-1][parseInt(player.location.x)-1];
 
-            if (found)
-                playerLocation = found[0];
+            if (location !== undefined)
+                playerLocation = location;
 
             return false;
         }
@@ -348,11 +363,11 @@ function findPlayerLocation(locations, playerName) {
 }
 
 function describeLocation(location) {
-    var message = "You are at location [" + location.attributes.x + ", " + location.attributes.y + "]. Terrain: " + location.attributes.environment;
+    var message = "You are at location [" + location.x + ", " + location.y + "]. Terrain: " + location.environment;
     displayMessage(message);
 }
 
-function handleClientSideCommand(locations, playerLocation, commandText) {
+function handleClientSideCommand(playerLocation, commandText) {
     if (commandText === "describe location") {
         describeLocation(playerLocation);
         return true;

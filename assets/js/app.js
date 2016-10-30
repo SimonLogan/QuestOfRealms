@@ -7,7 +7,7 @@
  * Feel free to change none, some, or ALL of this file to fit your needs!
  */
 
-
+/*
 (function (io) {
 
   // as soon as this file is loaded, connect automatically, 
@@ -67,5 +67,5 @@
   // In case you're wrapping socket.io to prevent pollution of the global namespace,
   // you can replace `window.io` with your own `io` here:
   window.io
-
 );
+*/

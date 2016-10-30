@@ -75,6 +75,20 @@ module.exports = {
         });
     },
 
+    // Debug: publish an AJAX reponse and some socket messages so the client
+    // can test handling of socket messages that arrive while it's processing
+    // the AJAX response.
+    dummyCommand: function(req, res) {
+        sails.log.info("in dummyCommand.");
+        sails.log.info("sending 200 response");
+        res.send(200);
+        sails.log.info("sending socket messages");
+        sails.io.sockets.emit("test", {verb: "message", data:"dummy ok 1"});
+        sails.io.sockets.emit("test", {verb: "message", data:"dummy ok 2"});
+        sails.io.sockets.emit("test", {verb: "message", data:"dummy ok 3"});
+        sails.io.sockets.emit("ignoreme", {verb: "test message", data:"dummy ok"});
+    },
+
     /* Send commands during a game. */
     gameCommand: function(req, res) {
         var command = req.param("command").trim().toLowerCase();
@@ -100,6 +114,7 @@ module.exports = {
                                 sails.log.info("in gameCommand. handleMove result = " + JSON.stringify(handlerResult));
 
                                 if (!handlerResult.error) {
+                                    sails.log.info("sending 200 response");
                                     res.send(200);
                                 } else {
                                     res.send(200, handlerResult);
@@ -141,14 +156,40 @@ function handleMove(commandTokens, game, playerName, statusCallback) {
 
     var deltaX = 0;
     var deltaY = 0;
-    if ("north" === direction) deltaY = 1;
-    else if ("south" === direction) deltaY = -1;
-    else if ("east" === direction) deltaY = -1;
-    else if ("west" === direction) deltaY = 1;
-    else {
-        var errorMessage = "Unknown direction " + direction;
-        sails.log.info(errorMessage);
-        statusCallback({error:true, message:errorMessage});
+
+    switch(direction) {
+        case "north":
+            deltaY = 1;
+            break;
+        case "northeast":
+            deltaX = 1;
+            deltaY = 1;
+            break;
+        case "east":
+            deltaX = 1;
+            break;
+        case "southeast":
+            deltaX = 1;
+            deltaY = -1;
+            break;
+        case "south":
+            deltaY = -1;
+            break;
+        case "southwest":
+            deltaX = -1;
+            deltaY = -1;
+            break;
+        case "west":
+            deltaX = -1;
+            break;
+        case "northwest":
+            deltaX = -1;
+            deltaY = 1;
+            break;
+        default:
+            var errorMessage = "Unknown direction " + direction;
+            sails.log.info(errorMessage);
+            statusCallback({error:true, message:errorMessage});
     }
 
     // Does the requested location exist? First get the current player location.
@@ -165,8 +206,10 @@ function handleMove(commandTokens, game, playerName, statusCallback) {
         statusCallback({error:true, message:"Invalid current location"});
     }
 
-    var newX = parseInt(game.players[playerIndex].location.x) + deltaX;
-    var newY = parseInt(game.players[playerIndex].location.y) + deltaY;
+    var originalX = parseInt(game.players[playerIndex].location.x);
+    var originalY = parseInt(game.players[playerIndex].location.y);
+    var newX = originalX + deltaX;
+    var newY = originalY + deltaY;
     sails.log.info("in handleMove.find() searching for location [" + newX + ", " + newY + "].");
 
     // TODO: store the coordinates as int instead of string.
@@ -196,7 +239,23 @@ function handleMove(commandTokens, game, playerName, statusCallback) {
                         sails.log.info("in Game.update() callback, no error.");
                         if (updatedGame) {
                             sails.log.info("in Game.update() callback " + JSON.stringify(updatedGame));
-                            statusCallback({error:false});
+
+                            sails.log.info("sending socket messages for subject '" + game.id + "-status'");
+                            sails.io.sockets.emit(
+                                game.id + "-status",
+                                {
+                                    player: playerName,
+                                    description: {
+                                        action: "move",
+                                        from: {x:originalX, y:originalY},
+                                        to: {x:newX, y:newY}
+                                    },
+                                    data: {
+                                        game: updatedGame
+                                    }
+                                });
+
+                            statusCallback({error:false, data:updatedGame});
                         } else {
                             sails.log.info("in Game.update() callback, item is null.");
                             statusCallback({error:true, message:"failed to find game"});
