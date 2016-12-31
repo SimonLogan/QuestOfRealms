@@ -4,6 +4,10 @@
  */
 
 // Constants
+describeDetailEnum = {
+    TERRAIN_ONLY: 0,
+    TERRAIN_AND_CONTENTS: 1
+};
 
 // Global data
 
@@ -91,7 +95,7 @@ $(document).ready(function() {
                 processMessages();
 
                 var playerLocation = findPlayerLocation(maplocationData, gameData.players[0].name);
-                describeLocation(playerLocation);
+                displayMessage(describeMyLocation(playerLocation));
             });
         });
 
@@ -197,10 +201,8 @@ function processMoveNotification(message) {
 
     if (aboutMe) {
         console.log("You have moved to location [" + message.description.to.x + "," + message.description.to.y + "].");
-        describeLocation(maplocationData[message.description.to.y-1][message.description.to.x-1]);
+        displayMessage(describeMyLocation(maplocationData[message.description.to.y-1][message.description.to.x-1]));
     }
-
-
 }
 
 function loadGame(callback)
@@ -332,16 +334,38 @@ function buildMessageArea() {
     $('#messageTable').html(html);
 }
 
-function displayMessage(message) {
-    var table = $('#messageTable');
-    var topRow = table.find('tr:first');
-    var bottomRowTextField = table.find('tr:last input');
+function wordbreak(message) {
+    var tmp = message.substring(0, 80);
+    var lastSpace = tmp.lastIndexOf(" ");
+    return message.substring(0, lastSpace);
+}
 
-    if (0 === bottomRowTextField.val().length) {
-        bottomRowTextField.val(">\t" + message);
+// Display a message a briefly highlight it in the message table.
+function displayMessage(message) {
+    displayMessageImpl(message);
+    setTimeout(function() { $('.messageRow.newMessage').removeClass('newMessage').addClass('oldMessage'); }, 1000);
+}
+
+function displayMessageImpl(message, continuation) {
+    if (message.length > 80) {
+        var msgFragment = wordbreak(message);
+        displayMessageImpl(msgFragment);
+        while ((message.length - msgFragment.length) > 0) {
+            message = message.substring(msgFragment.length, msgFragment.length + 80);
+            displayMessageImpl(message, true);
+        }
     } else {
-        topRow.remove();
-        table.append("<tr><td><input class='messageRow' size='80' readonly value='>\t" + message + "'/></td></tr>");
+        var table = $('#messageTable');
+        var topRow = table.find('tr:first');
+        var bottomRowTextField = table.find('tr:last input');
+
+        if (0 === bottomRowTextField.val().length) {
+            bottomRowTextField.val(">\t" + message);
+            bottomRowTextField.addClass('messageRow newMessage');
+        } else {
+            topRow.remove();
+            table.append("<tr><td><input class='messageRow newMessage' size='80' readonly value='>\t" + message + "'/></td></tr>");
+        }
     }
 }
 
@@ -362,18 +386,123 @@ function findPlayerLocation(locations, playerName) {
     return playerLocation;
 }
 
-function describeLocation(location) {
-    var message = "You are at location [" + location.x + ", " + location.y + "]. Terrain: " + location.environment;
-    displayMessage(message);
+function describeLocationContents(location, detailLevel) {
+    var message = "";
+
+    if (detailLevel >= describeDetailEnum.TERRAIN_AND_CONTENTS) {
+        // TODO: format the list better. Say "two dwarves" rather than "a dwarf and a dwarf".
+        var numCharacters = location.characters.length;
+        if (numCharacters > 0) {
+            message += " There is a ";
+            for (var i = 0; i < numCharacters; i++) {
+                message += location.characters[i].type;
+                if (i < numCharacters - 2) {
+                    message += ", a ";
+                } else if (i == numCharacters - 2) {
+                    message += ", and a ";
+                }
+            }
+        }
+    }
+
+    return message;
 }
 
+function describeLocation(location, detailLevel) {
+    var message = "Terrain: " + location.environment + ".";
+    message += describeLocationContents(location, detailLevel);
+    return message;
+}
+
+function describeMyLocation(location) {
+    var message = "You are at location [" + location.x + ", " + location.y + "]. Terrain: " + location.environment + ".";
+    message += describeLocationContents(location, describeDetailEnum.TERRAIN_AND_CONTENTS);
+    return message;
+}
+
+// If the client has the data then certain commands can be fulfilled locally.
 function handleClientSideCommand(playerLocation, commandText) {
-    if (commandText === "describe location") {
-        describeLocation(playerLocation);
+    var tokens = commandText.split(" ");
+    if (tokens[0] === "look") {
+        handleLook(playerLocation, tokens);
         return true;
     }
 
     return false;
+}
+
+function handleLook(playerLocation, tokens) {
+    // "Look" without a direction refres to the current location.
+    if (1 === tokens.length) {
+        displayMessage(describeMyLocation(playerLocation));
+        return true;
+    }
+    else {
+        var deltaX = 0;
+        var deltaY = 0;
+
+        switch(tokens[1]) {
+            case "north":
+                deltaY = 1;
+                break;
+            case "northeast":
+                deltaX = 1;
+                deltaY = 1;
+                break;
+            case "east":
+                deltaX = 1;
+                break;
+            case "southeast":
+                deltaX = 1;
+                deltaY = -1;
+                break;
+            case "south":
+                deltaY = -1;
+                break;
+            case "southwest":
+                deltaX = -1;
+                deltaY = -1;
+                break;
+            case "west":
+                deltaX = -1;
+                break;
+            case "northwest":
+                deltaX = -1;
+                deltaY = 1;
+                break;
+            default:
+                var errorMessage = "Unknown direction " + tokens[1];
+                displayMessage(errorMessage);
+                return false;
+        }
+
+        // Does the requested location exist? First get the current player location.
+        var originalX = parseInt(playerLocation.x);
+        var originalY = parseInt(playerLocation.y);
+        var newX = originalX + deltaX;
+        var newY = originalY + deltaY;
+        console.log("searching for location [" + newX + ", " + newY + "].");
+
+        if (!locationExists(newY -1, newX -1)) {
+            var errorMessage = "That direction is beyond the edge of the world.";
+            displayMessage(errorMessage);
+            return false;
+        }
+
+        var newLocation = maplocationData[newY -1][newX -1];
+        displayMessage(describeLocation(newLocation, describeDetailEnum.TERRAIN_ONLY));
+        return true;
+    }
+}
+
+function locationExists(y, x) {
+    if (maplocationData[y] === undefined)
+        return false;
+
+    if (maplocationData[y][x] === undefined)
+        return false;
+
+    return true;
 }
 
 // escapeHtml implementation taken from mustache.js

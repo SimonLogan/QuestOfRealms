@@ -24,3 +24,12 @@
 .messageRow:focus{
     outline: none;
 }
+
+.messageRow.newMessage {
+    background-color: skyblue;
+}
+
+.messageRow.oldMessage {
+    background-color: white;
+    transition: background-color 1s;
+}

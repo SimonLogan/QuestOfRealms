@@ -121,12 +121,6 @@ module.exports = {
                                 }
                             });
                             break;
-                        case "look":
-                            result = handleLook(tokens, game, playerName, function(handlerResult) {
-                                sails.log.info("in gameCommand. handleLook result = " + handlerResult);
-                                res.send(200, handlerResult);
-                            });
-                            break;
                         default:
                             result = handleCommand(tokens, game, playerName, function(handlerResult) {
                                 sails.log.info("in gameCommand. handleCommand result = " + handlerResult);
@@ -270,11 +264,6 @@ function handleMove(commandTokens, game, playerName, statusCallback) {
             }
         }
     });
-}
-
-function handleLook(commandTokens, game, playerName, statusCallback) {
-    sails.log.info("LOOK");
-    statusCallback({error:false});
 }
 
 function handleCommand(commandTokens, game, playerName, statusCallback) {
