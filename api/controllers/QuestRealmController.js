@@ -224,7 +224,8 @@ var QuestRealmController = {
                                 height: realm.height,
                                 objectives: realm.objectives,
                                 players: [{name: playerName,
-                                           location: {x: startx, y: starty}}]};
+                                           location: {x: startx, y: starty},
+                                           inventory: []}]};
 
                             Game.create(game).done(function (error, newGame) {
                                 if (error) {

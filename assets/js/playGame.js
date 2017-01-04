@@ -190,18 +190,54 @@ function processMessages() {
         if (thisMessage.description.action === "move") {
             processMoveNotification(thisMessage);
         }
+        else if (thisMessage.description.action === "take") {
+            processTakeNotification(thisMessage);
+        }
+        else if (thisMessage.description.action === "drop") {
+            processDropNotification(thisMessage);
+        }
     }
     console.log("finished processMessages()");
 }
 
 function processMoveNotification(message) {
-    var aboutMe = (message.player === gameData.players[0].name);
-
     gameData = message.data.game[0];
 
-    if (aboutMe) {
+    if (message.player === gameData.players[0].name) {
         console.log("You have moved to location [" + message.description.to.x + "," + message.description.to.y + "].");
         displayMessage(describeMyLocation(maplocationData[message.description.to.y-1][message.description.to.x-1]));
+    }
+}
+
+function processTakeNotification(message) {
+    gameData = message.data.game[0];
+    maplocationData[parseInt(message.data.location[0].y)-1][parseInt(message.data.location[0].x)-1] = message.data.location[0];
+
+    if (message.player === gameData.players[0].name) {
+        var status = "You have taken a " + message.description.item.type;
+        if (message.description.item.name) {
+            status = status + " (" + message.description.item.name + ")";
+        }
+        status = status + ".";
+
+        console.log(status);
+        displayMessage(status);
+    }
+}
+
+function processDropNotification(message) {
+    gameData = message.data.game[0];
+    maplocationData[parseInt(message.data.location[0].y)-1][parseInt(message.data.location[0].x)-1] = message.data.location[0];
+
+    if (message.player === gameData.players[0].name) {
+        var status = "You have dropped a " + message.description.item.type;
+        if (message.description.item.name) {
+            status = status + " (" + message.description.item.name + ")";
+        }
+        status = status + ".";
+
+        console.log(status);
+        displayMessage(status);
     }
 }
 
@@ -402,6 +438,21 @@ function describeLocationContents(location, detailLevel) {
                     message += ", and a ";
                 }
             }
+            message += ". ";
+        }
+
+        var numItems = location.items.length;
+        if (numItems > 0) {
+            message += " There is a ";
+            for (var i = 0; i < numItems; i++) {
+                message += location.items[i].type;
+                if (i < numItems - 2) {
+                    message += ", a ";
+                } else if (i == numItems - 2) {
+                    message += ", and a ";
+                }
+            }
+            message += ".";
         }
     }
 
@@ -425,6 +476,10 @@ function handleClientSideCommand(playerLocation, commandText) {
     var tokens = commandText.split(" ");
     if (tokens[0] === "look") {
         handleLook(playerLocation, tokens);
+        return true;
+    }
+    else if (tokens[0] === "inventory") {
+        handleInventory(playerLocation, tokens);
         return true;
     }
 
@@ -504,6 +559,27 @@ function locationExists(y, x) {
 
     return true;
 }
+
+function handleInventory(playerLocation, tokens) {
+    // For now the assumption is that you are playing as gameData.players[0].
+    // This will not be true when we support multi-player mode.
+    var inventory = gameData.players[0].inventory;
+    if (undefined !== inventory && 0 != inventory.length) {
+        var message = "You have ";
+        $.each(inventory, function (index, item) {
+            message += item.type;
+            if (item.name) {
+                message = message + " (" + item.name + ")";
+            }
+            message += ", ";
+        });
+        displayMessage(message.substring(0, message.lastIndexOf(", ")));
+    }
+    else {
+        displayMessage("There are no items in your inventory.");
+    }
+}
+
 
 // escapeHtml implementation taken from mustache.js
 // https://github.com/janl/mustache.js/blob/eae8aa3ba9396bd994f2d5bbe3b9fc14d702a7c2/mustache.js#L60
