@@ -206,6 +206,12 @@ function processMoveNotification(message) {
     if (message.player === gameData.players[0].name) {
         console.log("You have moved to location [" + message.description.to.x + "," + message.description.to.y + "].");
         displayMessage(describeMyLocation(maplocationData[message.description.to.y-1][message.description.to.x-1]));
+
+        // Draw the old map location without the player.
+        drawMaplocation(maplocationData[message.description.from.y-1][message.description.from.x-1]);
+        // Show the player in the new location.
+        drawMaplocation(maplocationData[message.description.to.y-1][message.description.to.x-1]);
+        showPlayerLocation(message.description.to.y, message.description.to.x);
     }
 }
 
@@ -356,8 +362,24 @@ function drawMaplocation(locationData) {
     var target = $('#mapTable td[id="cell_' + locationData.x + '_' + locationData.y + '"]').find('div');
     target.attr('data-env', locationData.environment);
     target.attr('data-id', locationData.id);
-    target.html('');
-    target.append('<img src="images/' + locationData.environment + '.png" />');
+    var html = '<img src="images/' + locationData.environment + '.png" style="position:absolute" />';
+
+    if (locationData.characters.length > 0) {
+        html += '<img src="images/other-character-icon.png" style="position:absolute; margin-left: 1em">';
+    }
+
+    if (locationData.items.length > 0) {
+        html += '<img src="images/object-icon.png" style="position:absolute; margin-left: 2em; margin-top: 1em">';
+    }
+
+    target.html(html);
+}
+
+function showPlayerLocation(y, x) {
+    var target = $('#mapTable td[id="cell_' + x + '_' + y + '"]').find('div');
+    var html = target.html();
+    html += '<img src="images/player-icon.png" style="position:absolute">';
+    target.html(html);
 }
 
 function buildMessageArea() {
@@ -466,6 +488,7 @@ function describeLocation(location, detailLevel) {
 }
 
 function describeMyLocation(location) {
+    showPlayerLocation(location.y, location.x);
     var message = "You are at location [" + location.x + ", " + location.y + "]. Terrain: " + location.environment + ".";
     message += describeLocationContents(location, describeDetailEnum.TERRAIN_AND_CONTENTS);
     return message;
