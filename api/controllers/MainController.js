@@ -92,6 +92,10 @@ var MainController = {
 
     loadCharactersPalette: function(req, res) {
         sails.log.info("in loadCharactersPalette");
+
+        // Use glob-fs to load this data from the plugin-content dir.
+        // See file read examples in http://stackoverflow.com/questions/9250851/do-i-need-dependency-injection-in-nodejs-or-how-to-deal-with
+        // looks promising: https://darrenderidder.github.io/talks/ModulePatterns/
         var characterData = [];
         characterData.push(
             {

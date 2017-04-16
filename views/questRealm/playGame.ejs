@@ -1,6 +1,6 @@
 <!-- The realm game UI -->
-<script type="text/javascript" src="/mixins/sails.io.js"></script>
-<script type="text/javascript" src="/js/playGame.js"></script>
+<script type="text/javascript" src="/js/dependencies/sails.io.js"></script>
+<script type="text/javascript" src="/js/playgame/playGame.js"></script>
 
 
 <h1>Quest of Realms</h1>
@@ -20,6 +20,18 @@
     <input type="hidden" id="playerName" value="<%= realm.playerName %>" />
     <div id="workPanel" class="displayPanel">
         <%- partial ('mapPartial.ejs') %>
+        <div id="drawChoicePanel" style="margin-top:10px">
+            <form id="mapDrawModeForm">
+                <fieldset>
+                    <legend>Map drawing mode</legend>
+                       <input type="radio" name="drawChoice" id="drawChoice_autoAll" value="autoAll"><label for="drawChoice_autoAll">Automatically draw the whole map.</label><br>
+                       <input type="radio" name="drawChoice" id="drawChoice_autoVisited" value="autoVisited"><label for="drawChoice_autoVisited">Automatically visited map locations.</label><br>
+                       <input type="radio" name="drawChoice" id="drawChoice_manual" value="manual"><label for="drawChoice_manual">Manually draw visited map locations - old school!</label><br>
+                </fieldset>
+            </form>
+        </div>
+        <div id="mapTilePanel" class="displayPanel">
+        </div>
     </div>
     <div id="textPanel" class="displayPanel">
         <div id="messagePanel">

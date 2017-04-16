@@ -29,7 +29,7 @@ var QuestRealmController = {
             description: realmDescription,
             width: realmWidth,
             height: realmHeight,
-            objectives: []}).done(function(error, realm) {
+            objectives: []}).exec(function(error, realm) {
             if (error) {
                 sails.log.error("DB Error:" + error);
                 res.send(500, {error: "DB Error:" + error});
@@ -54,7 +54,7 @@ var QuestRealmController = {
         var realmId = req.param("id");
         sails.log.info("in deleteRealm. id = " + realmId);
 
-        QuestRealm.findOne({'_id': realmId}).done(function(err, realm) {
+        QuestRealm.findOne({id: realmId}).exec(function(err, realm) {
             sails.log.info("in deleteRealm.findById() callback");
             if (err) {
                 res.send(500, { error: "DB Error1" + err });
@@ -71,7 +71,7 @@ var QuestRealmController = {
                         // operation encountered an error.
                         sails.log.info("deleteRealm, finished parallel. err: " + err);
                         sails.log.info("now delete the realm");
-                        QuestRealm.destroy({'_id': realmId}).exec(function(err, realm) {
+                        QuestRealm.destroy({id: realmId}).exec(function(err, realm) {
                             if (err) {
                                 sails.log.info("in deleteRealm.find() callback, error. " + err);
                                 res.send(500, { error: "failed to delete realm" });
@@ -100,9 +100,7 @@ var QuestRealmController = {
         }
 
         // TODO: removing the last objective and passing [] doesn't update the db.
-        QuestRealm.update(
-            {'_id': realm.id},
-            realm).done(function(err, updatedRealm) {
+        QuestRealm.update({id: realm.id}, realm).exec(function(err, updatedRealm) {
             sails.log.info("in QuestRealm.update() callback");
             if (err) {
                 sails.log.info("in QuestRealm.update() callback, error. " + err);
@@ -125,11 +123,11 @@ var QuestRealmController = {
         var realmId = req.param("id");
         sails.log.info("in fetchRealm. id = " + realmId);
 
-        // Find the QuestRealm object that has the _id value matching the specified realmId.
+        // Find the QuestRealm object that has the id value matching the specified realmId.
         // If you want to check this in the db, use
         //   use QuestOfRealms
-        //   db.questrealm.find({'_id': ObjectId('56d1d4ed3f5a79642a3ac0eb')});
-        QuestRealm.findOne({'_id': realmId}).done(function(err, realm) {
+        //   db.questrealm.find({id: ObjectId('56d1d4ed3f5a79642a3ac0eb')});
+        QuestRealm.findOne({id: realmId}).exec(function(err, realm) {
             sails.log.info("in QuestRealm.findById() callback");
             if (err) {
                 res.send(500, { error: "DB Error1" + err });
@@ -149,7 +147,7 @@ var QuestRealmController = {
     // Load all realms.
     fetchRealms: function(req, res) {
         sails.log.info("in fetchRealms");
-        QuestRealm.find().done(function(err, items) {
+        QuestRealm.find().exec(function(err, items) {
             sails.log.info("in QuestRealm.find() callback");
             if (err) {
                 sails.log.info("in QuestRealm.find() callback, error. " + err);
@@ -182,65 +180,88 @@ var QuestRealmController = {
         sails.log.info("in createGame, name:" + gameName + ", playerName:" + playerName);
 
         async.waterfall([
-            function findOrCreatePlayer(playerCallback) {
+            // Check the pre-requisites.
+            function validation(validationCallback) {
+                QuestRealm.findOne({id: parentRealmId}).exec(function (err, realm) {
+                    sails.log.info("in QuestRealm.findById() callback");
+                    if (err) {
+                        validationCallback("createTheGame db err:" + err);
+                    } else {
+                        sails.log.info("in QuestRealm.findById() callback, no error.");
+                        if (realm) {
+                            sails.log.info("in QuestRealm.findById() callback " + JSON.stringify(realm));
+
+                            // The realm must have at least a "start at" objective before a game can be created.
+                            // Since this is the first objective you must create, it should be sufficient to
+                            // check for the existence of any objectives[]
+                            if (realm.objectives === undefined ||
+                                realm.objectives.length === 0){
+                                sails.log.info("in QuestRealm.findById() callback, no \"start at\" objective set.");
+                                validationCallback("createTheGame : no \"start at\" objective set");
+                            }
+                            else {
+                                // Everything is ok.
+                                validationCallback(null, realm);
+                            }
+                        } else {
+                            sails.log.info("in QuestRealm.findById() callback, realm is null.");
+                            validationCallback("createTheGame realm not Found");
+                        }
+                    }
+                });
+            },
+            function findOrCreatePlayer(realm, playerCallback) {
                 sails.log.info("starting findOrCreatePlayer.");
+                sails.log.info("realm: " + JSON.stringify(realm));
                 // Add the player to the global list of players (for possible
                 // use across games, recording high-scores etc.
                 var player;
                 Player.findOrCreate(
                     {name: playerName},
-                    {name: playerName}).done(function(error, dbPlayer) {
+                    {name: playerName}).exec(function(error, dbPlayer) {
                     if (error) {
                         sails.log.error("DB Error:" + error);
                         playerCallback("findOrCreatePlayer db err:" + err);
                     }
 
                     sails.log.info("found player " + JSON.stringify(dbPlayer));
-                    playerCallback(null, dbPlayer);
+                    playerCallback(null, realm, dbPlayer);
                 });
             },
-            function createTheGame(player, gameCallback) {
-                sails.log.info("starting createTheGame. player: " + JSON.stringify(player));
+            function createTheGame(realm, player, gameCallback) {
+                sails.log.info("starting createTheGame.");
+                sails.log.info("realm: " + JSON.stringify(realm));
+                sails.log.info("player: " + JSON.stringify(player));
 
-                // Look up some additional info from the parent realm.
-                QuestRealm.findOne({'_id': parentRealmId}).done(function (err, realm) {
-                    sails.log.info("in QuestRealm.findById() callback");
-                    if (err) {
-                        gameCallback("createTheGame db err:" + err);
+                var startx = realm.objectives[0].params[0].value;
+                var starty = realm.objectives[0].params[1].value;
+                var visitedKey = startx + "_" + starty;
+                var playerData = [{
+                    name: playerName,
+                    location: {x: startx, y: starty},
+                    inventory: [],
+                    mapDrawMode: "autoVisited",
+                    visited: {}}];
+                playerData[0].visited[visitedKey] = true;
+
+                // Generate the game.
+                var game = {
+                    name: gameName,
+                    description: gameDescription,
+                    parentRealmId: realm.id,
+                    width: realm.width,
+                    height: realm.height,
+                    objectives: realm.objectives,
+                    players: playerData};
+
+                Game.create(game).exec(function (error, newGame) {
+                    if (error) {
+                        sails.log.error("DB Error:" + error);
+                        gameCallback("createTheGame db err:" + error);
                     } else {
-                        sails.log.info("in QuestRealm.findById() callback, no error.");
-                        if (realm) {
-                            sails.log.info("in QuestRealm.findById() callback " + JSON.stringify(realm));
-
-                            var startx = realm.objectives[0].params[0].value;
-                            var starty = realm.objectives[0].params[1].value;
-
-                            // Generate the game.
-                            var game = {
-                                name: gameName,
-                                description: gameDescription,
-                                parentRealmId: realm.id,
-                                width: realm.width,
-                                height: realm.height,
-                                objectives: realm.objectives,
-                                players: [{name: playerName,
-                                           location: {x: startx, y: starty},
-                                           inventory: []}]};
-
-                            Game.create(game).done(function (error, newGame) {
-                                if (error) {
-                                    sails.log.error("DB Error:" + error);
-                                    gameCallback("createTheGame db err:" + error);
-                                } else {
-                                    copyMapLocations(newGame, parentRealmId, function() {
-                                        gameCallback(null, newGame);
-                                    });
-                                }
-                            });
-                        } else {
-                            sails.log.info("in QuestRealm.findById() callback, realm is null.");
-                            gameCallback("createTheGame realm not Found");
-                        }
+                        copyMapLocations(newGame, parentRealmId, function() {
+                            gameCallback(null, newGame);
+                        });
                     }
                 });
             }
@@ -257,7 +278,7 @@ var QuestRealmController = {
         var gameId = req.param("id");
         sails.log.info("in deleteGame. id = " + gameId);
 
-        Game.findOne({'_id': gameId}).done(function(err, game) {
+        Game.findOne({id: gameId}).exec(function(err, game) {
             sails.log.info("in deleteGame.findById() 1 callback");
             if (err) {
                 res.send(500, { error: "DB Error1" + err });
@@ -273,7 +294,7 @@ var QuestRealmController = {
                          // operation encountered an error.
                          sails.log.info("deleteGame, finished parallel. err: " + err);
                          sails.log.info("now delete the game");
-                         Game.destroy({'_id': gameId}).exec(function (err, game) {
+                         Game.destroy({id: gameId}).exec(function (err, game) {
                              if (err) {
                                  sails.log.info("in deleteGame.find() callback, error. " + err);
                                  res.send(500, {error: "failed to delete game"});
@@ -291,16 +312,38 @@ var QuestRealmController = {
         });
     },
 
+    saveGame: function(req, res) {
+        var game = req.param("gameData");
+        sails.log.info("in saveGame. game = " + JSON.stringify(game));
+
+        Game.update({id: game.id}, game).exec(function(err, updatedGame) {
+            sails.log.info("in Game.update() callback");
+            if (err) {
+                sails.log.info("in Game.update() callback, error. " + err);
+                res.send(500, { error: "DB Error1" + err });
+            } else {
+                sails.log.info("in Game.update() callback, no error.");
+                if (updatedGame) {
+                    sails.log.info("in Game.update() callback " + JSON.stringify(updatedGame));
+                    res.send(updatedGame[0]);
+                } else {
+                    sails.log.info("in Game.update() callback, item is null.");
+                    res.send(404, { error: "game not Found" });
+                }
+            }
+        });
+    },
+
     // Load a single game, by Id.
     fetchGame: function(req, res) {
         var gameId = req.param("id");
         sails.log.info("in fetchGame. id = " + gameId);
-
-        // Find the Game object that has the _id value matching the specified realmId.
+        sails.log.info("in fetchGame. sails.NPC = " + JSON.stringify(sails.NPC));
+        // Find the Game object that has the id value matching the specified realmId.
         // If you want to check this in the db, use
         //   use QuestOfRealms
-        //   db.game.find({'_id': ObjectId('56d1d4ed3f5a79642a3ac0eb')});
-        Game.findOne({'_id': gameId}).done(function(err, game) {
+        //   db.game.find({id: ObjectId('56d1d4ed3f5a79642a3ac0eb')});
+        Game.findOne({id: gameId}).exec(function(err, game) {
             sails.log.info("in Game.findById() callback");
             if (err) {
                 res.send(500, { error: "DB Error1" + err });
@@ -320,7 +363,7 @@ var QuestRealmController = {
     fetchGames: function(req, res) {
         sails.log.info("in fetchGames");
 
-        Game.find().done(function(err, games) {
+        Game.find().exec(function(err, games) {
             sails.log.info("in fetchGames.find() callback");
             if (err) {
                 sails.log.info("in fetchGames.find() callback, error. " + err);
@@ -347,7 +390,7 @@ var QuestRealmController = {
 
 function deleteMapLocations(realm, locationsDeletedCallback) {
     sails.log.info("in deleteMaplocations. realm = " + JSON.stringify(realm));
-    MapLocation.find({"realmId": realm.id}).done(function(err, locations) {
+    MapLocation.find({realmId: realm.id}).exec(function(err, locations) {
         sails.log.info("in deleteMaplocations.find() 1 callback");
         if (err) {
             sails.log.info("in deleteMaplocations.find() 2 callback, error. " + err);
@@ -362,7 +405,7 @@ function deleteMapLocations(realm, locationsDeletedCallback) {
                 // to let async know we are finished.
                 async.each(locations, function(location, locationCallback) {
                     sails.log.info("delete location: " + JSON.stringify(location));
-                    MapLocation.destroy({'_id': location.id}).exec(function(err, deletedLocation) {
+                    MapLocation.destroy({id: location.id}).exec(function(err, deletedLocation) {
                         if (err) {
                             sails.log.info("in deleteMapLocation.find() callback, error. " + err);
                             locationCallback(err);
@@ -388,7 +431,7 @@ function deleteMapLocations(realm, locationsDeletedCallback) {
 function copyMapLocations(game, parentRealmId, locationsCopiedCallback) {
     sails.log.info("in copyMapLocations. game.id = " + game.id + ", parentRealmId = " + parentRealmId);
 
-    MapLocation.find({"realmId": parentRealmId}).done(function(err, locations) {
+    MapLocation.find({realmId: parentRealmId}).exec(function(err, locations) {
         sails.log.info("in copyMapLocations.find() callback");
         if (err) {
             sails.log.info("in copyMapLocations.find() callback, error. " + err);
@@ -428,7 +471,7 @@ function copyMapLocation(game, location, locationCallback) {
         y: location.y,
         environment: location.environment,
         items: location.items,
-        characters: characters}).done(function(error, newLocation) {
+        characters: characters}).exec(function(error, newLocation) {
         if (error) {
             sails.log.error("DB Error:" + error);
             locationCallback("DB Error:" + error);

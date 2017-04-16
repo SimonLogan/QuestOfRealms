@@ -19,7 +19,7 @@ module.exports = {
 
     fetchPlayer: function(req, res) {
         // For now there's only one player per game so no need to specify an id.
-        Player.find().done(function(err, character) {
+        Player.find().exec(function(err, character) {
             sails.log.info("in Player.find() callback");
             if (err) {
                 sails.log.info("in Player.find() callback, error. " + err);

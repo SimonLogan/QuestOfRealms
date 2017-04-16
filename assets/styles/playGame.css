@@ -33,3 +33,7 @@
     background-color: white;
     transition: background-color 1s;
 }
+
+.terrainCell {
+    background-color:#F0E6DB
+}

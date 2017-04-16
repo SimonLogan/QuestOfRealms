@@ -45,11 +45,11 @@ module.exports = {
         var gameId = req.param("id");
         sails.log.info("in playGame. id = " + gameId);
 
-        // Find the Game object that has the _id value matching the specified gameId.
+        // Find the Game object that has the id value matching the specified gameId.
         // If you want to check this in the db, use
         //   use QuestOfRealms
-        //   db.game.find({'_id': ObjectId('56d1d4ed3f5a79642a3ac0eb')});
-        Game.findOne({'_id': gameId}).done(function(err, game) {
+        //   db.game.find({id: ObjectId('56d1d4ed3f5a79642a3ac0eb')});
+        Game.findOne({id: gameId}).exec(function(err, game) {
             sails.log.info("in Game.findById() callback");
             if (err) {
                 res.send(500, { error: "DB Error1" + err });
@@ -98,7 +98,7 @@ module.exports = {
         sails.log.info("in gameCommand. command = " + command);
         sails.log.info("in gameCommand. req = " + req);
 
-        Game.findOne({'_id': gameId}).done(function(err, game) {
+        Game.findOne({id: gameId}).exec(function(err, game) {
             sails.log.info("in Game.findById() callback");
             if (err) {
                 res.send(500, { error: "DB Error1" + err });
@@ -234,7 +234,7 @@ function handleMove(commandArgs, game, playerName, statusCallback) {
     sails.log.info("in handleMove.find() searching for location [" + newX + ", " + newY + "].");
 
     // TODO: store the coordinates as int instead of string.
-    MapLocation.findOne({'realmId': game.id, 'x': newX.toString(), 'y': newY.toString()}).done(function(err, newLocation) {
+    MapLocation.findOne({'realmId': game.id, 'x': newX.toString(), 'y': newY.toString()}).exec(function(err, newLocation) {
         sails.log.info("in handleMove.find() callback");
         if (err) {
             sails.log.info("handleMove db err:" + err);
@@ -246,9 +246,19 @@ function handleMove(commandArgs, game, playerName, statusCallback) {
 
                 game.players[playerIndex].location.x = newX.toString();
                 game.players[playerIndex].location.y = newY.toString();
+
+                // Update the list of locations the player has visited.
+                // This is a dictionary for quick searching. Using a list
+                // will scale badly when drawing the whole map on the UI.
+                var visitedKey = newX.toString() + "_" + newY.toString();
+                var playerVistitedLocation = (visitedKey in game.players[playerIndex].visited);
+                if (!playerVistitedLocation) {
+                    game.players[playerIndex].visited[visitedKey] = true;
+                }
+
                 Game.update(
-                    {'_id': game.id},
-                    game).done(function(err, updatedGame) {
+                    {id: game.id},
+                    game).exec(function(err, updatedGame) {
                     sails.log.info("in Game.update() callback");
                     if (err) {
                         sails.log.info("in Game.update() callback, error. " + err);
@@ -314,7 +324,7 @@ function handleTake(commandArgs, game, playerName, statusCallback) {
     var currentY = parseInt(game.players[playerIndex].location.y);
 
     // TODO: store the coordinates as int instead of string.
-    MapLocation.findOne({'realmId': game.id, 'x': currentX.toString(), 'y': currentY.toString()}).done(function(err, currentLocation) {
+    MapLocation.findOne({'realmId': game.id, 'x': currentX.toString(), 'y': currentY.toString()}).exec(function(err, currentLocation) {
         sails.log.info("in handleTake.find() callback");
         if (err) {
             sails.log.info("in handleTake db err:" + err);
@@ -341,8 +351,8 @@ function handleTake(commandArgs, game, playerName, statusCallback) {
                         // if anything below fails the db could be left in an inconsistent state.
                         // See if I can implement this myself using the .transaction() interface.
                         Game.update(
-                            {'_id': game.id},
-                            game).done(function(err, updatedGame) {
+                            {id: game.id},
+                            game).exec(function(err, updatedGame) {
                             sails.log.info("in Game.update() callback");
                             if (err) {
                                 sails.log.info("in Game.update() callback, error. " + err);
@@ -353,8 +363,8 @@ function handleTake(commandArgs, game, playerName, statusCallback) {
                                     sails.log.info("in Game.update() callback " + JSON.stringify(updatedGame));
 
                                     MapLocation.update(
-                                        {'_id': currentLocation.id},
-                                        currentLocation).done(function(err, updatedLocation) {
+                                        {id: currentLocation.id},
+                                        currentLocation).exec(function(err, updatedLocation) {
                                         sails.log.info("in MapLocation.update() callback");
                                         if (err) {
                                             sails.log.info("in MapLocation.update() callback, error. " + err);
@@ -435,7 +445,7 @@ function handleDrop(commandArgs, game, playerName, statusCallback) {
     var currentY = parseInt(game.players[playerIndex].location.y);
 
     // TODO: store the coordinates as int instead of string.
-    MapLocation.findOne({'realmId': game.id, 'x': currentX.toString(), 'y': currentY.toString()}).done(function(err, currentLocation) {
+    MapLocation.findOne({'realmId': game.id, 'x': currentX.toString(), 'y': currentY.toString()}).exec(function(err, currentLocation) {
         sails.log.info("in handleDrop.find() callback");
         if (err) {
             sails.log.info("in handleDrop db err:" + err);
@@ -461,8 +471,8 @@ function handleDrop(commandArgs, game, playerName, statusCallback) {
                         // if anything below fails the db could be left in an inconsistent state.
                         // See if I can implement this myself using the .transaction() interface.
                         Game.update(
-                            {'_id': game.id},
-                            game).done(function(err, updatedGame) {
+                            {id: game.id},
+                            game).exec(function(err, updatedGame) {
                             sails.log.info("in Game.update() callback");
                             if (err) {
                                 sails.log.info("in Game.update() callback, error. " + err);
@@ -473,8 +483,8 @@ function handleDrop(commandArgs, game, playerName, statusCallback) {
                                     sails.log.info("in Game.update() callback " + JSON.stringify(updatedGame));
 
                                     MapLocation.update(
-                                        {'_id': currentLocation.id},
-                                        currentLocation).done(function(err, updatedLocation) {
+                                        {id: currentLocation.id},
+                                        currentLocation).exec(function(err, updatedLocation) {
                                         sails.log.info("in MapLocation.update() callback");
                                         if (err) {
                                             sails.log.info("in MapLocation.update() callback, error. " + err);
