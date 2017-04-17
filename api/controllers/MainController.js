@@ -29,7 +29,7 @@ var MainController = {
 
     loadEnvPalette: function(req, res) {
        sails.log.info("in loadEnvPalette");
-       var terrainData = [];
+       var terrainData = {category:'environment', data:[]};
 
        var path = require('path');
        var fs = require('fs');
@@ -39,20 +39,21 @@ var MainController = {
           var topLevelDirOrFile = path.join(pathroot, topLevelDirsOrFiles[index]);
           var stat = fs.statSync(topLevelDirOrFile);
           if (stat && stat.isDirectory()) {
+             terrainData['module'] = topLevelDirsOrFiles[index];
              var nextLevelDirsOrFiles = fs.readdirSync(topLevelDirOrFile);
              for (var index2 in nextLevelDirsOrFiles) {
                 var nextLevelDirOrFile = path.join(topLevelDirOrFile, nextLevelDirsOrFiles[index2]);
                 var stat = fs.statSync(nextLevelDirOrFile);
                 if (stat && !stat.isDirectory()) {
                    var thisItem = require(nextLevelDirOrFile);
-                   if (thisItem.category === "environment" && thisItem.attributes) {
+                   if (thisItem.category === terrainData.category && thisItem.attributes) {
                       // Support defining more than one environment type in the same file.
                       if (Object.prototype.toString.call(thisItem.attributes) === '[object Array]') {
                          for (var index3 in thisItem.attributes) {
-                            terrainData.push(thisItem.attributes[index3]);
+                            terrainData.data.push(thisItem.attributes[index3]);
                          }
                       } else {
-                         terrainData.push(thisItem.attributes);
+                         terrainData.data.push(thisItem.attributes);
                       }
                    }
                 }
@@ -65,7 +66,7 @@ var MainController = {
 
     loadItemsPalette: function(req, res) {
        sails.log.info("in loadItemsPalette");
-       var itemData = [];
+       var itemData = {category:'item', data:[]};
 
        var path = require('path');
        var fs = require('fs');
@@ -75,20 +76,21 @@ var MainController = {
           var topLevelDirOrFile = path.join(pathroot, topLevelDirsOrFiles[index]);
           var stat = fs.statSync(topLevelDirOrFile);
           if (stat && stat.isDirectory()) {
+             itemData['module'] = topLevelDirsOrFiles[index];
              var nextLevelDirsOrFiles = fs.readdirSync(topLevelDirOrFile);
              for (var index2 in nextLevelDirsOrFiles) {
                 var nextLevelDirOrFile = path.join(topLevelDirOrFile, nextLevelDirsOrFiles[index2]);
                 var stat = fs.statSync(nextLevelDirOrFile);
                 if (stat && !stat.isDirectory()) {
                    var thisItem = require(nextLevelDirOrFile);
-                   if (thisItem.category === "item" && thisItem.attributes) {
+                   if (thisItem.category === itemData.category && thisItem.attributes) {
                       // Support defining more than one environment type in the same file.
                       if (Object.prototype.toString.call(thisItem.attributes) === '[object Array]') {
                          for (var index3 in thisItem.attributes) {
-                            itemData.push(thisItem.attributes[index3]);
+                            itemData.data.push(thisItem.attributes[index3]);
                          }
                       } else {
-                         itemData.push(thisItem.attributes);
+                         itemData.data.push(thisItem.attributes);
                       }
                    }
                 }
@@ -101,7 +103,7 @@ var MainController = {
 
     loadCharactersPalette: function (req, res) {
        sails.log.info("in loadCharactersPalette");
-       var characterData = [];
+       var characterData = {category:'character', data:[]};
 
        var path = require('path');
        var fs = require('fs');
@@ -111,6 +113,7 @@ var MainController = {
           var topLevelDirOrFile = path.join(pathroot, topLevelDirsOrFiles[index]);
           var stat = fs.statSync(topLevelDirOrFile);
           if (stat && stat.isDirectory()) {
+             characterData['module'] = topLevelDirsOrFiles[index];
              var nextLevelDirsOrFiles = fs.readdirSync(topLevelDirOrFile);
              for (var index2 in nextLevelDirsOrFiles) {
                 var nextLevelDirOrFile = path.join(topLevelDirOrFile, nextLevelDirsOrFiles[index2]);
@@ -120,8 +123,8 @@ var MainController = {
                    // Don't support defining more than one character type in the same file,
                    // as characters are expected to have complex definitions and the file
                    // may get too big.
-                   if (thisItem.category === "character" && thisItem.attributes) {
-                      characterData.push(thisItem.attributes);
+                   if (thisItem.category === characterData.category && thisItem.attributes) {
+                      characterData.data.push(thisItem.attributes);
                    }
                 }
              }

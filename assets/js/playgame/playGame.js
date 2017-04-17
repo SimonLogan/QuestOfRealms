@@ -600,7 +600,7 @@ function handleHelp() {
 }
 
 function handleLook(playerLocation, tokens) {
-    // "Look" without a direction refres to the current location.
+    // "Look" without a direction refers to the current location.
     if (1 === tokens.length) {
         displayMessage(describeMyLocation(playerLocation));
         return true;

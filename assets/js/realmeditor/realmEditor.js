@@ -22,24 +22,24 @@ var realmData;
 
 // When the page has finished rendering...
 $(document).ready(function() {
-    // Get the id of the realm we're editing so that we can look it up wity AJAX.
-    // This value comes from the HTML element with id="realmId".
-    // The jQuery selectors $(#XXX) below select the elements by id.
-    // The data was placed into this element in the first place by the template parameter
-    //    value="<%= realm.id %>"
-    // which gets its value from the data passed to the view function by editRealm() in
-    // api/controllers/QuestRealmcontroller.js:
-    //    return res.view("questRealm/editRealm", {
-    //        realm: {
-    //            id: realm.id
-    //       }
-    var realmId = $('#realmId').val();
+   // Get the id of the realm we're editing so that we can look it up wity AJAX.
+   // This value comes from the HTML element with id="realmId".
+   // The jQuery selectors $(#XXX) below select the elements by id.
+   // The data was placed into this element in the first place by the template parameter
+   //    value="<%= realm.id %>"
+   // which gets its value from the data passed to the view function by editRealm() in
+   // api/controllers/QuestRealmcontroller.js:
+   //    return res.view("questRealm/editRealm", {
+   //        realm: {
+   //            id: realm.id
+   //       }
+   var realmId = $('#realmId').val();
 
-    // Load the realm and call the function below when it has been retrieved.
-    // You need to use this callback approach because the AJAX call is
-    // asynchronous. This means the code here won't wait for it to complete,
-    // so you have to provide a function that can be called when the data is ready.
-    loadRealm(function() {
+   // Load the realm and call the function below when it has been retrieved.
+   // You need to use this callback approach because the AJAX call is
+   // asynchronous. This means the code here won't wait for it to complete,
+   // so you have to provide a function that can be called when the data is ready.
+   loadRealm(function() {
         $('#realmName').text("Realm Designer: Editing realm " + realmData.name);
         drawMapGrid(realmData.width, realmData.height);
 
@@ -64,131 +64,76 @@ $(document).ready(function() {
         displayObjectives();
     });
 
-    // Create the tabbed panels and load the data.
-    $(function() {
-        $("#paletteInnerPanel").tabs();
-        $("#propertiesInnerPanel").tabs();
-    });
+   // Create the tabbed panels and load the data.
+   $(function() {
+      $("#paletteInnerPanel").tabs();
+      $("#propertiesInnerPanel").tabs();
+   });
 
-    // Call the various server functions to load details of the supported
-    // environments, items, characters, and objectives. Populate the various
-    // tool menus on the screen with this info.
-    loadEnvPalette();
-    loadItemsPalette();
-    loadCharactersPalette();
-    loadObjectivesPalette();
+   // Call the various server functions to load details of the supported
+   // environments, items, characters, and objectives. Populate the various
+   // tool menus on the screen with this info.
+   loadEnvPalette();
+   loadItemsPalette();
+   loadCharactersPalette();
+   loadObjectivesPalette();
 
+   // Backbone is a Model-View-Controller (MVC) framework. Extend the
+   // default Model with additional attributes that we need.
+   var MapLocationModel = Backbone.Model.extend({
+      urlRoot: '/maplocation'
+   });
 
-    // simon
-    /*
-    // fetches the collectioon and draws the screen but drag & drop doesn't trigger
-    // collectioon events.
-    var MapLocationModel = Backbone.Model.extend({
-       urlRoot: '/maplocation'
-    });
+   // Maintain a local collection of map locations. This will be synchronized (both ways)
+   // with the server and so allows multi-user access to the data.
+   var MapLocationCollection = Backbone.Collection.extend({
+      // Extend the default collection with functionality that we need.
+      model: MapLocationModel,
+      // Socket will be used to automatically synchronize the collection
+      // with the server.
+      socket: null,
+      // Call this function when a synchronization needs to occur.
+      sync: function(method, model, options){
+         var where = {};
+         if (options.where) {
+            where = {
+               where: options.where
+            }
+         }
 
-    // Maintain a local collection of map locations. This will be synchronized (both ways)
-    // with the server and so allows multi-user access to the data.
-    var MapLocationCollection = Backbone.Collection.extend({
-        // Extend the default collection with functionality that we need.
-        model: MapLocationModel
-        // Socket will be used to automatically synchronize the collection
-        // with the server.
-        }
-    );
+         this.socket = io.connect();
 
-    var locations = new MapLocationCollection();
+         this.socket.on("connect", _.bind(function(){
+            // This renders the initial collection and saves updates, but other user sessions
+            // do not dynamically update. I can live with this for now.
+            io.socket.request({ url: "/maplocation", method: "get" }, _.bind(function(maplocations){
+               // Populate the collection initially.
+               this.set(maplocations);
+               console.log("connection");
+            }, this));
 
-    Backbone.sync = function(method, model, options){
-      var where = {};
-      if (options.where) {
-        where = {
-          where: options.where
-        }
+            // This no longer seems to fire.
+            this.socket.on("message", _.bind(function(msg){
+               var m = msg.verb;
+               console.log("collection message, verb: " + m);
+               if (m === "create") {
+                  this.add(msg.data);
+               } else if (m === "update") {
+                  this.get(msg.data.id).set(msg.data);
+               } else if (m === "destroy") {
+                  this.remove(this.get(msg.id));
+               }
+            }, this));
+         }, this));
       }
+   });
 
-      if (method === "read") {
-        io.socket.get("/maplocation", {}, function (maplocations) {
-          console.log(maplocations);
-          locations.set(maplocations);
-        });
-      } else if (method === "create") {
-        locations.add(model);
-      };
-    }
-
-  io.socket.on("maplocation", _.bind(function(msg){
-    var m = msg.uri.split("/").pop();
-    if (m === "create") {
-      this.add(msg.data);
-    } else if (m === "update") {
-      this.get(msg.data.id).set(msg.data);
-    } else if (m === "destroy") {
-      this.remove(this.get(msg.data.id));
-    }
-  }, this));
-
-    locations.fetch({ where: { "realmId": realmId } });
-  */
-
-    // orig
-  // Backbone is a Model-View-Controller (MVC) framework. Extend the
-  // default Model with additional attributes that we need.
-  var MapLocationModel = Backbone.Model.extend({
-    urlRoot: '/maplocation'
-  });
-
-  // Maintain a local collection of map locations. This will be synchronized (both ways)
-  // with the server and so allows multi-user access to the data.
-  var MapLocationCollection = Backbone.Collection.extend({
-    // Extend the default collection with functionality that we need.
-    model: MapLocationModel,
-    // Socket will be used to automatically synchronize the collection
-    // with the server.
-    socket: null,
-    // Call this function when a synchronization needs to occur.
-    sync: function(method, model, options){
-      var where = {};
-      if (options.where) {
-        where = {
-          where: options.where
-        }
-      }
-
-      this.socket = io.connect();
-
-      this.socket.on("connect", _.bind(function(){
-        // This renders the initial collection and saves updates, but other user sessions
-        // do not dynamically update. I can live with this for now.
-        io.socket.request({ url: "/maplocation", method: "get" }, _.bind(function(maplocations){
-          // Populate the collection initially.
-          this.set(maplocations);
-          console.log("connection");
-        }, this));
-
-        // This no longer seems to fire.
-        this.socket.on("message", _.bind(function(msg){
-          var m = msg.verb;
-          console.log("collection message, verb: " + m);
-
-          if (m === "create") {
-            this.add(msg.data);
-          } else if (m === "update") {
-            this.get(msg.data.id).set(msg.data);
-          } else if (m === "destroy") {
-            this.remove(this.get(msg.id));
-          }
-        }, this));
-      }, this));
-    }
-  });
-
-  var locations = new MapLocationCollection();
-  // Load the existing data into the collection.
-  locations.fetch({ where: { "realmId": realmId } });
+   var locations = new MapLocationCollection();
+   // Load the existing data into the collection.
+   locations.fetch({ where: { "realmId": realmId } });
 
 
-  /* Dialogs */
+   /* Dialogs */
 
     // The edit item dialog
     $(function() {
@@ -410,10 +355,6 @@ $(document).ready(function() {
         });
     });
 
-    //var locations = new MapLocationCollection();
-    // Load the existing data into the collection.
-    //locations.fetch({ where: { "realmId": realmId } });
-
     _.templateSettings = {
         interpolate : /\{\{(.+?)\}\}/g
     };
@@ -431,10 +372,11 @@ $(document).ready(function() {
 
                 // Update the local display with the message data.
                 var target = $('#mapTable td[id="cell_' + item.attributes.x + '_' + item.attributes.y + '"]').find('div');
-                target.attr('data-env', item.attributes.environment);
+                target.attr('data-env', item.attributes.type);
                 target.attr('data-id', item.id);
+                target.attr('data-module', item.attributes.module);
                 target.html('');
-                target.append('<img src="images/' + item.attributes.environment + '.png" />');
+                target.append('<img src="images/' + item.attributes.type + '.png" />');
 
                 // To allow it to be dragged to the wastebasket.
                 target.addClass('draggable mapItem');
@@ -454,14 +396,14 @@ $(document).ready(function() {
 
             // Update the local display with the message data.
             var target = $('#mapTable td[id="cell_' + item.attributes.x + '_' + item.attributes.y + '"]').find('div');
-            target.attr('data-env', item.attributes.environment);
+            target.attr('data-env', item.attributes.type);
 
             if (item.attributes.startLocation !== undefined) {
                 target.attr('data-startLocation', item.attributes.startLocation);
             }
 
             target.html('');
-            target.append('<img src="images/' + item.attributes.environment + '.png" />');
+            target.append('<img src="images/' + item.attributes.type + '.png" />');
 
             // To allow it to be dragged to the wastebasket.
             target.addClass('draggable mapItem');
@@ -490,20 +432,20 @@ $(document).ready(function() {
         var activeTab = $('#paletteInnerPanel').tabs('option', 'active');
         switch (activeTab) {
             case PaletteItemType.ENV:
-                tabData = {class: activeTab, data: envPaletteData};
+                tabData = {class: activeTab, entries: envPaletteData};
                 break;
             case PaletteItemType.ITEM:
-                tabData = {class: activeTab, data: itemPaletteData};
+                tabData = {class: activeTab, entries: itemPaletteData};
                 break;
             case PaletteItemType.CHARACTER:
-                tabData = {class: activeTab, data: characterPaletteData};
+                tabData = {class: activeTab, entries: characterPaletteData};
                 break;
             default:
                 console.log("Got invalid active tab " + activeTab);
                 return;
         }
 
-        var paletteItem = findPaletteItemByName(tabData.data, $(this).attr('data-type'));
+        var paletteItem = findPaletteItem(tabData.entries, $(this));
         populatePaletteDetails(tabData.class, paletteItem);
     });
 
@@ -787,7 +729,8 @@ function addMapLocation(realmId, collection, droppedItem, originalLocation, newL
         realmId: realmId,
         x: newLocation.attr('data-x'),
         y: newLocation.attr('data-y'),
-        environment: environment,
+        type: environment,
+        module: droppedItem.attr('data-module'),
         items: copiedItems,
         characters: copiedCharacters}, {wait: true});
 
@@ -899,12 +842,14 @@ function changeItemLocation(collection, droppedItem, newLocation)
 
 function addItemToLocation(droppedItem, location)
 {
+    var fullItemDetails = findPaletteItem(itemPaletteData, droppedItem);
     location[0].attributes.items.push(
         {
             type: droppedItem.attr('data-type'),
+            module: droppedItem.attr('data-module'),
             name: '',
-            description: droppedItem.attr('data-description'),
-            damage: droppedItem.attr('data-damage'),
+            description: fullItemDetails.description,
+            damage: fullItemDetails.damage,
             image: droppedItem.find('img').attr('src')
         }
     );
@@ -941,15 +886,17 @@ function changeCharacterLocation(collection, droppedItem, newLocation)
 
 function addCharacterToLocation(droppedCharacter, location)
 {
+   var fullCharacterDetails = findPaletteItem(characterPaletteData, droppedCharacter);
     location[0].attributes.characters.push(
         {
             type: droppedCharacter.attr('data-type'),
+            module: droppedCharacter.attr('data-module'),
             name: '',
-            description: droppedCharacter.attr('data-description'),
-            additionalInfo: droppedCharacter.attr('data-additionalInfo'),
-            damage: droppedCharacter.attr('data-damage'),
-            health: droppedCharacter.attr('data-health'),
-            drops: droppedCharacter.attr('data-drops'),
+            description: fullCharacterDetails.description,
+            additionalInfo: fullCharacterDetails.additional_info,
+            damage: fullCharacterDetails.damage,
+            health: fullCharacterDetails.health,
+            drops: fullCharacterDetails.drops,
             image: droppedCharacter.find('img').attr('src'),
             npc: true
         }
@@ -1126,7 +1073,7 @@ function populateLocationDetails(locationCollection, location, allDetails)
         $('#locationName').val(location.attributes.name);
 
     $('#propertiesPanel').attr('data-id', location.id);
-    $('#envType').text(location.attributes.environment);
+    $('#envType').text(location.attributes.type);
     $('#characterSummary').text(location.attributes.characters.length);
     $('#itemSummary').text(location.attributes.items.length);
 
@@ -1165,10 +1112,11 @@ function clearLocationCharacters()
 }
 
 
-function findPaletteItemByName(data, searchName) {
-    for (var i = 0, len = data.length; i < len; i++) {
-        if (data[i].type === searchName)
-            return data[i]; // Return as soon as the object is found
+function findPaletteItem(dataSet, itemToFind) {
+    for (var i = 0, len = dataSet.data.length; i < len; i++) {
+        if (dataSet.data[i].type === itemToFind.attr('data-type') &&
+            dataSet.module === itemToFind.attr('data-module'))
+            return dataSet.data[i]; // Return as soon as the object is found
     }
 
     return null; // The object was not found
@@ -1183,12 +1131,13 @@ function loadEnvPalette() {
             envPaletteData = data;
 
             var envNum = 1;
-            data.forEach(function(item) {
+            envPaletteData.data.forEach(function(item) {
                 var container = $("<div style='display: inline-block; padding: 2px;'></div>");
                 var html = "<div class='paletteItem draggable ui-widget-content' " +
                     "id='env_" + envNum++ + "' " +
+                    "data-module='" + envPaletteData.module + "' " +
+                    "data-category='" + envPaletteData.category + "' " +
                     "data-type='" + item.type + "' " +
-                    "data-category='environment' " +
                     "><img src='" + item.image + "'/>";
                 html += "</div>";
                 var paletteItem = $(html);
@@ -1211,15 +1160,13 @@ function loadItemsPalette() {
             itemPaletteData = data;
 
             var itemNum = 1;
-            data.forEach(function(item) {
+            itemPaletteData.data.forEach(function(item) {
                 var container = $("<div style='display: inline-block; padding: 2px;'></div>");
                 var html = "<div class='paletteItem draggable ui-widget-content' " +
                     "id='item_" + itemNum++ + "' " +
-                    "data-category='item' " +
+                    "data-module='" + itemPaletteData.module + "' " +
+                    "data-category='" + itemPaletteData.category + "' " +
                     "data-type='" + item.type + "' " +
-                    "data-image='" + item.image + "' " +
-                    "data-description='" + item.description + "' " +
-                    "data-damage='" + item.damage + "' " +
                     "><img src='" + item.image + "'/>";
                 html += "</div>";
                 var paletteItem = $(html);
@@ -1242,18 +1189,13 @@ function loadCharactersPalette() {
             characterPaletteData = data;
 
             var itemNum = 1;
-            data.forEach(function(item) {
+            characterPaletteData.data.forEach(function(item) {
                 var container = $("<div style='display: inline-block; padding: 2px;'></div>");
                 var html = "<div class='paletteItem draggable ui-widget-content' " +
                     "id='char_" + itemNum++ + "' " +
-                    "data-category='character' " +
+                    "data-module='" + characterPaletteData.module + "' " +
+                    "data-category='" + characterPaletteData.category + "' " +
                     "data-type='" + item.type + "' " +
-                    "data-image='" + item.image + "' " +
-                    "data-description='" + item.description + "' " +
-                    "data-additionalinfo='" + item.additional_info + "' " +
-                    "data-health='" + item.health + "' " +
-                    "data-damage='" + item.damage + "' " +
-                    "data-drops='" + item.drops + "' " +
                     "><img src='" + item.image + "'/>";
                 html += "</div>";
                 var paletteItem = $(html);

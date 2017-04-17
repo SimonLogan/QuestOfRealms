@@ -469,7 +469,8 @@ function copyMapLocation(game, location, locationCallback) {
         realmId: game.id,
         x: location.x,
         y: location.y,
-        environment: location.environment,
+        type: location.type,
+        module: location.module,
         items: location.items,
         characters: characters}).exec(function(error, newLocation) {
         if (error) {
