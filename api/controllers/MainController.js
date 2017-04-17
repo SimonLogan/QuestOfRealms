@@ -28,126 +28,110 @@ var MainController = {
     },
 
     loadEnvPalette: function(req, res) {
-        sails.log.info("in loadEnvPalette");
-        var terrainData = [];
-        terrainData.push(
-            {
-                type: "grassland",
-                image: "images/grassland.png",
-                description: "Grassy plains."
-            }
-        );
+       sails.log.info("in loadEnvPalette");
+       var terrainData = [];
 
-        terrainData.push(
-            {
-                type: "water",
-                image: "images/water2.png",
-                description: "Lake or ocean. You need a boat to cross this."
-            }
-        );
+       var path = require('path');
+       var fs = require('fs');
+       var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
+       var topLevelDirsOrFiles = fs.readdirSync(pathroot);
+       for (var index in topLevelDirsOrFiles) {
+          var topLevelDirOrFile = path.join(pathroot, topLevelDirsOrFiles[index]);
+          var stat = fs.statSync(topLevelDirOrFile);
+          if (stat && stat.isDirectory()) {
+             var nextLevelDirsOrFiles = fs.readdirSync(topLevelDirOrFile);
+             for (var index2 in nextLevelDirsOrFiles) {
+                var nextLevelDirOrFile = path.join(topLevelDirOrFile, nextLevelDirsOrFiles[index2]);
+                var stat = fs.statSync(nextLevelDirOrFile);
+                if (stat && !stat.isDirectory()) {
+                   var thisItem = require(nextLevelDirOrFile);
+                   if (thisItem.category === "environment" && thisItem.attributes) {
+                      // Support defining more than one environment type in the same file.
+                      if (Object.prototype.toString.call(thisItem.attributes) === '[object Array]') {
+                         for (var index3 in thisItem.attributes) {
+                            terrainData.push(thisItem.attributes[index3]);
+                         }
+                      } else {
+                         terrainData.push(thisItem.attributes);
+                      }
+                   }
+                }
+             }
+          }
+       }
 
-        terrainData.push(
-            {
-                type: "mountains",
-                image: "images/mountains2.png",
-                description: "Not much grows here."
-            }
-        );
-
-        res.send(terrainData);
+       res.send(terrainData);
     },
 
     loadItemsPalette: function(req, res) {
-        sails.log.info("in loadItemsPalette");
-        var itemsData = [];
-        itemsData.push(
-            {
-                type: "spear",
-                image: "images/spear.png",
-                description: "medium range weapon.",
-                damage: 10
-            }
-        );
+       sails.log.info("in loadItemsPalette");
+       var itemData = [];
 
-        itemsData.push(
-            {
-                type: "short sword",
-                image: "images/shortsword.png",
-                description: "Useful for close-quarters combat. Easily concealed.",
-                damage: 5
-            }
-        );
+       var path = require('path');
+       var fs = require('fs');
+       var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
+       var topLevelDirsOrFiles = fs.readdirSync(pathroot);
+       for (var index in topLevelDirsOrFiles) {
+          var topLevelDirOrFile = path.join(pathroot, topLevelDirsOrFiles[index]);
+          var stat = fs.statSync(topLevelDirOrFile);
+          if (stat && stat.isDirectory()) {
+             var nextLevelDirsOrFiles = fs.readdirSync(topLevelDirOrFile);
+             for (var index2 in nextLevelDirsOrFiles) {
+                var nextLevelDirOrFile = path.join(topLevelDirOrFile, nextLevelDirsOrFiles[index2]);
+                var stat = fs.statSync(nextLevelDirOrFile);
+                if (stat && !stat.isDirectory()) {
+                   var thisItem = require(nextLevelDirOrFile);
+                   if (thisItem.category === "item" && thisItem.attributes) {
+                      // Support defining more than one environment type in the same file.
+                      if (Object.prototype.toString.call(thisItem.attributes) === '[object Array]') {
+                         for (var index3 in thisItem.attributes) {
+                            itemData.push(thisItem.attributes[index3]);
+                         }
+                      } else {
+                         itemData.push(thisItem.attributes);
+                      }
+                   }
+                }
+             }
+          }
+       }
 
-        itemsData.push(
-            {
-                type: "long sword",
-                image: "images/longsword.png",
-                description: "Useful against more powerful or armoured opponents.",
-                damage: 10
-            }
-        );
-
-        res.send(itemsData);
+       res.send(itemData);
     },
 
-    loadCharactersPalette: function(req, res) {
-        sails.log.info("in loadCharactersPalette");
+    loadCharactersPalette: function (req, res) {
+       sails.log.info("in loadCharactersPalette");
+       var characterData = [];
 
-        // Use glob-fs to load this data from the plugin-content dir.
-        // See file read examples in http://stackoverflow.com/questions/9250851/do-i-need-dependency-injection-in-nodejs-or-how-to-deal-with
-        // looks promising: https://darrenderidder.github.io/talks/ModulePatterns/
-        var characterData = [];
-        characterData.push(
-            {
-                type: "Giant",
-                image: "images/Giant.png",
-                description: "Lumbering, stupid humanoids.",
-                additional_info: "Can be found herding Iron Boars. Easily killed by Gryphons. They love gold.",
-                health: 15,
-                damage: 5,
-                drops: ["leather"]
-            }
-        );
+       var path = require('path');
+       var fs = require('fs');
+       var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
+       var topLevelDirsOrFiles = fs.readdirSync(pathroot);
+       for (var index in topLevelDirsOrFiles) {
+          var topLevelDirOrFile = path.join(pathroot, topLevelDirsOrFiles[index]);
+          var stat = fs.statSync(topLevelDirOrFile);
+          if (stat && stat.isDirectory()) {
+             var nextLevelDirsOrFiles = fs.readdirSync(topLevelDirOrFile);
+             for (var index2 in nextLevelDirsOrFiles) {
+                var nextLevelDirOrFile = path.join(topLevelDirOrFile, nextLevelDirsOrFiles[index2]);
+                var stat = fs.statSync(nextLevelDirOrFile);
+                if (stat && !stat.isDirectory()) {
+                   var thisItem = require(nextLevelDirOrFile);
+                   // Don't support defining more than one character type in the same file,
+                   // as characters are expected to have complex definitions and the file
+                   // may get too big.
+                   if (thisItem.category === "character" && thisItem.attributes) {
+                      characterData.push(thisItem.attributes);
+                   }
+                }
+             }
+          }
+       }
 
-        characterData.push(
-            {
-                type: "Gryphon",
-                image: "images/Gryphon.png",
-                description: "Graceful, mountable predators.",
-                additional_info: "Can be mounted if you bring them a young Iron Boar. Kill Giants - their natural enemies. Can be found in the Globed Forest.",
-                health: 50,
-                damage: 15,
-                drops: ["feathers"]
-            }
-        );
-
-        characterData.push(
-            {
-                type: "Iron boar",
-                image: "images/IronBoar.png",
-                description: "Tough, easily tamed animals.",
-                additional_info: "Medium armour. Can be domesticated. Drops iron or gold. Found on Endless plains, and in Utropica. Love to eat Forge Weed.",
-                health: 20,
-                damage: 5,
-                drops: ["iron", "gold"]
-            }
-        );
-
-        characterData.push(
-            {
-                type: "night spider",
-                image: "images/NightSpider.png",
-                description: "Sinister, silent killers.",
-                additional_info: "Webs can be made into bow strings. can appear in any realm. can give you sleeping sickness (-1 health per minute when you have it). juveniles can be domesticated to replenish bow strings.",
-                health: 3,
-                damage: 10,
-                drops: ["string", "spider fangs"]
-            }
-        );
-
-        res.send(characterData);
+       res.send(characterData);
     },
 
+    // Ok to hardcode this.
     loadObjectivesPalette: function(req, res) {
         sails.log.info("in loadObjectivesPalette");
         var objectivesData = [];
