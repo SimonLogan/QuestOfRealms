@@ -15,7 +15,6 @@
  * @docs        :: http://sailsjs.org/#!documentation/controllers
  */
 
-//var nomo = require('node-monkey').start({host: "127.0.0.1"});
 
 var MainController = {
 
@@ -84,7 +83,7 @@ var MainController = {
                 if (stat && !stat.isDirectory()) {
                    var thisItem = require(nextLevelDirOrFile);
                    if (thisItem.category === itemData.category && thisItem.attributes) {
-                      // Support defining more than one environment type in the same file.
+                      // Support defining more than one item type in the same file.
                       if (Object.prototype.toString.call(thisItem.attributes) === '[object Array]') {
                          for (var index3 in thisItem.attributes) {
                             itemData.data.push(thisItem.attributes[index3]);
@@ -134,35 +133,41 @@ var MainController = {
        res.send(characterData);
     },
 
-    // Ok to hardcode this.
     loadObjectivesPalette: function(req, res) {
-        sails.log.info("in loadObjectivesPalette");
-        var objectivesData = [];
-        objectivesData.push(
-            {
-                type: 1,
-                name: "Start at",
-                description: "Where you start the game.",
-                parameters: [
-                    {name: "x", type: "int"},
-                    {name: "y", type: "int"}
-                ]
-            }
-        );
+       sails.log.info("in loadObjectivesPalette");
+       var objectiveData = {category:'objective', data:[]};
 
-        objectivesData.push(
-            {
-                type: 2,
-                name: "Navigate to",
-                description: "Navigate to a specified map location.",
-                parameters: [
-                    {name: "x", type: "int"},
-                    {name: "y", type: "int"}
-                ]
-            }
-        );
+       var path = require('path');
+       var fs = require('fs');
+       var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
+       var topLevelDirsOrFiles = fs.readdirSync(pathroot);
+       for (var index in topLevelDirsOrFiles) {
+          var topLevelDirOrFile = path.join(pathroot, topLevelDirsOrFiles[index]);
+          var stat = fs.statSync(topLevelDirOrFile);
+          if (stat && stat.isDirectory()) {
+             objectiveData['module'] = topLevelDirsOrFiles[index];
+             var nextLevelDirsOrFiles = fs.readdirSync(topLevelDirOrFile);
+             for (var index2 in nextLevelDirsOrFiles) {
+                var nextLevelDirOrFile = path.join(topLevelDirOrFile, nextLevelDirsOrFiles[index2]);
+                var stat = fs.statSync(nextLevelDirOrFile);
+                if (stat && !stat.isDirectory()) {
+                   var thisItem = require(nextLevelDirOrFile);
+                   if (thisItem.category === objectiveData.category && thisItem.attributes) {
+                      // Support defining more than one objectiveData type in the same file.
+                      if (Object.prototype.toString.call(thisItem.attributes) === '[object Array]') {
+                         for (var index3 in thisItem.attributes) {
+                            objectiveData.data.push(thisItem.attributes[index3]);
+                         }
+                      } else {
+                         objectiveData.data.push(thisItem.attributes);
+                      }
+                   }
+                }
+             }
+          }
+       }
 
-        res.send(objectivesData);
+        res.send(objectiveData);
     },
 
   /**

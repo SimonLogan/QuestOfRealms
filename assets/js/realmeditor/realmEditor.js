@@ -173,7 +173,7 @@ $(document).ready(function() {
                 "Cancel": close
             },
             close: close
-        });
+        }).css("font-size", "12px");
 
         form = dialog.find("form").on("submit", function(event) {
             event.preventDefault();
@@ -233,7 +233,7 @@ $(document).ready(function() {
                 "Cancel": close
             },
             close: close
-        });
+        }).css("font-size", "12px");
 
         form = dialog.find("form").on("submit", function(event) {
             event.preventDefault();
@@ -272,29 +272,42 @@ $(document).ready(function() {
 
             if (saveParams.length > 0) {
                 var dropdown = $('#objectiveChoice');
-                var objectiveType = dropdown.val();
-                // Validate "start at" and "navigate to".
-                if (objectiveType === "1" || objectiveType === "2") {
-                    // Assume saveParams[0] is x and [1] is y.
-                    // The supplied start position must actually exist.
-                    var mapCell = $('#mapTable td#cell_'
-                        + saveParams[0].value
-                        + '_'
-                        + saveParams[1].value
-                        + ' > div');
+                var objectiveType = dropdown.find('option:selected').text();
+                var description = dropdown.find('option:selected').attr('title');
 
-                    if (!mapCell.hasClass('mapItem')) {
-                        alert('The specified location does not exist.');
-                        return;
-                    }
+                // Do some basic vailidation of some of the default objective types.
+                // Since objectives are now defined by plugins, custom objectives
+                // must be validated on the server.
+                if (objectiveType === "Start at" || objectiveType === "Navigate to") {
+                   var thisCell = locations.where({
+                      x: saveParams[0].value, y:saveParams[1].value});
+                   if (thisCell.length === 0) {
+                      alert("Invalid map location.");
+                      return;
+                   }
                 }
 
-                realmData.objectives.push({
-                    type: dropdown.val(),
-                    typeStr: dropdown.find('option:selected').text(),
-                    description: dropdown.find('option:selected').attr('title'),
-                    params: saveParams
-                });
+                if (objectiveType === "Start at") {
+                   // Always put the "start at" objective first in the list to make
+                   // it clear that it has been set.
+                   if (realmData.objectives.length > 0 &&
+                       realmData.objectives[0].type === "Start at") {
+                       realmData.objectives.shift();
+                   }
+
+                   realmData.objectives.unshift({
+                      type: objectiveType,
+                      description: description,
+                      params: saveParams
+                   });
+                } else {
+                   // Otherwise add it to the end.
+                   realmData.objectives.push({
+                      type: objectiveType,
+                      description: description,
+                      params: saveParams
+                   });
+                }
 
                 saveRealm(function() {
                     dialog.dialog("close");
@@ -318,7 +331,7 @@ $(document).ready(function() {
                 form[0].reset();
                 allFields.removeClass("ui-state-error");
             }
-        });
+        }).css("font-size", "12px");
 
         form = dialog.find("form").on("submit", function(event) {
             event.preventDefault();
@@ -326,13 +339,22 @@ $(document).ready(function() {
         });
 
         $("#addObjective").click(function() {
+            $(dialog.parent().find(':button')[1]).prop('disabled', true);
             dialog.dialog("open");
         });
 
         $('#objectiveChoice').change(function() {
-            var selectedObjectiveType = $('#objectiveChoice').val();
+            var dropdown = $('#objectiveChoice');
+
+            if (dropdown.find('option:selected').attr('disabled') === 'disabled') {
+               $($(dialog).parent().find(':button')[1]).prop('disabled', true);
+            } else {
+               $($(dialog).parent().find(':button')[1]).prop('disabled', false);
+            }
+
+            var selectedObjectiveType = dropdown.val();
             var html = "<table>";
-            objectivePaletteData[selectedObjectiveType -1].parameters.forEach(function (item) {
+            objectivePaletteData.data[selectedObjectiveType].parameters.forEach(function (item) {
                 html += "<tr><th class='detailsHeading'>" + item.name + "</th>";
                 html += "<td><input type='text'/></td></tr>";
             });
@@ -1215,51 +1237,21 @@ function loadObjectivesPalette() {
         '/loadObjectivesPalette',
         function (data) {
             objectivePaletteData = data;
-            var html = "<option value='0' title='choose' disabled selected>Choose</option>";
+            var html = "<option value='choose' title='choose' disabled selected>Choose</option>";
 
-            data.forEach(function(item) {
-                html += "<option value='" + item.type + "' ";
-                html += "title='" + item.description + "' ";
-                html += ">" + item.name + "</option>";
-            });
+            // TODO: decide whether mandatory objectives should disable other objectives
+            // until they have been added.
+            for (var i=0; i<objectivePaletteData.data.length; i++) {
+                html += "<option value='" + i + "' ";
+                html += "title='" + objectivePaletteData.data[i].description + "' ";
+                html += ">" + objectivePaletteData.data[i].name + "</option>";
+            };
 
             $('#objectiveChoice').html(html);
         }
     ).fail(function(res){
         alert("Error: " + JSON.parse(res.responseText).error);
     });
-}
-
-
-// Check whether the starting position objective has been set.
-// Other objectives cannot be added until this has been done.
-// The start-at objective cannot be deleted if others exist.
-function checkObjectivePriority() {
-    if ($('#objectiveList').find('.objectiveName[data-value="1"]').length > 0) {
-        // The starting position has been set.
-        // Prevent adding this objective again. Enable adding the other
-        // objective types.
-        $('#objectiveChoice').find('option[value="1"]').prop('disabled', true);
-        $('#objectiveChoice').find('option').filter(function() {
-            return $(this).attr("value") > "1"; }).each(function process() {
-               $(this).prop('disabled', false);});
-
-        // Prevent deletion of the starting position objective if others exist.
-        if ($('#objectiveList td.objectiveName').filter(function() {
-            return $(this).attr("data-value") > "1"; }).length > 0) {
-            $('#objectiveList td.objectiveName[data-value="1"]').closest('tr').find('.deleteObjective').prop('disabled', true);
-        } else {
-            $('#objectiveList td.objectiveName[data-value="1"]').closest('tr').find('.deleteObjective').prop('disabled', false);
-        }
-    } else {
-        // The starting position has not been set.
-        // Allow adding this objective. Disable adding the other
-        // objective types.
-        $('#objectiveChoice').find('option[value="1"]').prop('disabled', false);
-        $('#objectiveChoice').find('option').filter(function() {
-            return $(this).attr("value") > "1"; }).each(function process() {
-            $(this).prop('disabled', true);});
-    }
 }
 
 
@@ -1326,17 +1318,12 @@ function displayLocationCharacters(location)
 
 function displayObjectiveDetails(item) {
     var description = "";
-    switch (parseInt(item.type)) {
-        case 1: // start at
-        case 2: // navigate to
-            $.each(item.params, function(thisParam){
-                description += item.params[thisParam].name + ":" + item.params[thisParam].value + ", ";
-            });
 
-            description = description.substr(0, description.lastIndexOf(", "));
-            break;
-    }
+    $.each(item.params, function(thisParam){
+       description += item.params[thisParam].name + ":" + item.params[thisParam].value + ", ";
+    });
 
+    description = description.substr(0, description.lastIndexOf(", "));
     return description;
 }
 
@@ -1350,14 +1337,13 @@ function displayObjectives()
     var i=0;
     realmData.objectives.forEach(function(item) {
         html += "<tr data-id='" + (i++) + "'>";
-        html += "<td class='objectiveName' data-value='" + item.type + "'>" + item.typeStr + "</td>";
+        html += "<td class='objectiveName' data-value='" + item.type + "'>" + item.type + "</td>";
         html += "<td class='objectiveDetails'>" + displayObjectiveDetails(item) + "</td>";
         html += "<td><input class='deleteObjective' type='image' src='images/wastebasket.png' alt='Delete' width='14' height='14'></td>";
         html += "</tr>";
     });
 
     target.append(html);
-    checkObjectivePriority();
 }
 
 

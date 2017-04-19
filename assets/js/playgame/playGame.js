@@ -412,8 +412,8 @@ function drawMaplocation(locationData) {
     var playerName = $('#playerName').val();
     if (shouldDrawMapLocation(locationData)) {
         // Always show the terrain once the player has visited the location, as terrain never changes.
-        target.attr('data-env', locationData.environment);
-        html += '<img src="images/' + locationData.environment + '.png" style="position:absolute" />';
+        target.attr('data-env', locationData.type);
+        html += '<img src="images/' + locationData.type + '.png" style="position:absolute" />';
 
         // TODO: decide whether the maplocation's items and characters remain permanently visible, or
         // only visible when the player is in the location.
@@ -558,14 +558,14 @@ function describeLocationContents(location, detailLevel) {
 }
 
 function describeLocation(location, detailLevel) {
-    var message = "Terrain: " + location.environment + ".";
+    var message = "Terrain: " + location.type + ".";
     message += describeLocationContents(location, detailLevel);
     return message;
 }
 
 function describeMyLocation(location) {
     showPlayerLocation(location.y, location.x);
-    var message = "You are at location [" + location.x + ", " + location.y + "]. Terrain: " + location.environment + ".";
+    var message = "You are at location [" + location.x + ", " + location.y + "]. Terrain: " + location.type + ".";
     message += describeLocationContents(location, describeDetailEnum.TERRAIN_AND_CONTENTS);
     return message;
 }

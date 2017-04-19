@@ -181,7 +181,7 @@ var QuestRealmController = {
 
         async.waterfall([
             // Check the pre-requisites.
-            function validation(validationCallback) {
+            function checkRealmExists(validationCallback) {
                 QuestRealm.findOne({id: parentRealmId}).exec(function (err, realm) {
                     sails.log.info("in QuestRealm.findById() callback");
                     if (err) {
@@ -190,22 +190,50 @@ var QuestRealmController = {
                         sails.log.info("in QuestRealm.findById() callback, no error.");
                         if (realm) {
                             sails.log.info("in QuestRealm.findById() callback " + JSON.stringify(realm));
-
-                            // The realm must have at least a "start at" objective before a game can be created.
-                            // Since this is the first objective you must create, it should be sufficient to
-                            // check for the existence of any objectives[]
-                            if (realm.objectives === undefined ||
-                                realm.objectives.length === 0){
-                                sails.log.info("in QuestRealm.findById() callback, no \"start at\" objective set.");
-                                validationCallback("createTheGame : no \"start at\" objective set");
-                            }
-                            else {
-                                // Everything is ok.
-                                validationCallback(null, realm);
-                            }
+                            // Everything is ok.
+                            validationCallback(null, realm);
                         } else {
                             sails.log.info("in QuestRealm.findById() callback, realm is null.");
                             validationCallback("createTheGame realm not Found");
+                        }
+                    }
+                });
+            },
+            function checkStartLocation(realm, validationCallback) {
+                // The realm must have at least a "start at" objective before a game can be created.
+                var startPoint = null;
+                for (var i=0; i<realm.objectives.length; i++) {
+                    if (realm.objectives[i].type === "Start at") {
+                        startPoint = realm.objectives[i];
+                        break;
+                    }
+                }
+
+                if (null === startPoint) {
+                    sails.log.info("in QuestRealm.findById() callback, no \"start at\" objective set.");
+                    validationCallback("checkStartLocation : no \"start at\" objective set");
+                }
+
+                sails.log.info("in checkStartLocation, searching for id: " + parentRealmId +
+                               " x:" + realm.objectives[i].params[0].value +
+                               " y:" + realm.objectives[i].params[1].value);
+                MapLocation.findOne(
+                    {realmId: parentRealmId,
+                     x: realm.objectives[i].params[0].value,
+                     y: realm.objectives[i].params[1].value}).exec(function (err, maplocation) {
+
+                    sails.log.info("in MapLocation.findOne() callback");
+                    if (err) {
+                        validationCallback("checkStartLocation db err:" + err);
+                    } else {
+                        sails.log.info("in MapLocation.findOne() callback, no error.");
+                        if (maplocation) {
+                            sails.log.info("in MapLocation.findOne() callback " + JSON.stringify(maplocation));
+                            // Everything is ok.
+                            validationCallback(null, realm);
+                        } else {
+                            sails.log.info("in MapLocation.findOne() callback, maplocation is null.");
+                            validationCallback("checkStartLocation maplocation not Found");
                         }
                     }
                 });
@@ -244,15 +272,21 @@ var QuestRealmController = {
                     visited: {}}];
                 playerData[0].visited[visitedKey] = true;
 
-                // Generate the game.
+                // Generate the game. Exclude the "start at" objective. That was just a
+                // handy way to indicate the start location.
                 var game = {
                     name: gameName,
                     description: gameDescription,
                     parentRealmId: realm.id,
                     width: realm.width,
                     height: realm.height,
-                    objectives: realm.objectives,
+                    objectives: [],
                     players: playerData};
+
+                for (var i=0; i<realm.objectives.length; i++) {
+                   if (realm.objectives[i].type === "Start at") continue;
+                   game.objectives.push(realm.objectives[i]);
+                }
 
                 Game.create(game).exec(function (error, newGame) {
                     if (error) {

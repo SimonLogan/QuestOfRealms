@@ -30,3 +30,8 @@ form dd {
     border: 1px solid black;
     border-collapse: collapse;
 }
+
+/* jquery dialog overrrides */
+.ui-dialog-titlebar {
+   font-size: 12px;
+}
