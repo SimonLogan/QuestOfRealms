@@ -107,6 +107,16 @@ module.exports = {
                 if (game) {
                     sails.log.info("in Game.findById() callback " + JSON.stringify(game));
 
+                    function sendCommandStatus(handlerResult) {
+                        if (!handlerResult.error) {
+                            sails.log.info("sending OK response");
+                        } else {
+                            sails.log.info("sending error response");
+                        }
+
+                        res.send(200, handlerResult);
+                    }
+
                     // Split the comandline into whitespace-separated tokens. Remove the first and use
                     // this as the command verb. The others are the args.
                     var tokens = command.split(" ");
@@ -115,37 +125,25 @@ module.exports = {
                         case "move":
                             result = handleMove(tokens, game, playerName, function(handlerResult) {
                                 sails.log.info("in gameCommand. handleMove result = " + JSON.stringify(handlerResult));
-
-                                if (!handlerResult.error) {
-                                    sails.log.info("sending 200 response");
-                                    res.send(200);
-                                } else {
-                                    res.send(200, handlerResult);
-                                }
+                                sendCommandStatus(handlerResult);
                             });
                             break;
                         case "take":
                             result = handleTake(tokens, game, playerName, function(handlerResult) {
                                 sails.log.info("in gameCommand. handleTake result = " + JSON.stringify(handlerResult));
-
-                                if (!handlerResult.error) {
-                                    sails.log.info("sending 200 response");
-                                    res.send(200);
-                                } else {
-                                    res.send(200, handlerResult);
-                                }
+                                sendCommandStatus(handlerResult);
                             });
                             break;
                         case "drop":
                             result = handleDrop(tokens, game, playerName, function(handlerResult) {
                                 sails.log.info("in gameCommand. handleDrop result = " + JSON.stringify(handlerResult));
-
-                                if (!handlerResult.error) {
-                                    sails.log.info("sending 200 response");
-                                    res.send(200);
-                                } else {
-                                    res.send(200, handlerResult);
-                                }
+                                sendCommandStatus(handlerResult);
+                            });
+                            break;
+                        case "status":
+                            result = handleStatus(tokens, game, playerName, function(handlerResult) {
+                                sails.log.info("in gameCommand. handleStatus result = " + JSON.stringify(handlerResult));
+                                sendCommandStatus(handlerResult);
                             });
                             break;
                         default:
@@ -539,6 +537,17 @@ function handleDrop(commandArgs, game, playerName, statusCallback) {
             }
         }
     });
+}
+
+function handleStatus(commandArgs, game, playerName, statusCallback) {
+    sails.log.info("STATUS");
+
+    var objectives = [];
+    for (var i=0; i<game.objectives.length; i++) {
+       objectives.push(game.objectives[i]);
+    }
+
+    statusCallback({error: false, data: objectives});
 }
 
 function handleCommand(commandTokens, game, playerName, statusCallback) {

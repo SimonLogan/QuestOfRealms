@@ -298,6 +298,7 @@ $(document).ready(function() {
                    realmData.objectives.unshift({
                       type: objectiveType,
                       description: description,
+                      completed: false,
                       params: saveParams
                    });
                 } else {
@@ -305,6 +306,7 @@ $(document).ready(function() {
                    realmData.objectives.push({
                       type: objectiveType,
                       description: description,
+                      completed: false,
                       params: saveParams
                    });
                 }
@@ -1135,10 +1137,23 @@ function clearLocationCharacters()
 
 
 function findPaletteItem(dataSet, itemToFind) {
-    for (var i = 0, len = dataSet.data.length; i < len; i++) {
-        if (dataSet.data[i].type === itemToFind.attr('data-type') &&
-            dataSet.module === itemToFind.attr('data-module'))
-            return dataSet.data[i]; // Return as soon as the object is found
+    var moduleName = itemToFind.attr('data-module');
+    var moduleContents = dataSet.modules[moduleName];
+
+    if (moduleContents === undefined) {
+       return null; // The module name was not found
+    }
+
+    for (var i = 0, len = moduleContents.length; i < len; i++) {
+        var thisContent = moduleContents[i];
+        if (thisContent.filename === itemToFind.attr('data-filename')) {
+           for (var j = 0; j < thisContent.data.length; j++) {
+               var thisData = thisContent.data[j];
+               if (thisData.type === itemToFind.attr('data-type')) {
+                  return thisData; // Return as soon as the object is found
+               }
+           }
+        }
     }
 
     return null; // The object was not found
@@ -1153,19 +1168,24 @@ function loadEnvPalette() {
             envPaletteData = data;
 
             var envNum = 1;
-            envPaletteData.data.forEach(function(item) {
-                var container = $("<div style='display: inline-block; padding: 2px;'></div>");
-                var html = "<div class='paletteItem draggable ui-widget-content' " +
-                    "id='env_" + envNum++ + "' " +
-                    "data-module='" + envPaletteData.module + "' " +
-                    "data-category='" + envPaletteData.category + "' " +
-                    "data-type='" + item.type + "' " +
-                    "><img src='" + item.image + "'/>";
-                html += "</div>";
-                var paletteItem = $(html);
-                paletteItem.draggable({helper: 'clone', revert: 'invalid'});
-                paletteItem.appendTo(container);
-                container.appendTo(target);
+            $.each(envPaletteData.modules, function(module) {
+               envPaletteData.modules[module].forEach(function(file) {
+                  file.data.forEach(function(item) {
+                       var container = $("<div style='display: inline-block; padding: 2px;'></div>");
+                       var html = "<div class='paletteItem draggable ui-widget-content' " +
+                           "id='env_" + envNum++ + "' " +
+                           "data-module='" + module + "' " +
+                           "data-filename='" + file.filename + "' " +
+                           "data-category='" + envPaletteData.category + "' " +
+                           "data-type='" + item.type + "' " +
+                           "><img src='" + item.image + "'/>";
+                       html += "</div>";
+                       var paletteItem = $(html);
+                       paletteItem.draggable({helper: 'clone', revert: 'invalid'});
+                       paletteItem.appendTo(container);
+                       container.appendTo(target);
+                   });
+               });
             });
         }
     ).fail(function(res){
@@ -1182,19 +1202,24 @@ function loadItemsPalette() {
             itemPaletteData = data;
 
             var itemNum = 1;
-            itemPaletteData.data.forEach(function(item) {
-                var container = $("<div style='display: inline-block; padding: 2px;'></div>");
-                var html = "<div class='paletteItem draggable ui-widget-content' " +
-                    "id='item_" + itemNum++ + "' " +
-                    "data-module='" + itemPaletteData.module + "' " +
-                    "data-category='" + itemPaletteData.category + "' " +
-                    "data-type='" + item.type + "' " +
-                    "><img src='" + item.image + "'/>";
-                html += "</div>";
-                var paletteItem = $(html);
-                paletteItem.draggable({helper: 'clone', revert: 'invalid'});
-                paletteItem.appendTo(container);
-                container.appendTo(target);
+            $.each(itemPaletteData.modules, function(module) {
+               itemPaletteData.modules[module].forEach(function(file) {
+                  file.data.forEach(function(item) {
+                       var container = $("<div style='display: inline-block; padding: 2px;'></div>");
+                       var html = "<div class='paletteItem draggable ui-widget-content' " +
+                           "id='item_" + itemNum++ + "' " +
+                           "data-module='" + module + "' " +
+                           "data-filename='" + file.filename + "' " +
+                           "data-category='" + itemPaletteData.category + "' " +
+                           "data-type='" + item.type + "' " +
+                           "><img src='" + item.image + "'/>";
+                       html += "</div>";
+                       var paletteItem = $(html);
+                       paletteItem.draggable({helper: 'clone', revert: 'invalid'});
+                       paletteItem.appendTo(container);
+                       container.appendTo(target);
+                   });
+               });
             });
         }
     ).fail(function(res){
@@ -1210,20 +1235,25 @@ function loadCharactersPalette() {
             var target = $('#paletteCharactersList');
             characterPaletteData = data;
 
-            var itemNum = 1;
-            characterPaletteData.data.forEach(function(item) {
-                var container = $("<div style='display: inline-block; padding: 2px;'></div>");
-                var html = "<div class='paletteItem draggable ui-widget-content' " +
-                    "id='char_" + itemNum++ + "' " +
-                    "data-module='" + characterPaletteData.module + "' " +
-                    "data-category='" + characterPaletteData.category + "' " +
-                    "data-type='" + item.type + "' " +
-                    "><img src='" + item.image + "'/>";
-                html += "</div>";
-                var paletteItem = $(html);
-                paletteItem.draggable({helper: 'clone', revert: 'invalid'});
-                paletteItem.appendTo(container);
-                container.appendTo(target);
+            var characterNum = 1;
+            $.each(characterPaletteData.modules, function(module) {
+               characterPaletteData.modules[module].forEach(function(file) {
+                  file.data.forEach(function(character) {
+                       var container = $("<div style='display: inline-block; padding: 2px;'></div>");
+                       var html = "<div class='paletteItem draggable ui-widget-content' " +
+                           "id='char_" + characterNum++ + "' " +
+                           "data-module='" + module + "' " +
+                           "data-filename='" + file.filename + "' " +
+                           "data-category='" + characterPaletteData.category + "' " +
+                           "data-type='" + character.type + "' " +
+                           "><img src='" + character.image + "'/>";
+                       html += "</div>";
+                       var paletteItem = $(html);
+                       paletteItem.draggable({helper: 'clone', revert: 'invalid'});
+                       paletteItem.appendTo(container);
+                       container.appendTo(target);
+                   });
+               });
             });
         }
     ).fail(function(res){
@@ -1236,16 +1266,18 @@ function loadObjectivesPalette() {
     $.get(
         '/loadObjectivesPalette',
         function (data) {
-            objectivePaletteData = data;
             var html = "<option value='choose' title='choose' disabled selected>Choose</option>";
+            objectivePaletteData = data;
 
-            // TODO: decide whether mandatory objectives should disable other objectives
-            // until they have been added.
-            for (var i=0; i<objectivePaletteData.data.length; i++) {
-                html += "<option value='" + i + "' ";
-                html += "title='" + objectivePaletteData.data[i].description + "' ";
-                html += ">" + objectivePaletteData.data[i].name + "</option>";
-            };
+            $.each(objectivePaletteData.modules, function(module) {
+               objectivePaletteData.modules[module].forEach(function(file) {
+                  for (var i=0; i<file.data.length; i++) {
+                     html += "<option value='" + i + "' ";
+                     html += "title='" + file.data[i].description + "' ";
+                     html += ">" + file.data[i].name + "</option>";
+                  }
+               });
+            });
 
             $('#objectiveChoice').html(html);
         }

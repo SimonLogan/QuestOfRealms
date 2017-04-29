@@ -144,27 +144,7 @@ $(document).ready(function() {
             }
 
             displayMessage(commandText);
-
-            // Some commands can be handled on the client side.
-            if (!handleClientSideCommand(playerLocation, commandText)) {
-                // This command can't be handled locally. Send to the server.
-                $.post(
-                    '/gameCommand', {
-                        command: commandText,
-                        player: $('#playerName').val(),
-                        gameId: $('#realmId').val()
-                    },
-                    function (data) {
-                        console.log(data);
-                        if (data.error) {
-                            displayMessage(escapeHtml(data.message));
-                        }
-                    }
-                ).fail(function (res) {
-                    alert("Error: " + res.responseJSON.error);
-                });
-            }
-
+            handleCommand(playerLocation, commandText);
             commandTextBox.val("");
         }
     });
@@ -570,23 +550,47 @@ function describeMyLocation(location) {
     return message;
 }
 
-// If the client has the data then certain commands can be fulfilled locally.
-function handleClientSideCommand(playerLocation, commandText) {
+function handleCommand(playerLocation, commandText) {
     var tokens = commandText.split(" ");
+
+    // If the client has the data then certain commands can be fulfilled locally.
     if (tokens[0] === "help") {
         handleHelp();
-        return true;
+        return;
     }
     else if (tokens[0] === "look") {
         handleLook(playerLocation, tokens);
-        return true;
+        return;
     }
     else if (tokens[0] === "inventory") {
         handleInventory(playerLocation, tokens);
-        return true;
+        return;
     }
 
-    return false;
+    // This command can't be handled locally. Send to the server.
+    $.post(
+        '/gameCommand', {
+            command: commandText,
+            player: $('#playerName').val(),
+            gameId: $('#realmId').val()
+        },
+        function (data) {
+            console.log(data);
+            if (data.error) {
+                displayMessage(escapeHtml(data.message));
+                return;
+            }
+
+            // Some commands require client-side post-processing.
+            if (tokens[0] === "status") {
+                displayStatus(data);
+            }
+        }
+    ).fail(function (res) {
+        alert("Error: " + res.responseJSON.error);
+    });
+
+    return;
 }
 
 function handleHelp() {
@@ -597,6 +601,7 @@ function handleHelp() {
     displayMessage("   take item: take the named item. e.g. \"take short sword\".");
     displayMessage("   drop item: drop the named item. e.g. \"drop short sword\".");
     displayMessage("   inventory: list the items in your inventory.");
+    displayMessage("   status: show health and game progress.");
 }
 
 function handleLook(playerLocation, tokens) {
@@ -691,6 +696,20 @@ function handleInventory(playerLocation, tokens) {
     else {
         displayMessage("There are no items in your inventory.");
     }
+}
+
+function displayStatus(objectives) {
+   var allComplete = true;
+
+   /*
+   if (objectives.length > 0) {
+       displayMessage("Objective progress:");
+       for (var i=0; i<objectives.length; i++) {
+           var msg = objectives[i].
+
+       }
+   }
+   */
 }
 
 // escapeHtml implementation taken from mustache.js
