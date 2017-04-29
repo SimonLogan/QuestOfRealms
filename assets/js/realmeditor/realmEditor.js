@@ -64,19 +64,31 @@ $(document).ready(function() {
         displayObjectives();
     });
 
-   // Create the tabbed panels and load the data.
-   $(function() {
-      $("#paletteInnerPanel").tabs();
-      $("#propertiesInnerPanel").tabs();
-   });
-
    // Call the various server functions to load details of the supported
    // environments, items, characters, and objectives. Populate the various
    // tool menus on the screen with this info.
-   loadEnvPalette();
-   loadItemsPalette();
-   loadCharactersPalette();
-   loadObjectivesPalette();
+   // NOTE: Since we have accordion widgets inside tabs, we need to ensure the accordions
+   // are populated before the tabs are activated, or the accordions in the items and
+   // characters tabs won't display correctly.
+   async.parallel([
+       function(callback) {
+          loadEnvPalette(callback);
+       },
+       function(callback) {
+          loadItemsPalette(callback);
+       },
+       function(callback) {
+          loadCharactersPalette(callback);
+       },
+       function(callback) {
+          loadObjectivesPalette(callback);
+       }
+   ],
+   function(err, results) {
+      // Create the tabbed panels
+      $("#paletteInnerPanel").tabs();
+      $("#propertiesInnerPanel").tabs();
+   });
 
    // Backbone is a Model-View-Controller (MVC) framework. Extend the
    // default Model with additional attributes that we need.
@@ -260,10 +272,10 @@ $(document).ready(function() {
 
         function save() {
             var target = $('#objectiveParamsPanel');
-            var paramNames = target.find('th');
+            var paramNames = target.find('td.detailsHeading');
             var paramValues = target.find('td input');
             var saveParams = [];
-            $.each(target.find('th'), function(index) {
+            $.each(paramNames, function(index) {
                 saveParams.push({
                     name: $(paramNames[index]).text(),
                     value: $(paramValues[index]).val()
@@ -347,21 +359,41 @@ $(document).ready(function() {
 
         $('#objectiveChoice').change(function() {
             var dropdown = $('#objectiveChoice');
+            var selection = dropdown.find('option:selected');
 
-            if (dropdown.find('option:selected').attr('disabled') === 'disabled') {
+            // Disable the save button if an invalid option is selected.
+            if (selection.attr('disabled') === 'disabled') {
                $($(dialog).parent().find(':button')[1]).prop('disabled', true);
             } else {
                $($(dialog).parent().find(':button')[1]).prop('disabled', false);
             }
 
-            var selectedObjectiveType = dropdown.val();
-            var html = "<table>";
-            objectivePaletteData.data[selectedObjectiveType].parameters.forEach(function (item) {
-                html += "<tr><th class='detailsHeading'>" + item.name + "</th>";
-                html += "<td><input type='text'/></td></tr>";
-            });
+            var selectedObjectiveType = selection.text();
+            var moduleName = selection.attr('data-module');
+            var fileName = selection.attr('data-filename');
+            var module = objectivePaletteData.modules[moduleName];
+            for (var i=0; i<module.length; i++) {
+                var file = module[i];
+                if (file.filename !== fileName) {
+                   continue;
+                }
 
-            $('#objectiveParamsPanel').html(html);
+                for (var j=0; j<file.data.length; j++) {
+                   if (file.data[j].name === selectedObjectiveType) {
+                      var html = "<table>";
+                      file.data[j].parameters.forEach(function (param) {
+                         html += "<tr><td class='detailsHeading'>" + param.name + "</td>";
+                         html += "<td><input type='text'/></td></tr>";
+                      });
+
+                      html += "</table>";
+                      $('#objectiveParamsPanel').html(html);
+                      return;
+                   }
+                }
+            }
+
+            $('#objectiveParamsPanel').html("");
         });
     });
 
@@ -1160,7 +1192,7 @@ function findPaletteItem(dataSet, itemToFind) {
 }
 
 
-function loadEnvPalette() {
+function loadEnvPalette(callback) {
     $.get(
         '/loadEnvPalette',
         function (data) {
@@ -1169,6 +1201,11 @@ function loadEnvPalette() {
 
             var envNum = 1;
             $.each(envPaletteData.modules, function(module) {
+               // Some left padding required to stop the accordion triangle overlapping the text.
+               // I'm sure this can be sorted out with css somehow.
+               var accordion = $("<h3>&nbsp;&nbsp;&nbsp;" + module + "</h3>");
+               accordion.appendTo(target);
+               var childContainer = $("<div></div>");
                envPaletteData.modules[module].forEach(function(file) {
                   file.data.forEach(function(item) {
                        var container = $("<div style='display: inline-block; padding: 2px;'></div>");
@@ -1183,18 +1220,23 @@ function loadEnvPalette() {
                        var paletteItem = $(html);
                        paletteItem.draggable({helper: 'clone', revert: 'invalid'});
                        paletteItem.appendTo(container);
-                       container.appendTo(target);
-                   });
+                       container.appendTo(childContainer);
+                  });
+                  childContainer.appendTo(target);
                });
             });
+
+            $(target).accordion();
+            callback(null);
         }
     ).fail(function(res){
         alert("Error: " + JSON.parse(res.responseText).error);
+        callback("Error loading env data");
     });
 }
 
 
-function loadItemsPalette() {
+function loadItemsPalette(callback) {
     $.get(
         '/loadItemsPalette',
         function (data) {
@@ -1203,6 +1245,11 @@ function loadItemsPalette() {
 
             var itemNum = 1;
             $.each(itemPaletteData.modules, function(module) {
+               // Some left padding required to stop the accordion triangle overlapping the text.
+               // I'm sure this can be sorted out with css somehow.
+               var accordion = $("<h3>&nbsp;&nbsp;&nbsp;" + module + "</h3>");
+               accordion.appendTo(target);
+               var childContainer = $("<div></div>");
                itemPaletteData.modules[module].forEach(function(file) {
                   file.data.forEach(function(item) {
                        var container = $("<div style='display: inline-block; padding: 2px;'></div>");
@@ -1217,18 +1264,23 @@ function loadItemsPalette() {
                        var paletteItem = $(html);
                        paletteItem.draggable({helper: 'clone', revert: 'invalid'});
                        paletteItem.appendTo(container);
-                       container.appendTo(target);
-                   });
+                       container.appendTo(childContainer);
+                  });
+                  childContainer.appendTo(target);
                });
             });
+
+            $(target).accordion();
+            callback(null);
         }
     ).fail(function(res){
         alert("Error: " + JSON.parse(res.responseText).error);
+        callback("Error loading item data");
     });
 }
 
 
-function loadCharactersPalette() {
+function loadCharactersPalette(callback) {
     $.get(
         '/loadCharactersPalette',
         function (data) {
@@ -1237,6 +1289,11 @@ function loadCharactersPalette() {
 
             var characterNum = 1;
             $.each(characterPaletteData.modules, function(module) {
+               // Some left padding required to stop the accordion triangle overlapping the text.
+               // I'm sure this can be sorted out with css somehow.
+               var accordion = $("<h3>&nbsp;&nbsp;&nbsp;" + module + "</h3>");
+               accordion.appendTo(target);
+               var childContainer = $("<div></div>");
                characterPaletteData.modules[module].forEach(function(file) {
                   file.data.forEach(function(character) {
                        var container = $("<div style='display: inline-block; padding: 2px;'></div>");
@@ -1251,18 +1308,23 @@ function loadCharactersPalette() {
                        var paletteItem = $(html);
                        paletteItem.draggable({helper: 'clone', revert: 'invalid'});
                        paletteItem.appendTo(container);
-                       container.appendTo(target);
-                   });
+                       container.appendTo(childContainer);
+                  });
+                  childContainer.appendTo(target);
                });
             });
+
+            $(target).accordion();
+            callback(null);
         }
     ).fail(function(res){
         alert("Error: " + JSON.parse(res.responseText).error);
+        callback("Error loading character data");
     });
 }
 
 
-function loadObjectivesPalette() {
+function loadObjectivesPalette(callback) {
     $.get(
         '/loadObjectivesPalette',
         function (data) {
@@ -1274,15 +1336,19 @@ function loadObjectivesPalette() {
                   for (var i=0; i<file.data.length; i++) {
                      html += "<option value='" + i + "' ";
                      html += "title='" + file.data[i].description + "' ";
+                     html += "data-module='" + module + "' ";
+                     html += "data-filename='" + file.filename + "' ";
                      html += ">" + file.data[i].name + "</option>";
                   }
                });
             });
 
             $('#objectiveChoice').html(html);
+            callback(null);
         }
     ).fail(function(res){
         alert("Error: " + JSON.parse(res.responseText).error);
+        callback("Error loading objective data");
     });
 }
 

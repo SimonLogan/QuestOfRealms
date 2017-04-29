@@ -8,11 +8,12 @@
 <h2 id="realmName"></h2>
 <input type="hidden" id="realmId" value="<%= realm.id %>" />
 
-<link rel="stylesheet" href="//code.jquery.com/ui/1.10.4/themes/smoothness/jquery-ui.css">
+<link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
 <link rel="stylesheet" href="/styles/editRealm.css">
-<script type="text/javascript" src="//code.jquery.com/jquery-1.10.2.js"></script>
-<script type="text/javascript" src="//code.jquery.com/ui/1.11.1/jquery-ui.js"></script>
+<script type="text/javascript" src="//code.jquery.com/jquery-1.12.4.js"></script>
+<script type="text/javascript" src="//code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
 <script type="text/javascript" src="/js/dependencies/sails.io.js"></script>
+<script type="text/javascript" src="/js/dependencies/async.min.js"></script>
 
 <div id="workArea">
     <div id="toolsPanel" style="float:left; margin-right:5px;">
@@ -25,7 +26,7 @@
                     <li><a href="#palette-characters">Characters</a></li>
                 </ul>
                 <div id="palette-environment">
-                    <div id="paletteEnvList" style="height: 55px; margin-bottom: 5px;">
+                    <div id="paletteEnvList" style="margin-bottom: 5px;">
                         <!-- Items will be dynamically populated. -->
                     </div>
                     <div id="paletteEnvPropertiesPanel" style="border-top:1px solid gray; padding-top: 5px;">
@@ -42,7 +43,7 @@
                     </div>
                 </div>
                 <div id="palette-items">
-                    <div id="paletteItemList" style="height: 55px; margin-bottom: 5px;">
+                    <div id="paletteItemList" style="margin-bottom: 5px;">
                         <!-- Items will be dynamically populated. -->
                     </div>
                     <div id="paletteItemPropertiesPanel" style="border-top:1px solid gray; padding-top: 5px;">
@@ -62,7 +63,7 @@
                     </div>
                 </div>
                 <div id="palette-characters">
-                    <div id="paletteCharactersList" style="height: 55px; margin-bottom: 5px;">
+                    <div id="paletteCharactersList" style="margin-bottom: 5px;">
                         <!-- Items will be dynamically populated. -->
                     </div>
                     <div id="paletteCharactersPropertiesPanel" style="border-top:1px solid gray; padding-top: 5px;">
@@ -186,8 +187,6 @@
                 </div>
             </div>
         </div>
-
-
     </div>
 
     <div id="workPanel" style="margin: 10px;">

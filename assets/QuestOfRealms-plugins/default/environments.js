@@ -15,11 +15,6 @@ module.exports = {
       type: "mountains",
       image: "images/mountains2.png",
       description: "Not much grows here."
-    },
-    {
-      type: "water",
-      image: "images/water2.png",
-      description: "Lake or ocean. You need a boat to cross this."
     }
   ]
 
