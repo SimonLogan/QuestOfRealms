@@ -126,24 +126,28 @@ module.exports = {
                             result = handleMove(tokens, game, playerName, function(handlerResult) {
                                 sails.log.info("in gameCommand. handleMove result = " + JSON.stringify(handlerResult));
                                 sendCommandStatus(handlerResult);
+                                checkObjectives(handlerResult.data[0], playerName);
                             });
                             break;
                         case "take":
                             result = handleTake(tokens, game, playerName, function(handlerResult) {
                                 sails.log.info("in gameCommand. handleTake result = " + JSON.stringify(handlerResult));
                                 sendCommandStatus(handlerResult);
+                                checkObjectives(handlerResult.data[0], playerName);
                             });
                             break;
                         case "drop":
                             result = handleDrop(tokens, game, playerName, function(handlerResult) {
                                 sails.log.info("in gameCommand. handleDrop result = " + JSON.stringify(handlerResult));
                                 sendCommandStatus(handlerResult);
+                                checkObjectives(handlerResult.data[0], playerName);
                             });
                             break;
                         case "status":
                             result = handleStatus(tokens, game, playerName, function(handlerResult) {
                                 sails.log.info("in gameCommand. handleStatus result = " + JSON.stringify(handlerResult));
                                 sendCommandStatus(handlerResult);
+                                checkObjectives(handlerResult.data[0], playerName);
                             });
                             break;
                         default:
@@ -152,7 +156,6 @@ module.exports = {
                                 res.send(200, handlerResult);
                             });
                     }
-
                 } else {
                     sails.log.info("in Game.findById() callback, realm is null.");
                     res.send(404, { error: "game not Found" });
@@ -548,6 +551,65 @@ function handleStatus(commandArgs, game, playerName, statusCallback) {
     }
 
     statusCallback({error: false, data: objectives});
+}
+
+function checkObjectives(game, playerName) {
+   sails.log.info("checkObjectives: " + JSON.stringify(game.objectives));
+
+   for (var i=0; i<game.objectives.length; i++) {
+      if (game.objectives[i].completed === "true") {
+         continue;
+      }
+
+      var objective = game.objectives[i];
+      sails.log.info("Evaluating objective " + i + ": " + JSON.stringify(objective));
+      var path = require('path');
+      var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
+      var handlerPath =  pathroot + objective.module + "/" + objective.filename;
+      var module = require(handlerPath);
+      var handlerFunc = module.handlers[objective.type];
+      if (handlerFunc === undefined) {
+         sails.log.info("Module: " + handlerPath +
+                        " does not have a handler for \"" +
+                        objective.type + "\".");
+         return;
+      }
+
+      sails.log.info("calling " + objective.type + "()");
+      handlerFunc(objective, game, playerName, function(handlerResp) {
+         sails.log.info("handlerResp: " + handlerResp);
+         if (handlerResp) {
+             sails.log.info("Valid handlerResp");
+             game.objectives[i] = handlerResp.data.objective;
+
+             Game.update(
+                {id: game.id},
+                 game).exec(function(err, updatedGame) {
+                   sails.log.info("Navigate to() Game.update() callback");
+                   if (err) {
+                      sails.log.info("Navigate to() Game.update() callback, error. " + err);
+                      return;
+                   } else {
+                      sails.log.info("Navigate to() Game.update() callback, no error.");
+                      if (updatedGame) {
+                         sails.log.info("Navigate to() Game.update() callback " + JSON.stringify(updatedGame));
+                         handlerResp.data['game'] = updatedGame;
+
+                         sails.log.info("*** sending resp: " + JSON.stringify(handlerResp));
+                         sails.io.sockets.emit(
+                            updatedGame[0].id + "-status",
+                            handlerResp);
+
+                         return;
+                      } else {
+                         sails.log.info("Navigate to() Game.update() callback, item is null.");
+                         return;
+                      }
+                   }
+             });
+         }
+      });
+   }
 }
 
 function handleCommand(commandTokens, game, playerName, statusCallback) {

@@ -188,6 +188,9 @@ function processMessages() {
         else if (thisMessage.description.action === "drop") {
             processDropNotification(thisMessage);
         }
+        else if (thisMessage.description.action === "objective completed") {
+            processObjectiveCompletedNotification(thisMessage);
+        }
     }
     console.log("finished processMessages()");
 }
@@ -257,6 +260,44 @@ function processDropNotification(message) {
         }
     }
 }
+
+function processObjectiveCompletedNotification(message) {
+    gameData = message.data.game[0];
+    var objective = message.data.objective;
+
+    if (message.player === gameData.players[0].name) {
+        var status = "You have completed an objective: " +
+           buildObjectiveDescription(objective) + ".";
+
+        console.log(status);
+        displayMessage(status);
+
+        for (var i=0; i<gameData.objectives.length; i++) {
+           if (gameData.objectives[i].completed === "false") {
+              return;
+           }
+        }
+
+        displayMessage("All objectives are complete.");
+    }
+}
+
+// Return a text descrption of an objective.
+function buildObjectiveDescription(objective) {
+   var desc = objective.type + " ";
+   for (var i=0; i<objective.params.length; i++) {
+      desc += objective.params[i].name;
+      desc += ":";
+      desc += objective.params[i].value;
+
+      if (i < objective.params.length -1) {
+         desc += ", ";
+      }
+   }
+
+   return desc;
+}
+
 
 function loadGame(callback) {
     console.log(Date.now() + ' loadGame');
@@ -566,6 +607,10 @@ function handleCommand(playerLocation, commandText) {
         handleInventory(playerLocation, tokens);
         return;
     }
+    else if (tokens[0] === "status") {
+        handleStatus(playerLocation, tokens);
+        return;
+    }
 
     // This command can't be handled locally. Send to the server.
     $.post(
@@ -582,9 +627,11 @@ function handleCommand(playerLocation, commandText) {
             }
 
             // Some commands require client-side post-processing.
+            /*
             if (tokens[0] === "status") {
-                displayStatus(data);
+                processSomeFunction(data);
             }
+            */
         }
     ).fail(function (res) {
         alert("Error: " + res.responseJSON.error);
@@ -597,7 +644,7 @@ function handleHelp() {
     displayMessage("Commands:");
     displayMessage("   help: display list of commands.");
     displayMessage("   look [direction]: describe the adjacent location in the specified direction, or the current location if no direction specified.");
-    displayMessage("   move direction: move in the specified direction if possible.");
+    displayMessage("   move direction: move in the specified direction, if possible.");
     displayMessage("   take item: take the named item. e.g. \"take short sword\".");
     displayMessage("   drop item: drop the named item. e.g. \"drop short sword\".");
     displayMessage("   inventory: list the items in your inventory.");
@@ -698,18 +745,28 @@ function handleInventory(playerLocation, tokens) {
     }
 }
 
-function displayStatus(objectives) {
+function handleStatus(playerLocation, tokens) {
+   // For now the assumption is that you are playing as gameData.players[0].
+   // This will not be true when we support multi-player mode.
+
    var allComplete = true;
 
-   /*
-   if (objectives.length > 0) {
+   if (gameData.objectives.length > 0) {
        displayMessage("Objective progress:");
-       for (var i=0; i<objectives.length; i++) {
-           var msg = objectives[i].
+       for (var i=0; i<gameData.objectives.length; i++) {
+           if (gameData.objectives[i].completed === "false") {
+              allComplete = false;
+           }
 
+           displayMessage("&nbsp;&nbsp;" +
+                          buildObjectiveDescription(gameData.objectives[i]) + ": " +
+                          (gameData.objectives[i].completed === "true" ? "complete" : "not complete"));
+       }
+
+       if (allComplete) {
+          displayMessage("All objectives are complete.");
        }
    }
-   */
 }
 
 // escapeHtml implementation taken from mustache.js

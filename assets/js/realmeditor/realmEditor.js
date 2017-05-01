@@ -282,52 +282,64 @@ $(document).ready(function() {
                 });
             });
 
-            if (saveParams.length > 0) {
-                var dropdown = $('#objectiveChoice');
-                var objectiveType = dropdown.find('option:selected').text();
-                var description = dropdown.find('option:selected').attr('title');
-
-                // Do some basic vailidation of some of the default objective types.
-                // Since objectives are now defined by plugins, custom objectives
-                // must be validated on the server.
-                if (objectiveType === "Start at" || objectiveType === "Navigate to") {
-                   var thisCell = locations.where({
-                      x: saveParams[0].value, y:saveParams[1].value});
-                   if (thisCell.length === 0) {
-                      alert("Invalid map location.");
-                      return;
-                   }
-                }
-
-                if (objectiveType === "Start at") {
-                   // Always put the "start at" objective first in the list to make
-                   // it clear that it has been set.
-                   if (realmData.objectives.length > 0 &&
-                       realmData.objectives[0].type === "Start at") {
-                       realmData.objectives.shift();
-                   }
-
-                   realmData.objectives.unshift({
-                      type: objectiveType,
-                      description: description,
-                      completed: false,
-                      params: saveParams
-                   });
-                } else {
-                   // Otherwise add it to the end.
-                   realmData.objectives.push({
-                      type: objectiveType,
-                      description: description,
-                      completed: false,
-                      params: saveParams
-                   });
-                }
-
-                saveRealm(function() {
-                    dialog.dialog("close");
-                    displayObjectives();
-                });
+            // At present all objectives require parameters of some kind.
+            if (saveParams.length === 0) {
+               return;
             }
+
+            var selection = $('#objectiveChoice').find('option:selected');
+            var objectiveType = selection.text();
+            var description = selection.attr('title');
+            var module = selection.attr('data-module');
+            var filename = selection.attr('data-filename');
+
+            // Do some basic validation of some of the default objective types.
+            // Since objectives are now defined by plugins, custom objectives
+            // must be validated on the server.
+            if (objectiveType === "Start at" || objectiveType === "Navigate to") {
+               var thisCell = locations.where({
+                  x: saveParams[0].value, y:saveParams[1].value});
+
+               if (thisCell.length === 0) {
+                  alert("Invalid map location.");
+                  return;
+               }
+            }
+
+            // Look up some additional info about the objective.
+
+            if (objectiveType === "Start at") {
+               // Always put the "start at" objective first in the list to make
+               // it clear that it has been set.
+               if (realmData.objectives.length > 0 &&
+                   realmData.objectives[0].type === "Start at") {
+                   realmData.objectives.shift();
+               }
+
+               realmData.objectives.unshift({
+                  type: objectiveType,
+                  description: description,
+                  module: module,
+                  filename: filename,
+                  completed: false,
+                  params: saveParams
+               });
+            } else {
+               // Otherwise add it to the end.
+               realmData.objectives.push({
+                  type: objectiveType,
+                  description: description,
+                  module: module,
+                  filename: filename,
+                  completed: false,
+                  params: saveParams
+               });
+            }
+
+            saveRealm(function() {
+                dialog.dialog("close");
+                displayObjectives();
+            });
         }
 
         dialog = $("#editObjectiveDialog").dialog({
