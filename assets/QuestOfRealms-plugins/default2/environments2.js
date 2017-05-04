@@ -9,7 +9,8 @@ module.exports = {
     {
       type: "water",
       image: "images/water2.png",
-      description: "Lake or ocean. You need a boat to cross this."
+      description: "Lake or ocean. You need a boat to cross this.",
+      healthcost: 50
     }
   ]
 

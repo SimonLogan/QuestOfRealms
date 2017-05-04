@@ -16,6 +16,98 @@
  */
 
 
+function loadPluginData(category) {
+    var pluginData = {category:category, modules:{}};
+
+    var path = require('path');
+    var fs = require('fs');
+    var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
+    var topLevelDirsOrFiles = fs.readdirSync(pathroot);
+    for (var index in topLevelDirsOrFiles) {
+       var moduleName = topLevelDirsOrFiles[index];
+       var topLevelDirOrFile = path.join(pathroot, moduleName);
+       var stat = fs.statSync(topLevelDirOrFile);
+       if (stat && stat.isDirectory()) {
+          var nextLevelDirsOrFiles = fs.readdirSync(topLevelDirOrFile);
+          for (var index2 in nextLevelDirsOrFiles) {
+             var filename = nextLevelDirsOrFiles[index2];
+             var nextLevelDirOrFile = path.join(topLevelDirOrFile, filename);
+             var stat = fs.statSync(nextLevelDirOrFile);
+             if (stat && !stat.isDirectory()) {
+                var thisItem = require(nextLevelDirOrFile);
+                if (thisItem.category === pluginData.category && thisItem.attributes) {
+                   var thisFileData = [];
+
+                   // Support defining more than one environment type in the same file.
+                   // It is recommended to use one file per character though, to stop the
+                   // files becoming too large.
+                   if (Object.prototype.toString.call(thisItem.attributes) === '[object Array]') {
+                      for (var index3 in thisItem.attributes) {
+                         thisFileData.push(thisItem.attributes[index3]);
+                      }
+                   } else {
+                      thisFileData.push(thisItem.attributes);
+                   }
+
+                   if (!(moduleName in pluginData.modules)) {
+                       pluginData.modules[moduleName] = {};
+                   }
+
+                   pluginData.modules[moduleName][filename] = thisFileData;
+                }
+             }
+          }
+       }
+    }
+
+    return pluginData;
+ }
+
+ function loadPluginData_old(category) {
+    var pluginData = {category:category, modules:{}};
+
+    var path = require('path');
+    var fs = require('fs');
+    var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
+    var topLevelDirsOrFiles = fs.readdirSync(pathroot);
+    for (var index in topLevelDirsOrFiles) {
+       var topLevelDirOrFile = path.join(pathroot, topLevelDirsOrFiles[index]);
+       var stat = fs.statSync(topLevelDirOrFile);
+       if (stat && stat.isDirectory()) {
+          var nextLevelDirsOrFiles = fs.readdirSync(topLevelDirOrFile);
+          for (var index2 in nextLevelDirsOrFiles) {
+             var nextLevelDirOrFile = path.join(topLevelDirOrFile, nextLevelDirsOrFiles[index2]);
+             var stat = fs.statSync(nextLevelDirOrFile);
+             if (stat && !stat.isDirectory()) {
+                var thisItem = require(nextLevelDirOrFile);
+                if (thisItem.category === pluginData.category && thisItem.attributes) {
+                   var thisFile = {"filename":nextLevelDirsOrFiles[index2], "data":[]};
+
+                   // Support defining more than one environment type in the same file.
+                   // It is recommended to use one file per character though, to stop the
+                   // files becoming too large.
+                   if (Object.prototype.toString.call(thisItem.attributes) === '[object Array]') {
+                      for (var index3 in thisItem.attributes) {
+                         thisFile.data.push(thisItem.attributes[index3]);
+                      }
+                   } else {
+                      thisFile.data.push(thisItem.attributes);
+                   }
+
+                   if (!(topLevelDirsOrFiles[index] in pluginData.modules)) {
+                       pluginData.modules[topLevelDirsOrFiles[index]] = [];
+                   }
+
+                   pluginData.modules[topLevelDirsOrFiles[index]].push(thisFile);
+                }
+             }
+          }
+       }
+    }
+
+    return pluginData;
+ }
+
 var MainController = {
 
     index: function (req, res) {
@@ -28,227 +120,22 @@ var MainController = {
 
     loadEnvPalette: function(req, res) {
        sails.log.info("in loadEnvPalette");
-       var terrainData = {category:'environment', modules:{}};
-
-       var path = require('path');
-       var fs = require('fs');
-       var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
-       var topLevelDirsOrFiles = fs.readdirSync(pathroot);
-       for (var index in topLevelDirsOrFiles) {
-          var topLevelDirOrFile = path.join(pathroot, topLevelDirsOrFiles[index]);
-          var stat = fs.statSync(topLevelDirOrFile);
-          if (stat && stat.isDirectory()) {
-             var nextLevelDirsOrFiles = fs.readdirSync(topLevelDirOrFile);
-             for (var index2 in nextLevelDirsOrFiles) {
-                var nextLevelDirOrFile = path.join(topLevelDirOrFile, nextLevelDirsOrFiles[index2]);
-                var stat = fs.statSync(nextLevelDirOrFile);
-                if (stat && !stat.isDirectory()) {
-                   var thisItem = require(nextLevelDirOrFile);
-                   if (thisItem.category === terrainData.category && thisItem.attributes) {
-                      //sails.log.info("Got dir: " + topLevelDirOrFile);
-                      var thisFile = {"filename":nextLevelDirsOrFiles[index2], "data":[]};
-
-                      // Support defining more than one environment type in the same file.
-                      if (Object.prototype.toString.call(thisItem.attributes) === '[object Array]') {
-                         for (var index3 in thisItem.attributes) {
-                            thisFile.data.push(thisItem.attributes[index3]);
-                         }
-                      } else {
-                         thisFile.data.push(thisItem.attributes);
-                      }
-
-                      //sails.log.info("Trying to add thisFile: " + JSON.stringify(thisFile));
-                      //sails.log.info("terrainData.modules: " + JSON.stringify(terrainData.modules));
-                      //sails.log.info("topLevelDirsOrFiles[index]: " + JSON.stringify(topLevelDirsOrFiles[index]));
-                      if (!(topLevelDirsOrFiles[index] in terrainData.modules)) {
-                          terrainData.modules[topLevelDirsOrFiles[index]] = [];
-                      }
-
-                      terrainData.modules[topLevelDirsOrFiles[index]].push(thisFile);
-                   }
-                }
-             }
-          }
-       }
-
-       res.send(terrainData);
+       res.send(loadPluginData("environment"));
     },
 
     loadItemsPalette: function(req, res) {
        sails.log.info("in loadItemsPalette");
-       var itemData = {category:'item', modules:{}};
-
-       var path = require('path');
-       var fs = require('fs');
-       var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
-       var topLevelDirsOrFiles = fs.readdirSync(pathroot);
-       for (var index in topLevelDirsOrFiles) {
-          var topLevelDirOrFile = path.join(pathroot, topLevelDirsOrFiles[index]);
-          var stat = fs.statSync(topLevelDirOrFile);
-          if (stat && stat.isDirectory()) {
-             var nextLevelDirsOrFiles = fs.readdirSync(topLevelDirOrFile);
-             for (var index2 in nextLevelDirsOrFiles) {
-                var nextLevelDirOrFile = path.join(topLevelDirOrFile, nextLevelDirsOrFiles[index2]);
-                var stat = fs.statSync(nextLevelDirOrFile);
-                if (stat && !stat.isDirectory()) {
-                   var thisItem = require(nextLevelDirOrFile);
-                   if (thisItem.category === itemData.category && thisItem.attributes) {
-                      //sails.log.info("Got dir: " + topLevelDirOrFile);
-                      var thisFile = {"filename":nextLevelDirsOrFiles[index2], "data":[]};
-
-                      // Support defining more than one environment type in the same file.
-                      if (Object.prototype.toString.call(thisItem.attributes) === '[object Array]') {
-                         for (var index3 in thisItem.attributes) {
-                            thisFile.data.push(thisItem.attributes[index3]);
-                         }
-                      } else {
-                         thisFile.data.push(thisItem.attributes);
-                      }
-
-                      //sails.log.info("Trying to add thisFile: " + JSON.stringify(thisFile));
-                      //sails.log.info("terrainData.modules: " + JSON.stringify(terrainData.modules));
-                      //sails.log.info("topLevelDirsOrFiles[index]: " + JSON.stringify(topLevelDirsOrFiles[index]));
-                      if (!(topLevelDirsOrFiles[index] in itemData.modules)) {
-                          itemData.modules[topLevelDirsOrFiles[index]] = [];
-                      }
-
-                      itemData.modules[topLevelDirsOrFiles[index]].push(thisFile);
-                   }
-                }
-             }
-          }
-       }
-
-       res.send(itemData);
+       res.send(loadPluginData("item"));
     },
 
     loadCharactersPalette: function(req, res) {
        sails.log.info("in loadCharactersPalette");
-       var characterData = {category:'character', modules:{}};
-
-       var path = require('path');
-       var fs = require('fs');
-       var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
-       var topLevelDirsOrFiles = fs.readdirSync(pathroot);
-       for (var index in topLevelDirsOrFiles) {
-          var topLevelDirOrFile = path.join(pathroot, topLevelDirsOrFiles[index]);
-          var stat = fs.statSync(topLevelDirOrFile);
-          if (stat && stat.isDirectory()) {
-             var nextLevelDirsOrFiles = fs.readdirSync(topLevelDirOrFile);
-             for (var index2 in nextLevelDirsOrFiles) {
-                var nextLevelDirOrFile = path.join(topLevelDirOrFile, nextLevelDirsOrFiles[index2]);
-                var stat = fs.statSync(nextLevelDirOrFile);
-                if (stat && !stat.isDirectory()) {
-                   var thisCharacter = require(nextLevelDirOrFile);
-                   if (thisCharacter.category === characterData.category && thisCharacter.attributes) {
-                      //sails.log.info("Got dir: " + topLevelDirOrFile);
-                      var thisFile = {"filename":nextLevelDirsOrFiles[index2], "data":[]};
-
-                      // Don't support defining more than one character type in the same file,
-                      // as characters are expected to have complex definitions and the file
-                      // may get too big.
-                      thisFile.data.push(thisCharacter.attributes);
-
-                      //sails.log.info("Trying to add thisFile: " + JSON.stringify(thisFile));
-                      //sails.log.info("terrainData.modules: " + JSON.stringify(terrainData.modules));
-                      //sails.log.info("topLevelDirsOrFiles[index]: " + JSON.stringify(topLevelDirsOrFiles[index]));
-                      if (!(topLevelDirsOrFiles[index] in characterData.modules)) {
-                          characterData.modules[topLevelDirsOrFiles[index]] = [];
-                      }
-
-                      characterData.modules[topLevelDirsOrFiles[index]].push(thisFile);
-                   }
-                }
-             }
-          }
-       }
-
-       res.send(characterData);
+       res.send(loadPluginData("character"));
     },
 
     loadObjectivesPalette: function(req, res) {
        sails.log.info("in loadObjectivesPalette");
-       var objectiveData = {category:'objective', modules:{}};
-
-       var path = require('path');
-       var fs = require('fs');
-       var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
-       var topLevelDirsOrFiles = fs.readdirSync(pathroot);
-       for (var index in topLevelDirsOrFiles) {
-          var topLevelDirOrFile = path.join(pathroot, topLevelDirsOrFiles[index]);
-          var stat = fs.statSync(topLevelDirOrFile);
-          if (stat && stat.isDirectory()) {
-             var nextLevelDirsOrFiles = fs.readdirSync(topLevelDirOrFile);
-             for (var index2 in nextLevelDirsOrFiles) {
-                var nextLevelDirOrFile = path.join(topLevelDirOrFile, nextLevelDirsOrFiles[index2]);
-                var stat = fs.statSync(nextLevelDirOrFile);
-                if (stat && !stat.isDirectory()) {
-                   var thisObjective = require(nextLevelDirOrFile);
-                   if (thisObjective.category === objectiveData.category && thisObjective.attributes) {
-                      //sails.log.info("Got dir: " + topLevelDirOrFile);
-                      var thisFile = {"filename":nextLevelDirsOrFiles[index2], "data":[]};
-
-                      // Support defining more than one environment type in the same file.
-                      if (Object.prototype.toString.call(thisObjective.attributes) === '[object Array]') {
-                         for (var index3 in thisObjective.attributes) {
-                            thisFile.data.push(thisObjective.attributes[index3]);
-                         }
-                      } else {
-                         thisFile.data.push(thisObjective.attributes);
-                      }
-
-                      //sails.log.info("Trying to add thisFile: " + JSON.stringify(thisFile));
-                      //sails.log.info("terrainData.modules: " + JSON.stringify(terrainData.modules));
-                      //sails.log.info("topLevelDirsOrFiles[index]: " + JSON.stringify(topLevelDirsOrFiles[index]));
-                      if (!(topLevelDirsOrFiles[index] in objectiveData.modules)) {
-                          objectiveData.modules[topLevelDirsOrFiles[index]] = [];
-                      }
-
-                      objectiveData.modules[topLevelDirsOrFiles[index]].push(thisFile);
-                   }
-                }
-             }
-          }
-       }
-
-       res.send(objectiveData);
-    },
-
-    loadObjectivesPalette_old: function(req, res) {
-       sails.log.info("in loadObjectivesPalette");
-       var objectiveData = {category:'objective', data:[]};
-
-       var path = require('path');
-       var fs = require('fs');
-       var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
-       var topLevelDirsOrFiles = fs.readdirSync(pathroot);
-       for (var index in topLevelDirsOrFiles) {
-          var topLevelDirOrFile = path.join(pathroot, topLevelDirsOrFiles[index]);
-          var stat = fs.statSync(topLevelDirOrFile);
-          if (stat && stat.isDirectory()) {
-             objectiveData['module'] = topLevelDirsOrFiles[index];
-             var nextLevelDirsOrFiles = fs.readdirSync(topLevelDirOrFile);
-             for (var index2 in nextLevelDirsOrFiles) {
-                var nextLevelDirOrFile = path.join(topLevelDirOrFile, nextLevelDirsOrFiles[index2]);
-                var stat = fs.statSync(nextLevelDirOrFile);
-                if (stat && !stat.isDirectory()) {
-                   var thisObjective = require(nextLevelDirOrFile);
-                   if (thisItem.category === objectiveData.category && thisObjective.attributes) {
-                      // Support defining more than one objectiveData type in the same file.
-                      if (Object.prototype.toString.call(thisObjective.attributes) === '[object Array]') {
-                         for (var index3 in thisObjective.attributes) {
-                            objectiveData.data.push(thisObjective.attributes[index3]);
-                         }
-                      } else {
-                         objectiveData.data.push(thisObjective.attributes);
-                      }
-                   }
-                }
-             }
-          }
-       }
-
-        res.send(objectiveData);
+       res.send(loadPluginData("objective"));
     },
 
   /**

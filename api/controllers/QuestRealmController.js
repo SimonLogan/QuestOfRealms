@@ -269,7 +269,8 @@ var QuestRealmController = {
                     location: {x: startx, y: starty},
                     inventory: [],
                     mapDrawMode: "autoVisited",
-                    visited: {}}];
+                    visited: {},
+                    health: 20}];
                 playerData[0].visited[visitedKey] = true;
 
                 // Generate the game. Exclude the "start at" objective. That was just a

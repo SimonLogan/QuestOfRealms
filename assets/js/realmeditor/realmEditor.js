@@ -384,25 +384,20 @@ $(document).ready(function() {
             var moduleName = selection.attr('data-module');
             var fileName = selection.attr('data-filename');
             var module = objectivePaletteData.modules[moduleName];
-            for (var i=0; i<module.length; i++) {
-                var file = module[i];
-                if (file.filename !== fileName) {
-                   continue;
-                }
+            var file = module[fileName];
 
-                for (var j=0; j<file.data.length; j++) {
-                   if (file.data[j].name === selectedObjectiveType) {
-                      var html = "<table>";
-                      file.data[j].parameters.forEach(function (param) {
-                         html += "<tr><td class='detailsHeading'>" + param.name + "</td>";
-                         html += "<td><input type='text'/></td></tr>";
-                      });
+            for (var i=0; i<file.length; i++) {
+               if (file[i].name === selectedObjectiveType) {
+                  var html = "<table>";
+                  file[i].parameters.forEach(function (param) {
+                     html += "<tr><td class='detailsHeading'>" + param.name + "</td>";
+                     html += "<td><input type='text'/></td></tr>";
+                  });
 
-                      html += "</table>";
-                      $('#objectiveParamsPanel').html(html);
-                      return;
-                   }
-                }
+                  html += "</table>";
+                  $('#objectiveParamsPanel').html(html);
+                  return;
+               }
             }
 
             $('#objectiveParamsPanel').html("");
@@ -799,6 +794,7 @@ function addMapLocation(realmId, collection, droppedItem, originalLocation, newL
         y: newLocation.attr('data-y'),
         type: environment,
         module: droppedItem.attr('data-module'),
+        filename: droppedItem.attr('data-filename'),
         items: copiedItems,
         characters: copiedCharacters}, {wait: true});
 
@@ -915,10 +911,10 @@ function addItemToLocation(droppedItem, location)
         {
             type: droppedItem.attr('data-type'),
             module: droppedItem.attr('data-module'),
+            filename: droppedItem.attr('data-filename'),
             name: '',
             description: fullItemDetails.description,
-            damage: fullItemDetails.damage,
-            image: droppedItem.find('img').attr('src')
+            damage: fullItemDetails.damage
         }
     );
 
@@ -959,13 +955,13 @@ function addCharacterToLocation(droppedCharacter, location)
         {
             type: droppedCharacter.attr('data-type'),
             module: droppedCharacter.attr('data-module'),
+            filename: droppedCharacter.attr('data-filename'),
             name: '',
             description: fullCharacterDetails.description,
             additionalInfo: fullCharacterDetails.additional_info,
             damage: fullCharacterDetails.damage,
             health: fullCharacterDetails.health,
             drops: fullCharacterDetails.drops,
-            image: droppedCharacter.find('img').attr('src'),
             npc: true
         }
     );
@@ -1180,23 +1176,47 @@ function clearLocationCharacters()
 }
 
 
+// Look up a drag & drop UI item in the palette data.
 function findPaletteItem(dataSet, itemToFind) {
     var moduleName = itemToFind.attr('data-module');
     var moduleContents = dataSet.modules[moduleName];
-
     if (moduleContents === undefined) {
-       return null; // The module name was not found
+       return null; // The modulename was not found
     }
 
-    for (var i = 0, len = moduleContents.length; i < len; i++) {
-        var thisContent = moduleContents[i];
-        if (thisContent.filename === itemToFind.attr('data-filename')) {
-           for (var j = 0; j < thisContent.data.length; j++) {
-               var thisData = thisContent.data[j];
-               if (thisData.type === itemToFind.attr('data-type')) {
-                  return thisData; // Return as soon as the object is found
-               }
-           }
+    var fileName = itemToFind.attr('data-filename');
+    var fileContents = moduleContents[fileName];
+    if (fileContents === undefined) {
+       return null; // The filename was not found
+    }
+
+    for (var i = 0, len = fileContents.length; i < len; i++) {
+        var thisContent = fileContents[i];
+        if (thisContent.type === itemToFind.attr('data-type')) {
+           return thisContent; // Return as soon as the object is found
+        }
+    }
+
+    return null; // The object was not found
+}
+
+
+// Look up a data object in the palette data.
+function findLocationItem(dataSet, itemToFind) {
+    var moduleContents = dataSet.modules[itemToFind.module];
+    if (moduleContents === undefined) {
+       return null; // The modulename was not found
+    }
+
+    var fileContents = moduleContents[itemToFind.filename];
+    if (fileContents === undefined) {
+       return null; // The filename was not found
+    }
+
+    for (var i = 0, len = fileContents.length; i < len; i++) {
+        var thisContent = fileContents[i];
+        if (thisContent.type === itemToFind.type) {
+           return thisContent; // Return as soon as the object is found
         }
     }
 
@@ -1218,13 +1238,16 @@ function loadEnvPalette(callback) {
                var accordion = $("<h3>&nbsp;&nbsp;&nbsp;" + module + "</h3>");
                accordion.appendTo(target);
                var childContainer = $("<div></div>");
-               envPaletteData.modules[module].forEach(function(file) {
-                  file.data.forEach(function(item) {
+               for (var filename in envPaletteData.modules[module]) {
+                  var thisEntry = envPaletteData.modules[module][filename];
+                  thisEntry.forEach(function(item) {
                        var container = $("<div style='display: inline-block; padding: 2px;'></div>");
                        var html = "<div class='paletteItem draggable ui-widget-content' " +
                            "id='env_" + envNum++ + "' " +
                            "data-module='" + module + "' " +
-                           "data-filename='" + file.filename + "' " +
+                           "data-filename='" + filename + "' " +
+                           // data-category is needed to allow the category
+                           // to be identified when dropping an item onto the map.
                            "data-category='" + envPaletteData.category + "' " +
                            "data-type='" + item.type + "' " +
                            "><img src='" + item.image + "'/>";
@@ -1235,7 +1258,7 @@ function loadEnvPalette(callback) {
                        container.appendTo(childContainer);
                   });
                   childContainer.appendTo(target);
-               });
+               }
             });
 
             $(target).accordion();
@@ -1262,13 +1285,16 @@ function loadItemsPalette(callback) {
                var accordion = $("<h3>&nbsp;&nbsp;&nbsp;" + module + "</h3>");
                accordion.appendTo(target);
                var childContainer = $("<div></div>");
-               itemPaletteData.modules[module].forEach(function(file) {
-                  file.data.forEach(function(item) {
+               for (var filename in itemPaletteData.modules[module]) {
+                  var thisEntry = itemPaletteData.modules[module][filename];
+                  thisEntry.forEach(function(item) {
                        var container = $("<div style='display: inline-block; padding: 2px;'></div>");
                        var html = "<div class='paletteItem draggable ui-widget-content' " +
                            "id='item_" + itemNum++ + "' " +
                            "data-module='" + module + "' " +
-                           "data-filename='" + file.filename + "' " +
+                           "data-filename='" + filename + "' " +
+                           // data-category is needed to allow the category
+                           // to be identified when dropping an item onto the map.
                            "data-category='" + itemPaletteData.category + "' " +
                            "data-type='" + item.type + "' " +
                            "><img src='" + item.image + "'/>";
@@ -1279,7 +1305,7 @@ function loadItemsPalette(callback) {
                        container.appendTo(childContainer);
                   });
                   childContainer.appendTo(target);
-               });
+               }
             });
 
             $(target).accordion();
@@ -1306,13 +1332,16 @@ function loadCharactersPalette(callback) {
                var accordion = $("<h3>&nbsp;&nbsp;&nbsp;" + module + "</h3>");
                accordion.appendTo(target);
                var childContainer = $("<div></div>");
-               characterPaletteData.modules[module].forEach(function(file) {
-                  file.data.forEach(function(character) {
+               for (var filename in characterPaletteData.modules[module]) {
+                  var thisEntry = characterPaletteData.modules[module][filename];
+                  thisEntry.forEach(function(character) {
                        var container = $("<div style='display: inline-block; padding: 2px;'></div>");
                        var html = "<div class='paletteItem draggable ui-widget-content' " +
                            "id='char_" + characterNum++ + "' " +
                            "data-module='" + module + "' " +
-                           "data-filename='" + file.filename + "' " +
+                           "data-filename='" + filename + "' " +
+                           // data-category is needed to allow the category
+                           // to be identified when dropping an item onto the map.
                            "data-category='" + characterPaletteData.category + "' " +
                            "data-type='" + character.type + "' " +
                            "><img src='" + character.image + "'/>";
@@ -1323,7 +1352,7 @@ function loadCharactersPalette(callback) {
                        container.appendTo(childContainer);
                   });
                   childContainer.appendTo(target);
-               });
+               };
             });
 
             $(target).accordion();
@@ -1344,15 +1373,16 @@ function loadObjectivesPalette(callback) {
             objectivePaletteData = data;
 
             $.each(objectivePaletteData.modules, function(module) {
-               objectivePaletteData.modules[module].forEach(function(file) {
-                  for (var i=0; i<file.data.length; i++) {
+               for (var filename in objectivePaletteData.modules[module]) {
+                  var thisEntry = objectivePaletteData.modules[module][filename];
+                  for (var i=0; i<thisEntry.length; i++) {
                      html += "<option value='" + i + "' ";
-                     html += "title='" + file.data[i].description + "' ";
+                     html += "title='" + thisEntry[i].description + "' ";
                      html += "data-module='" + module + "' ";
-                     html += "data-filename='" + file.filename + "' ";
-                     html += ">" + file.data[i].name + "</option>";
+                     html += "data-filename='" + filename + "' ";
+                     html += ">" + thisEntry[i].name + "</option>";
                   }
-               });
+               };
             });
 
             $('#objectiveChoice').html(html);
@@ -1372,6 +1402,7 @@ function displayLocationItems(location)
     var target = $('#itemList').html("");
     var itemIndex = 0;
     location.attributes.items.forEach(function(item) {
+        var paletteItem = findLocationItem(itemPaletteData, item);
         var container = $("<div style='display: inline-block; padding: 2px;'></div>");
         var html = "<div class='propertiesPanelItem draggable ui-widget-content' " +
             "data-index='" + itemIndex++ + "' " +
@@ -1382,7 +1413,7 @@ function displayLocationItems(location)
             "data-damage='" + item.damage + "' " +
             "data-x='" + location.attributes['x'] + "' " +
             "data-y='" + location.attributes['y'] + "' " +
-            "><img src='" + item.image + "'/>";
+            "><img src='" + paletteItem.image + "'/>";
         html += "</div>";
         var locationItem = $(html);
         locationItem.draggable({helper: 'clone', revert: 'invalid'});
@@ -1401,6 +1432,7 @@ function displayLocationCharacters(location)
     var target = $('#characterList').html("");
     var characterIndex = 0;
     location.attributes.characters.forEach(function(character) {
+        var paletteItem = findLocationItem(characterPaletteData, character);
         var container = $("<div style='display: inline-block; padding: 2px;'></div>");
         var html = "<div class='propertiesPanelItem draggable ui-widget-content' " +
             "data-index='" + characterIndex++ + "' " +
@@ -1414,7 +1446,7 @@ function displayLocationCharacters(location)
             "data-drops='" + character.drops + "' " +
             "data-x='" + location.attributes['x'] + "' " +
             "data-y='" + location.attributes['y'] + "' " +
-            "><img src='" + character.image + "'/>";
+            "><img src='" + paletteItem.image + "'/>";
         html += "</div>";
         var locationCharacter = $(html);
         locationCharacter.draggable({helper: 'clone', revert: 'invalid'});

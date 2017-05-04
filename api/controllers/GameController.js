@@ -126,28 +126,36 @@ module.exports = {
                             result = handleMove(tokens, game, playerName, function(handlerResult) {
                                 sails.log.info("in gameCommand. handleMove result = " + JSON.stringify(handlerResult));
                                 sendCommandStatus(handlerResult);
-                                checkObjectives(handlerResult.data[0], playerName);
+                                if (handlerResult.hasOwnProperty("data")) {
+                                   checkObjectives(handlerResult.data[0], playerName);
+                                }
                             });
                             break;
                         case "take":
                             result = handleTake(tokens, game, playerName, function(handlerResult) {
                                 sails.log.info("in gameCommand. handleTake result = " + JSON.stringify(handlerResult));
                                 sendCommandStatus(handlerResult);
-                                checkObjectives(handlerResult.data[0], playerName);
+                                if (handlerResult.hasOwnProperty("data")) {
+                                   checkObjectives(handlerResult.data[0], playerName);
+                                }
                             });
                             break;
                         case "drop":
                             result = handleDrop(tokens, game, playerName, function(handlerResult) {
                                 sails.log.info("in gameCommand. handleDrop result = " + JSON.stringify(handlerResult));
                                 sendCommandStatus(handlerResult);
-                                checkObjectives(handlerResult.data[0], playerName);
+                                if (handlerResult.hasOwnProperty("data")) {
+                                   checkObjectives(handlerResult.data[0], playerName);
+                                }
                             });
                             break;
                         case "status":
                             result = handleStatus(tokens, game, playerName, function(handlerResult) {
                                 sails.log.info("in gameCommand. handleStatus result = " + JSON.stringify(handlerResult));
                                 sendCommandStatus(handlerResult);
-                                checkObjectives(handlerResult.data[0], playerName);
+                                if (handlerResult.hasOwnProperty("data")) {
+                                   checkObjectives(handlerResult.data[0], playerName);
+                                }
                             });
                             break;
                         default:
@@ -236,6 +244,8 @@ function handleMove(commandArgs, game, playerName, statusCallback) {
 
     // TODO: store the coordinates as int instead of string.
     MapLocation.findOne({'realmId': game.id, 'x': newX.toString(), 'y': newY.toString()}).exec(function(err, newLocation) {
+        var notifyData = {};
+
         sails.log.info("in handleMove.find() callback");
         if (err) {
             sails.log.info("handleMove db err:" + err);
@@ -245,17 +255,52 @@ function handleMove(commandArgs, game, playerName, statusCallback) {
             if (newLocation) {
                 sails.log.info("in handleMove.find() callback " + JSON.stringify(newLocation));
 
-                game.players[playerIndex].location.x = newX.toString();
-                game.players[playerIndex].location.y = newY.toString();
+                // Ensure the player has enough health to move into the new location.
+                // TODO: decide whether we want to use health for this. Do we need a
+                // separate stamina figure for travel, and reserve health for fighting?
+                /*
+                var healthCost = newLocation.healthCost;
+                var playerHealth = game.players[playerIndex].health;
+                if (healthCost >= playerHealth) {
+                   sails.log.info("Not enough health (" + playerHealth + ")" +
+                                  " to move into location (cost:" + healthCost + ")." +
+                                  " You died.");
+                   game.players[playerIndex].health = 0;
+                   notifyData = {
+                      player: playerName,
+                      description: {
+                         action: "death",
+                         details: "You did not have enough health to move into that location."
+                      },
+                      data: {}
+                   };
+                } else {
+                   game.players[playerIndex].health -= healthCost;
+                */
+                   game.players[playerIndex].location.x = newX.toString();
+                   game.players[playerIndex].location.y = newY.toString();
 
-                // Update the list of locations the player has visited.
-                // This is a dictionary for quick searching. Using a list
-                // will scale badly when drawing the whole map on the UI.
-                var visitedKey = newX.toString() + "_" + newY.toString();
-                var playerVistitedLocation = (visitedKey in game.players[playerIndex].visited);
-                if (!playerVistitedLocation) {
-                    game.players[playerIndex].visited[visitedKey] = true;
+                   // Update the list of locations the player has visited.
+                   // This is a dictionary for quick searching. Using a list
+                   // will scale badly when drawing the whole map on the UI.
+                   var visitedKey = newX.toString() + "_" + newY.toString();
+                   var playerVistitedLocation = (visitedKey in game.players[playerIndex].visited);
+                   if (!playerVistitedLocation) {
+                       game.players[playerIndex].visited[visitedKey] = true;
+                   }
+
+                   notifyData = {
+                      player: playerName,
+                      description: {
+                         action: "move",
+                         from: {x:originalX, y:originalY},
+                         to: {x:newX, y:newY}
+                      },
+                      data: {}
+                   };
+                /*
                 }
+                */
 
                 Game.update(
                     {id: game.id},
@@ -270,19 +315,9 @@ function handleMove(commandArgs, game, playerName, statusCallback) {
                             sails.log.info("in Game.update() callback " + JSON.stringify(updatedGame));
 
                             sails.log.info("sending socket messages for subject '" + game.id + "-status'");
+                            notifyData.data = {game: updatedGame};
                             sails.io.sockets.emit(
-                                game.id + "-status",
-                                {
-                                    player: playerName,
-                                    description: {
-                                        action: "move",
-                                        from: {x:originalX, y:originalY},
-                                        to: {x:newX, y:newY}
-                                    },
-                                    data: {
-                                        game: updatedGame
-                                    }
-                                });
+                                game.id + "-status", notifyData);
 
                             statusCallback({error:false, data:updatedGame});
                         } else {

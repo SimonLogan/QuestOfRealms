@@ -9,12 +9,14 @@ module.exports = {
     {
       type: "grassland",
       image: "images/grassland.png",
-      description: "Grassy plains."
+      description: "Grassy plains.",
+      healthCost: 1
     },
     {
       type: "mountains",
       image: "images/mountains2.png",
-      description: "Not much grows here."
+      description: "Not much grows here.",
+      healthcost: 10
     }
   ]
 
