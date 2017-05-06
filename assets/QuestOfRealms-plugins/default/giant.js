@@ -13,6 +13,29 @@ module.exports = {
     health: 15,
     damage: 5,
     drops: ["leather"]
+  },
+  handlers: {
+       "give": function(giant, object, game, playerName, callback) {
+          sails.log.info("in give()");
+
+          // Update the giant's inventory.
+          if (giant.inventory === undefined) {
+             giant.inventory = [];
+          }
+          giant.inventory.push(object);
+
+          resp = {
+             player: playerName,
+             description: {
+                action: ("give"),
+                detail: ("The giant took the " + object.description)
+             },
+             data: {recipient: giant}
+          };
+
+          sails.log.info("in give() callback value");
+          callback(resp);
+       }
   }
 
 };

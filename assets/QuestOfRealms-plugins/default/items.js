@@ -26,6 +26,18 @@ module.exports = {
       image: "images/spear.png",
       description: "medium range weapon.",
       damage: 10
+    },
+    {
+      type: "coin",
+      use: "buy",
+      image: "images/coin.png",
+      description: "coin."
+    },
+    {
+      type: "food",
+      use: "food",
+      image: "images/apple.png",
+      description: "food."
     }
   ]
 

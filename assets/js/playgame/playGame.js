@@ -132,7 +132,7 @@ $(document).ready(function() {
     $('#inputArea').keypress(function(event) {
         if (event.keyCode == 13) {
             var commandTextBox = $('#inputArea');
-            var commandText = commandTextBox.val().trim().toLowerCase();
+            var commandText = commandTextBox.val().trim();
             if (0 === commandText.length) {
                 return;
             }
@@ -191,6 +191,9 @@ function processMessages() {
         else if (thisMessage.description.action === "objective completed") {
             processObjectiveCompletedNotification(thisMessage);
         }
+        else if (thisMessage.description.action === "give") {
+            processGiveNotification(thisMessage);
+        }
     }
     console.log("finished processMessages()");
 }
@@ -219,7 +222,8 @@ function processMoveNotification(message) {
 
 function processTakeNotification(message) {
     gameData = message.data.game[0];
-    maplocationData[parseInt(message.data.location[0].y)-1][parseInt(message.data.location[0].x)-1] = message.data.location[0];
+    mapLocation = message.data.location[0];
+    maplocationData[parseInt(mapLocation.y)-1][parseInt(mapLocation.x)-1] = mapLocation;
 
     if (message.player === gameData.players[0].name) {
         var status = "You have taken a " + message.description.item.type;
@@ -231,17 +235,18 @@ function processTakeNotification(message) {
         console.log(status);
         displayMessage(status);
 
-        if (shouldDrawMapLocation(message.data.location[0])) {
+        if (shouldDrawMapLocation(mapLocation)) {
             // Show the player in the new location.
-            drawMaplocation(message.data.location[0]);
-            showPlayerLocation(message.data.location[0].y, message.data.location[0].x);
+            drawMaplocation(mapLocation);
+            showPlayerLocation(mapLocation.y, mapLocation.x);
         }
     }
 }
 
 function processDropNotification(message) {
     gameData = message.data.game[0];
-    maplocationData[parseInt(message.data.location[0].y)-1][parseInt(message.data.location[0].x)-1] = message.data.location[0];
+    mapLocation = message.data.location[0];
+    maplocationData[parseInt(mapLocation.y)-1][parseInt(mapLocation.x)-1] = mapLocation;
 
     if (message.player === gameData.players[0].name) {
         var status = "You have dropped a " + message.description.item.type;
@@ -253,10 +258,10 @@ function processDropNotification(message) {
         console.log(status);
         displayMessage(status);
 
-        if (shouldDrawMapLocation(message.data.location[0])) {
+        if (shouldDrawMapLocation(mapLocation)) {
             // Show the player in the new location.
-            drawMaplocation(message.data.location[0]);
-            showPlayerLocation(message.data.location[0].y, message.data.location[0].x);
+            drawMaplocation(mapLocation);
+            showPlayerLocation(mapLocation.y, mapLocation.x);
         }
     }
 }
@@ -282,6 +287,23 @@ function processObjectiveCompletedNotification(message) {
     }
 }
 
+function processGiveNotification(message) {
+    gameData = message.data.game[0];
+    mapLocation = message.data.location[0];
+    maplocationData[parseInt(mapLocation.y)-1][parseInt(mapLocation.x)-1] = mapLocation;
+
+    if (message.player === gameData.players[0].name) {
+        console.log(message.description.detail);
+        displayMessage(message.description.detail);
+
+        if (shouldDrawMapLocation(mapLocation)) {
+            // Show the player in the new location.
+            drawMaplocation(mapLocation);
+            showPlayerLocation(mapLocation.y, mapLocation.x);
+        }
+    }
+}
+
 // Return a text descrption of an objective.
 function buildObjectiveDescription(objective) {
    var desc = objective.type + " ";
@@ -297,7 +319,6 @@ function buildObjectiveDescription(objective) {
 
    return desc;
 }
-
 
 function loadGame(callback) {
     console.log(Date.now() + ' loadGame');
