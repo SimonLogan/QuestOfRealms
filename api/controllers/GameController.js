@@ -122,44 +122,47 @@ module.exports = {
                     var tokens = command.split(" ");
                     var verb = tokens.shift();
                     switch (verb) {
+                        // Pass the raw command to the handlers as they may need to split it
+                        // in command-specific ways.
                         case "move":
-                            result = handleMove(tokens, game, playerName, function(handlerResult) {
+                            result = handleMove(command, game, playerName, function(handlerResult) {
                                 sails.log.info("in gameCommand. handleMove result = " + JSON.stringify(handlerResult));
                                 sendCommandStatus(handlerResult);
                                 if (handlerResult.hasOwnProperty("data")) {
-                                   checkObjectives(handlerResult.data[0], playerName);
+                                   checkObjectives(handlerResult.data.data.game[0], playerName);
                                 }
                             });
                             break;
                         case "take":
-                            result = handleTake(tokens, game, playerName, function(handlerResult) {
+                            result = handleTake(command, game, playerName, function(handlerResult) {
                                 sails.log.info("in gameCommand. handleTake result = " + JSON.stringify(handlerResult));
                                 sendCommandStatus(handlerResult);
                                 if (handlerResult.hasOwnProperty("data")) {
-                                   checkObjectives(handlerResult.data[0], playerName);
+                                   checkObjectives(handlerResult.data.data.game[0], playerName);
                                 }
                             });
                             break;
                         case "drop":
-                            result = handleDrop(tokens, game, playerName, function(handlerResult) {
+                            result = handleDrop(command, game, playerName, function(handlerResult) {
                                 sails.log.info("in gameCommand. handleDrop result = " + JSON.stringify(handlerResult));
                                 sendCommandStatus(handlerResult);
                                 if (handlerResult.hasOwnProperty("data")) {
-                                   checkObjectives(handlerResult.data[0], playerName);
+                                   checkObjectives(handlerResult.data.data.game[0], playerName);
                                 }
                             });
                             break;
                         case "give":
-                            result = handleGive(tokens, game, playerName, function(handlerResult) {
+                            result = handleGive(command, game, playerName, function(handlerResult) {
                                 sails.log.info("in gameCommand. handleGive result = " + JSON.stringify(handlerResult));
                                 sendCommandStatus(handlerResult);
+
                                 if (handlerResult.hasOwnProperty("data")) {
-                                   checkObjectives(handlerResult.data[0], playerName);
+                                   checkObjectives(handlerResult.data.data.game[0], playerName);
                                 }
                             });
                             break;
                         default:
-                            result = handleCommand(tokens, game, playerName, function(handlerResult) {
+                            result = handleCommand(command, game, playerName, function(handlerResult) {
                                 sails.log.info("in gameCommand. handleCommand result = " + handlerResult);
                                 res.send(200, handlerResult);
                             });
@@ -180,13 +183,12 @@ module.exports = {
 };
 
 
-function handleMove(commandArgs, game, playerName, statusCallback) {
-    var direction = commandArgs[0];
+function handleMove(command, game, playerName, statusCallback) {
+    var direction = command.replace(/move[\s+]/i, "");
     sails.log.info("MOVE: " + direction);
 
     var deltaX = 0;
     var deltaY = 0;
-
     switch(direction) {
         case "north":
             deltaY = 1;
@@ -220,6 +222,7 @@ function handleMove(commandArgs, game, playerName, statusCallback) {
             var errorMessage = "Unknown direction " + direction;
             sails.log.info(errorMessage);
             statusCallback({error:true, message:errorMessage});
+            return;
     }
 
     // Does the requested location exist? First get the current player location.
@@ -316,10 +319,8 @@ function handleMove(commandArgs, game, playerName, statusCallback) {
 
                             sails.log.info("sending socket messages for subject '" + game.id + "-status'");
                             notifyData.data = {game: updatedGame};
-                            sails.io.sockets.emit(
-                                game.id + "-status", notifyData);
-
-                            statusCallback({error:false});
+                            sails.io.sockets.emit(game.id + "-status", notifyData);
+                            statusCallback({error:false, data:notifyData});
                         } else {
                             sails.log.info("in Game.update() callback, item is null.");
                             statusCallback({error:true, message:"failed to find game"});
@@ -336,10 +337,11 @@ function handleMove(commandArgs, game, playerName, statusCallback) {
     });
 }
 
-function handleTake(commandArgs, game, playerName, statusCallback) {
+function handleTake(command, game, playerName, statusCallback) {
+    var target = command.replace(/take[\s+]/i, "");
+
     // TODO: for now target is the item type (i.e. "sword", not "the sword of destiny").
     // This means it must be specific: "short sword" rather than "sword".
-    var target = commandArgs.join(" ");
     sails.log.info("TAKE: " + target);
 
     // Get the current player location.
@@ -410,21 +412,20 @@ function handleTake(commandArgs, game, playerName, statusCallback) {
                                             if (updatedLocation) {
                                                 sails.log.info("in MapLocation.update() callback " + JSON.stringify(updatedLocation));
                                                 sails.log.info("sending socket messages for subject '" + game.id + "-status'");
-                                                sails.io.sockets.emit(
-                                                    game.id + "-status",
-                                                    {
-                                                        player: playerName,
-                                                        description: {
-                                                            action: "take",
-                                                            item: item
-                                                        },
-                                                        data: {
-                                                            game: updatedGame,
-                                                            location: updatedLocation
-                                                        }
-                                                    });
+                                                notifyData = {
+                                                   player: playerName,
+                                                   description: {
+                                                       action: "take",
+                                                       item: item
+                                                   },
+                                                   data: {
+                                                       game: updatedGame,
+                                                       location: updatedLocation
+                                                   }
+                                                };
 
-                                                statusCallback({error: false});
+                                                sails.io.sockets.emit(game.id + "-status", notifyData);
+                                                statusCallback({error: false, data:notifyData});
                                             } else {
                                                 sails.log.info("in MapLocation.update() callback, item is null.");
                                                 statusCallback({error: true, message: "failed to find MapLocation"});
@@ -457,10 +458,11 @@ function handleTake(commandArgs, game, playerName, statusCallback) {
     });
 }
 
-function handleDrop(commandArgs, game, playerName, statusCallback) {
+function handleDrop(command, game, playerName, statusCallback) {
+    var target = command.replace(/drop[\s+]/i, "");
+
     // TODO: for now target is the item type (i.e. "sword", not "the sword of destiny").
     // This means it must be specific: "short sword" rather than "sword".
-    var target = commandArgs.join(" ");
     sails.log.info("DROP: " + target);
 
     // Get the current player location.
@@ -531,20 +533,19 @@ function handleDrop(commandArgs, game, playerName, statusCallback) {
                                             if (updatedLocation) {
                                                 sails.log.info("in MapLocation.update() callback " + JSON.stringify(updatedLocation));
                                                 sails.log.info("sending socket messages for subject '" + game.id + "-status'");
-                                                sails.io.sockets.emit(
-                                                    game.id + "-status",
-                                                    {
-                                                        player: playerName,
-                                                        description: {
-                                                            action: "drop",
-                                                            item: item,
-                                                        },
-                                                        data: {
-                                                            location: updatedLocation,
-                                                            game: updatedGame
-                                                        }
-                                                    });
+                                                notifyData = {
+                                                   player: playerName,
+                                                   description: {
+                                                       action: "drop",
+                                                       item: item,
+                                                   },
+                                                   data: {
+                                                       game: updatedGame,
+                                                       location: updatedLocation
+                                                   }
+                                                };
 
+                                                sails.io.sockets.emit(game.id + "-status", notifyData);
                                                 statusCallback({error: false});
                                             } else {
                                                 sails.log.info("in MapLocation.update() callback, item is null.");
@@ -578,8 +579,12 @@ function handleDrop(commandArgs, game, playerName, statusCallback) {
     });
 }
 
-function handleGive(commandArgs, game, playerName, statusCallback) {
-    if (commandArgs.length != 3 && commandArgs[1] !== "to") {
+function handleGive(command, game, playerName, statusCallback) {
+    command = command.replace(/give[\s+]/i, "");
+    var commandArgs = command.split("to");
+
+    sails.log.info("GIVE: " + JSON.stringify(commandArgs));
+    if (commandArgs.length != 2) {
        sails.log.info("in handleGive() command not in the format \"give object to recipient\".");
        statusCallback({error: true, message: "invalid command"});
        return;
@@ -587,9 +592,9 @@ function handleGive(commandArgs, game, playerName, statusCallback) {
 
     // TODO: for now target is the item type (i.e. "sword", not "the sword of destiny").
     // This means it must be specific: "short sword" rather than "sword".
-    var objectName = commandArgs[0];
-    var recipientName = commandArgs[2]
-    sails.log.info("GIVE: " + objectName + " to " + recipientName);
+    var objectName = commandArgs[0].trim();
+    var recipientName = commandArgs[1].trim();
+        sails.log.info("GIVE: " + objectName + " to " + recipientName);
 
     // Get the current player location.
     var playerIndex = null;
@@ -615,6 +620,7 @@ function handleGive(commandArgs, game, playerName, statusCallback) {
         if (err) {
             sails.log.info("in handleGive db err:" + err);
             statusCallback({error:true, message:err});
+            return;
         } else {
             sails.log.info("in handleGive.find() callback, no error.");
             if (currentLocation) {
@@ -622,7 +628,7 @@ function handleGive(commandArgs, game, playerName, statusCallback) {
 
                 // Find the requested item in the inventory.
                 var object = null;
-                for (var i=0; i<game.players[playerIndex].inventory.length; i++) {
+                for (var i = 0; i < game.players[playerIndex].inventory.length; i++) {
                     // TODO: handle ambiguous object descriptions (e.g. "give sword..." when there are two swords).
                     if (game.players[playerIndex].inventory[i].type === objectName) {
                         object = game.players[playerIndex].inventory[i];
@@ -682,75 +688,83 @@ function handleGive(commandArgs, game, playerName, statusCallback) {
                 sails.log.info("calling give()");
                 handlerFunc(recipient, object, game, playerName, function(handlerResp) {
                    sails.log.info("handlerResp: " + handlerResp);
-                   if (handlerResp) {
-                       sails.log.info("Valid handlerResp " + JSON.stringify(handlerResp));
-
-                       currentLocation.characters[recipientIndex] = handlerResp.data.recipient;
-                       // We don't need to send the updated recipient on to the client.
-                       // Insterad we'll send the updated game and mapLocation.
-                       handlerResp.data = {};
-
-                       async.waterfall([
-                           function updateGame(validationCallback) {
-                               Game.update(
-                                  {id: game.id},
-                                   game).exec(function(err, updatedGame) {
-                                     sails.log.info("give() Game.update() callback");
-                                     if (err) {
-                                        sails.log.info("give() Game.update() callback, error. " + err);
-                                        validationCallback("Failed to save the game");
-                                        return;
-                                     } else {
-                                        sails.log.info("give() Game.update() callback, no error.");
-                                        if (updatedGame) {
-                                           sails.log.info("give() Game.update() callback " + JSON.stringify(updatedGame));
-                                           validationCallback(null, updatedGame);
-                                        } else {
-                                           sails.log.info("Navigate to() Game.update() callback, game is null.");
-                                           validationCallback("Failed to save the game");
-                                        }
-                                     }
-                               });
-                           },
-                           function updateMapLocation(updatedGame, validationCallback) {
-                               MapLocation.update(
-                                   {id: currentLocation.id},
-                                   currentLocation).exec(function(err, updatedLocation) {
-                                   sails.log.info("in MapLocation.update() callback");
-                                   if (err) {
-                                       sails.log.info("in MapLocation.update() callback, error. " + err);
-                                        validationCallback("Failed to save the maplocation");
-                                   } else {
-                                       sails.log.info("in MapLocation.update() callback, no error.");
-                                       if (updatedLocation) {
-                                           sails.log.info("in MapLocation.update() callback " + JSON.stringify(updatedLocation));
-                                           validationCallback(null, updatedGame, updatedLocation);
-                                       } else {
-                                           sails.log.info("in MapLocation.update() callback, item is null.");
-                                           validationCallback("Failed to save the maplocation");
-                                       }
-                                   }
-                               });
-                           },
-                       ], function (err, updatedGame, updatedLocation) {
-                           sails.log.info("in give() all done. err:" + err);
-                           sails.log.info("in give() all done. updatedGame:" + JSON.stringify(updatedGame));
-                           sails.log.info("in give() all done. updatedLocation:" + JSON.stringify(updatedLocation));
-                           if (err) {
-                               statusCallback({error: true, data: updatedGame});
-                               return;
-                           }
-
-                           handlerResp.data['game'] = updatedGame;
-                           handlerResp.data['location'] = updatedLocation;
-                           sails.log.info("*** sending resp: " + JSON.stringify(handlerResp));
-                           sails.io.sockets.emit(
-                              game.id + "-status",
-                              handlerResp);
-
-                           statusCallback({error: false});
-                       });
+                   if (!handlerResp) {
+                       sails.log.info("Give failed - null handlerResp");
+                       statusCallback({error:true, message:"Failed to give an " + objectName + " to the " + recipientName});
+                       return;
                    }
+
+                   sails.log.info("Valid handlerResp " + JSON.stringify(handlerResp));
+                   if (!handlerResp.description.success) {
+                       sails.log.info("Give failed: " + handlerResp.description.detail);
+                       statusCallback({error:true, message:handlerResp.description.detail});
+                       return;
+                   }
+
+                   currentLocation.characters[recipientIndex] = handlerResp.data.recipient;
+                   // We don't need to send the updated recipient on to the client.
+                   // Instead we'll send the updated game and mapLocation.
+                   handlerResp.data = {};
+
+                   async.waterfall([
+                       function updateGame(validationCallback) {
+                           Game.update(
+                              {id: game.id},
+                               game).exec(function(err, updatedGame) {
+                                 sails.log.info("give() Game.update() callback");
+                                 if (err) {
+                                    sails.log.info("give() Game.update() callback, error. " + err);
+                                    validationCallback("Failed to save the game");
+                                    return;
+                                 } else {
+                                    sails.log.info("give() Game.update() callback, no error.");
+                                    if (updatedGame) {
+                                       sails.log.info("give() Game.update() callback " + JSON.stringify(updatedGame));
+                                       validationCallback(null, updatedGame);
+                                    } else {
+                                       sails.log.info("Navigate to() Game.update() callback, game is null.");
+                                       validationCallback("Failed to save the game");
+                                    }
+                                 }
+                           });
+                       },
+                       function updateMapLocation(updatedGame, validationCallback) {
+                           MapLocation.update(
+                               {id: currentLocation.id},
+                               currentLocation).exec(function(err, updatedLocation) {
+                               sails.log.info("in MapLocation.update() callback");
+                               if (err) {
+                                   sails.log.info("in MapLocation.update() callback, error. " + err);
+                                    validationCallback("Failed to save the maplocation");
+                               } else {
+                                   sails.log.info("in MapLocation.update() callback, no error.");
+                                   if (updatedLocation) {
+                                       sails.log.info("in MapLocation.update() callback " + JSON.stringify(updatedLocation));
+                                       validationCallback(null, updatedGame, updatedLocation);
+                                   } else {
+                                       sails.log.info("in MapLocation.update() callback, item is null.");
+                                       validationCallback("Failed to save the maplocation");
+                                   }
+                               }
+                           });
+                       },
+                   ], function (err, updatedGame, updatedLocation) {
+                       sails.log.info("in give() all done. err:" + err);
+                       sails.log.info("in give() all done. updatedGame:" + JSON.stringify(updatedGame));
+                       sails.log.info("in give() all done. updatedLocation:" + JSON.stringify(updatedLocation));
+                       if (err) {
+                           statusCallback({error: true, data: updatedGame});
+                           return;
+                       }
+
+                       handlerResp.data['game'] = updatedGame;
+                       handlerResp.data['location'] = updatedLocation;
+                       sails.log.info("*** sending resp: " + JSON.stringify(handlerResp));
+                       handlerResp.data = {game:updatedGame, location:updatedLocation};
+                       sails.io.sockets.emit(game.id + "-status", handlerResp);
+
+                       statusCallback({error: false, data:handlerResp});
+                   });
                 });
             }
             else {
@@ -784,24 +798,25 @@ function checkObjectives(game, playerName) {
          return;
       }
 
-      sails.log.info("calling " + objective.type + "()");
+      sails.log.info("calling " + objective.type + "() with game: " + JSON.stringify(game));
       handlerFunc(objective, game, playerName, function(handlerResp) {
          sails.log.info("handlerResp: " + handlerResp);
          if (handlerResp) {
              sails.log.info("Valid handlerResp");
-             game.objectives[i] = handlerResp.data.objective;
+             var id = handlerResp.data.objective.id;
+             game.objectives[id] = handlerResp.data.objective;
 
              Game.update(
                 {id: game.id},
                  game).exec(function(err, updatedGame) {
-                   sails.log.info("Navigate to() Game.update() callback");
+                   sails.log.info("checkObjectives() Game.update() callback");
                    if (err) {
-                      sails.log.info("Navigate to() Game.update() callback, error. " + err);
+                      sails.log.info("checkObjectives() Game.update() callback, error. " + err);
                       return;
                    } else {
-                      sails.log.info("Navigate to() Game.update() callback, no error.");
+                      sails.log.info("checkObjectives() Game.update() callback, no error.");
                       if (updatedGame) {
-                         sails.log.info("Navigate to() Game.update() callback " + JSON.stringify(updatedGame));
+                         sails.log.info("checkObjectives() Game.update() callback " + JSON.stringify(updatedGame));
                          handlerResp.data['game'] = updatedGame;
 
                          sails.log.info("*** sending resp: " + JSON.stringify(handlerResp));
@@ -811,7 +826,7 @@ function checkObjectives(game, playerName) {
 
                          return;
                       } else {
-                         sails.log.info("Navigate to() Game.update() callback, item is null.");
+                         sails.log.info("checkObjectives() Game.update() callback, item is null.");
                          return;
                       }
                    }

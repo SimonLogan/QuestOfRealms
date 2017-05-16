@@ -170,10 +170,17 @@ $(document).ready(function() {
 //
 
 function processMessages() {
-    console.log("starting processMessages()");
+    console.log("======== starting processMessages() ========");
     if (busy) {
         console.log("busy. leaving processMessages()");
     }
+
+    // debug
+    /*
+    for (var x = 0; x < messageQueue.length; x++) {
+       console.log("message queue entry [" + x + "]: " + JSON.stringify(messageQueue[x]));
+    }
+    */
 
     while (messageQueue.length > 0) {
         var thisMessage = messageQueue.shift();
@@ -195,7 +202,7 @@ function processMessages() {
             processGiveNotification(thisMessage);
         }
     }
-    console.log("finished processMessages()");
+    console.log("======== finished processMessages() ========");
 }
 
 function processMoveNotification(message) {
@@ -284,6 +291,7 @@ function processObjectiveCompletedNotification(message) {
         }
 
         displayMessage("All objectives are complete.");
+        alert("All objectives are complete.");
     }
 }
 

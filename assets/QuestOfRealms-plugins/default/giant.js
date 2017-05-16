@@ -16,19 +16,26 @@ module.exports = {
   },
   handlers: {
        "give": function(giant, object, game, playerName, callback) {
-          sails.log.info("in give()");
+          sails.log.info("*** ");
+          sails.log.info("*** in giant.give() " + JSON.stringify(object));
+          sails.log.info("*** ");
 
           // Update the giant's inventory.
           if (giant.inventory === undefined) {
              giant.inventory = [];
           }
+
+          // Record who gave the object so we can check for "give" objectives.
+          object.source = {reason:"give", from:playerName};
+
           giant.inventory.push(object);
 
           resp = {
              player: playerName,
              description: {
-                action: ("give"),
-                detail: ("The giant took the " + object.description)
+                action: "give",
+                success: true,
+                detail: "The giant took the " + object.type
              },
              data: {recipient: giant}
           };

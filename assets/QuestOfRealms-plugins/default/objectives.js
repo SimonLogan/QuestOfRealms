@@ -30,6 +30,14 @@ module.exports = {
           {name: "item name", type: "string"},
           {name: "number", type: "int"}
        ]
+    },
+    {
+       name: "Give item",
+       description: "Give an item away.",
+       parameters: [
+          {name: "item name", type: "string"},
+          {name: "recipient", type: "string"}
+       ]
     }
   ],
   handlers: {
@@ -117,6 +125,98 @@ module.exports = {
              sails.log.info("in Acquire item() callback value");
              callback(resp);
           }
+       },
+       "Give item": function(objective, game, playerName, callback) {
+          sails.log.info("in Give item()");
+
+          sails.log.info("game.players:" + JSON.stringify(game.players));
+
+          // Get current location. If a "give to" operation has just been
+          // performed, it took place in the current location.
+          var player;
+          for (var i = 0; i < game.players.length; i++) {
+             if (game.players[i].name === playerName) {
+                player = game.players[i];
+                break;
+             }
+          }
+
+          if (player === undefined) {
+             sails.log.info("in Give item(): player not found.");
+             callback(null);
+             return;
+          }
+
+          // Find all the characters in the current location, and see if one
+          // has the item in question, with a possession reason of "given by"
+          // the current player.
+          MapLocation.findOne({'realmId': game.id,
+                               'x': player.location.x,
+                               'y': player.location.y.toString()}).exec(function(err, location) {
+              var notifyData = {};
+
+              sails.log.info("in Give item().find() callback");
+              if (err) {
+                  sails.log.info("Give item() db err:" + err);
+                  callback(null);
+                  return;
+              } else {
+                  sails.log.info("in Give item() callback, no error.");
+                  if (location) {
+                      sails.log.info("in Give item() callback " + JSON.stringify(location));
+                      var object = objective.params[0].value;
+                      var recipient = objective.params[1].value;
+
+                      var character;
+                      for (var i = 0; i < location.characters.length; i++) {
+                         // We're not cuurently checking character name, so check all
+                         // the characters of that type.
+                         if (location.characters[i].type === recipient) {
+                            character = location.characters[i];
+                            sails.log.info("in Give item() found character " + JSON.stringify(character));
+
+                            if (character.inventory !== undefined) {
+                               for (var j =0; j < character.inventory.length; j++) {
+                                  var item = character.inventory[j];
+                                  sails.log.info("in Give item() character inventory item: " + JSON.stringify(item));
+                                  if (item.type === object &&
+                                      item.source !== undefined &&
+                                      item.source.reason !== undefined &&
+                                      item.source.reason === "give" &&
+                                      item.source.from !== undefined &&
+                                      item.source.from === playerName) {
+                                      sails.log.info("in Give item(): character given object from player");
+
+                                      // Mark the objective complete.
+                                      objective.completed = "true";
+                                      resp = {
+                                         player: playerName,
+                                         description: {
+                                            action: "objective completed"
+                                         },
+                                         data: {
+                                            objective: objective
+                                         }
+                                      };
+
+                                      sails.log.info("in Give item() callback value");
+                                      callback(resp);
+                                      return;
+                                  } else {
+                                     sails.log.info("in Give item(): item has no source.");
+                                  }
+                               }
+                            }
+                         }
+                      }
+                  }
+                  else {
+                      sails.log.info("Current location not found");
+                      callback(null);
+                      return;
+                  }
+              }
+          });
        }
   }
 

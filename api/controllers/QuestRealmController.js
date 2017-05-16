@@ -286,6 +286,10 @@ var QuestRealmController = {
 
                 for (var i=0; i<realm.objectives.length; i++) {
                    if (realm.objectives[i].type === "Start at") continue;
+
+                   // We need to give the objectives ids because objective evaluation
+                   // is ansynchronous and we can't just iterate, updating them sequentially.
+                   realm.objectives[i].id = i - 1;
                    game.objectives.push(realm.objectives[i]);
                 }
 

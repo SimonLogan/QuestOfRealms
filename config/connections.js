@@ -59,7 +59,7 @@ module.exports.connections = {
   QuestOfRealmsMongodbServer: {
      adapter: 'sails-mongo',
      host: 'localhost',
-     port: 27017,
+     port: 27990,
   //   user: 'username', //optional
   //   password: 'password', //optional
      database: 'QuestOfRealms'
