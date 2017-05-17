@@ -448,6 +448,7 @@ function deleteMapLocations(realm, locationsDeletedCallback) {
             locationsDeletedCallback();
             // It's ok for there to be none.
             return;
+        }
 
         sails.log.info("in deleteMaplocations.find() 4 locations: " + JSON.stringify(locations));
         // Async will iterate over all the entries in locations, calling the function
@@ -480,6 +481,7 @@ function copyMapLocations(game, parentRealmId, locationsCopiedCallback) {
         if (err) {
             sails.log.info("in copyMapLocations.find() callback, error. " + err);
             locationsCopiedCallback("in copyMapLocations.find() callback, error. " + err);
+            return;
         }
 
         sails.log.info("in copyMapLocations.find() callback, no error.");
@@ -487,6 +489,8 @@ function copyMapLocations(game, parentRealmId, locationsCopiedCallback) {
             sails.log.info("in copyMapLocations.find() callback, none found.");
             locationsCopiedCallback();
             // Should this be an error? No point in creating a game with no locations.
+            return;
+       }
 
         sails.log.info("in copyMapLocations.find() locations: " + JSON.stringify(locations));
         // Async will iterate over all the entries in locations, calling the function
