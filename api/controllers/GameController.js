@@ -237,6 +237,7 @@ function handleMove(command, game, playerName, statusCallback) {
     if (null === playerIndex) {
         sails.log.info("in handleMove.find() invalid current location.");
         statusCallback({error:true, message:"Invalid current location"});
+		    return;
     }
 
     var originalX = parseInt(game.players[playerIndex].location.x);
@@ -253,87 +254,90 @@ function handleMove(command, game, playerName, statusCallback) {
         if (err) {
             sails.log.info("handleMove db err:" + err);
             statusCallback({error:true, message:err});
-        } else {
-            sails.log.info("in handleMove.find() callback, no error.");
-            if (newLocation) {
-                sails.log.info("in handleMove.find() callback " + JSON.stringify(newLocation));
-
-                // Ensure the player has enough health to move into the new location.
-                // TODO: decide whether we want to use health for this. Do we need a
-                // separate stamina figure for travel, and reserve health for fighting?
-                /*
-                var healthCost = newLocation.healthCost;
-                var playerHealth = game.players[playerIndex].health;
-                if (healthCost >= playerHealth) {
-                   sails.log.info("Not enough health (" + playerHealth + ")" +
-                                  " to move into location (cost:" + healthCost + ")." +
-                                  " You died.");
-                   game.players[playerIndex].health = 0;
-                   notifyData = {
-                      player: playerName,
-                      description: {
-                         action: "death",
-                         details: "You did not have enough health to move into that location."
-                      },
-                      data: {}
-                   };
-                } else {
-                   game.players[playerIndex].health -= healthCost;
-                */
-                   game.players[playerIndex].location.x = newX.toString();
-                   game.players[playerIndex].location.y = newY.toString();
-
-                   // Update the list of locations the player has visited.
-                   // This is a dictionary for quick searching. Using a list
-                   // will scale badly when drawing the whole map on the UI.
-                   var visitedKey = newX.toString() + "_" + newY.toString();
-                   var playerVistitedLocation = (visitedKey in game.players[playerIndex].visited);
-                   if (!playerVistitedLocation) {
-                       game.players[playerIndex].visited[visitedKey] = true;
-                   }
-
-                   notifyData = {
-                      player: playerName,
-                      description: {
-                         action: "move",
-                         from: {x:originalX, y:originalY},
-                         to: {x:newX, y:newY}
-                      },
-                      data: {}
-                   };
-                /*
-                }
-                */
-
-                Game.update(
-                    {id: game.id},
-                    game).exec(function(err, updatedGame) {
-                    sails.log.info("in Game.update() callback");
-                    if (err) {
-                        sails.log.info("in Game.update() callback, error. " + err);
-                        statusCallback({error:true, message:err});
-                    } else {
-                        sails.log.info("in Game.update() callback, no error.");
-                        if (updatedGame) {
-                            sails.log.info("in Game.update() callback " + JSON.stringify(updatedGame));
-
-                            sails.log.info("sending socket messages for subject '" + game.id + "-status'");
-                            notifyData.data = {game: updatedGame};
-                            sails.io.sockets.emit(game.id + "-status", notifyData);
-                            statusCallback({error:false, data:notifyData});
-                        } else {
-                            sails.log.info("in Game.update() callback, item is null.");
-                            statusCallback({error:true, message:"failed to find game"});
-                        }
-                    }
-                });
-            }
-            else {
-                var errorMessage = "Don't be daft, you'll fall off the end of the world!";
-                sails.log.info("new location not found");
-                statusCallback({error:true, message:errorMessage});
-            }
+            return;
         }
+
+        sails.log.info("in handleMove.find() callback, no error.");
+        if (!newLocation) {
+            var errorMessage = "Don't be daft, you'll fall off the end of the world!";
+            sails.log.info("new location not found");
+            statusCallback({error:true, message:errorMessage});
+            return;
+        }
+
+        sails.log.info("in handleMove.find() callback " + JSON.stringify(newLocation));
+
+        // Ensure the player has enough health to move into the new location.
+        // TODO: decide whether we want to use health for this. Do we need a
+        // separate stamina figure for travel, and reserve health for fighting?
+        /*
+        var healthCost = newLocation.healthCost;
+        var playerHealth = game.players[playerIndex].health;
+        if (healthCost >= playerHealth) {
+           sails.log.info("Not enough health (" + playerHealth + ")" +
+                          " to move into location (cost:" + healthCost + ")." +
+                          " You died.");
+           game.players[playerIndex].health = 0;
+           notifyData = {
+              player: playerName,
+              description: {
+                 action: "death",
+                 details: "You did not have enough health to move into that location."
+              },
+              data: {}
+           };
+        } else {
+           game.players[playerIndex].health -= healthCost;
+        */
+           game.players[playerIndex].location.x = newX.toString();
+           game.players[playerIndex].location.y = newY.toString();
+
+           // Update the list of locations the player has visited.
+           // This is a dictionary for quick searching. Using a list
+           // will scale badly when drawing the whole map on the UI.
+           var visitedKey = newX.toString() + "_" + newY.toString();
+           var playerVistitedLocation = (visitedKey in game.players[playerIndex].visited);
+           if (!playerVistitedLocation) {
+               game.players[playerIndex].visited[visitedKey] = true;
+           }
+
+           notifyData = {
+              player: playerName,
+              description: {
+                 action: "move",
+                 from: {x:originalX, y:originalY},
+                 to: {x:newX, y:newY}
+              },
+              data: {}
+           };
+        /*
+        }
+        */
+
+        Game.update(
+            {id: game.id},
+            game).exec(function(err, updatedGame) {
+            sails.log.info("in Game.update() callback");
+            if (err) {
+                sails.log.info("in Game.update() callback, error. " + err);
+                statusCallback({error:true, message:err});
+                return;
+            }
+
+            sails.log.info("in Game.update() callback, no error.");
+            if (!updatedGame) {
+                sails.log.info("in Game.update() callback, item is null.");
+                statusCallback({error:true, message:"failed to find game"});
+                return;
+            }
+
+            sails.log.info("in Game.update() callback " + JSON.stringify(updatedGame));
+            sails.log.info("sending socket messages for subject '" + game.id + "-status'");
+            notifyData.data = {game: updatedGame};
+            sails.io.sockets.emit(game.id + "-status", notifyData);
+            statusCallback({error:false, data:notifyData});
+            return;
+        });
     });
 }
 
@@ -356,6 +360,7 @@ function handleTake(command, game, playerName, statusCallback) {
     if (null === playerIndex) {
         sails.log.info("in handleTake.find() invalid current location.");
         statusCallback({error:true, message:"Invalid current location"});
+		    return;
     }
 
     var currentX = parseInt(game.players[playerIndex].location.x);
@@ -367,93 +372,101 @@ function handleTake(command, game, playerName, statusCallback) {
         if (err) {
             sails.log.info("in handleTake db err:" + err);
             statusCallback({error:true, message:err});
-        } else {
-            sails.log.info("in handleTake.find() callback, no error.");
-            if (currentLocation) {
-                sails.log.info("in handleTake.find() callback " + JSON.stringify(currentLocation));
+			      return;
+        }
 
-                // Find the requested item in the current mapLocation.
-                var found = false;
-                for (var i=0; i<currentLocation.items.length; i++) {
-                    // TODO: handle ambiguous object descriptions (e.g. "take sword" when there are two swords).
-                    if (currentLocation.items[i].type === target) {
-                        found = true;
-                        var item = currentLocation.items[i];
-                        if (undefined === game.players[playerIndex].inventory) {
-                            game.players[playerIndex].inventory = [];
-                        }
-                        game.players[playerIndex].inventory.push(item);
-                        currentLocation.items.splice(i, 1);
+        sails.log.info("in handleTake.find() callback, no error.");
+        if (!currentLocation) {
+            var errorMessage = "Current location not found";
+            sails.log.info("Current location not found");
+            statusCallback({error:true, message:errorMessage});
+			      return;
+        }
 
-                        // TODO: serious limitation - waterline doesn't support transactions so
-                        // if anything below fails the db could be left in an inconsistent state.
-                        // See if I can implement this myself using the .transaction() interface.
-                        Game.update(
-                            {id: game.id},
-                            game).exec(function(err, updatedGame) {
-                            sails.log.info("in Game.update() callback");
-                            if (err) {
-                                sails.log.info("in Game.update() callback, error. " + err);
-                                statusCallback({error:true, message:err});
-                            } else {
-                                sails.log.info("in Game.update() callback, no error.");
-                                if (updatedGame) {
-                                    sails.log.info("in Game.update() callback " + JSON.stringify(updatedGame));
+        sails.log.info("in handleTake.find() callback " + JSON.stringify(currentLocation));
 
-                                    MapLocation.update(
-                                        {id: currentLocation.id},
-                                        currentLocation).exec(function(err, updatedLocation) {
-                                        sails.log.info("in MapLocation.update() callback");
-                                        if (err) {
-                                            sails.log.info("in MapLocation.update() callback, error. " + err);
-                                            statusCallback({error: true, message: err});
-                                        } else {
-                                            sails.log.info("in MapLocation.update() callback, no error.");
-                                            if (updatedLocation) {
-                                                sails.log.info("in MapLocation.update() callback " + JSON.stringify(updatedLocation));
-                                                sails.log.info("sending socket messages for subject '" + game.id + "-status'");
-                                                notifyData = {
-                                                   player: playerName,
-                                                   description: {
-                                                       action: "take",
-                                                       item: item
-                                                   },
-                                                   data: {
-                                                       game: updatedGame,
-                                                       location: updatedLocation
-                                                   }
-                                                };
+        // Find the requested item in the current mapLocation.
+        var found = false;
+        for (var i = 0; i < currentLocation.items.length; i++) {
+            // TODO: handle ambiguous object descriptions (e.g. "take sword" when there are two swords).
+            if (currentLocation.items[i].type !== target) {
+			         continue;
+		        }
 
-                                                sails.io.sockets.emit(game.id + "-status", notifyData);
-                                                statusCallback({error: false, data:notifyData});
-                                            } else {
-                                                sails.log.info("in MapLocation.update() callback, item is null.");
-                                                statusCallback({error: true, message: "failed to find MapLocation"});
-                                            }
-                                        }
-                                    });
-                                } else {
-                                    sails.log.info("in Game.update() callback, item is null.");
-                                    statusCallback({error:true, message:"failed to find game"});
-                                }
-                            }
-                        });
+            found = true;
+            var item = currentLocation.items[i];
+            if (undefined === game.players[playerIndex].inventory) {
+                game.players[playerIndex].inventory = [];
+            }
 
-                        break;
+            game.players[playerIndex].inventory.push(item);
+            currentLocation.items.splice(i, 1);
+
+            // TODO: serious limitation - waterline doesn't support transactions so
+            // if anything below fails the db could be left in an inconsistent state.
+            // See if I can implement this myself using the .transaction() interface.
+            Game.update(
+                {id: game.id},
+                game).exec(function(err, updatedGame) {
+                sails.log.info("in Game.update() callback");
+                if (err) {
+                    sails.log.info("in Game.update() callback, error. " + err);
+                    statusCallback({error:true, message:err});
+					          return;
+                }
+
+                sails.log.info("in Game.update() callback, no error.");
+                if (!updatedGame) {
+                    sails.log.info("in Game.update() callback, item is null.");
+                    statusCallback({error:true, message:"failed to find game"});
+					          return;
+				        }
+
+                sails.log.info("in Game.update() callback " + JSON.stringify(updatedGame));
+
+                MapLocation.update(
+                    {id: currentLocation.id},
+                    currentLocation).exec(function(err, updatedLocation) {
+                    sails.log.info("in MapLocation.update() callback");
+                    if (err) {
+                        sails.log.info("in MapLocation.update() callback, error. " + err);
+                        statusCallback({error: true, message: err});
+						            return;
                     }
-                }
 
-                if (!found) {
-                    var errorMessage = "There is no " + target + ".";
-                    sails.log.info(errorMessage);
-                    statusCallback({error:true, message:errorMessage});
-                }
-            }
-            else {
-                var errorMessage = "Current location not found";
-                sails.log.info("Current location not found");
-                statusCallback({error:true, message:errorMessage});
-            }
+                    sails.log.info("in MapLocation.update() callback, no error.");
+                    if (!updatedLocation) {
+                        sails.log.info("in MapLocation.update() callback, item is null.");
+                        statusCallback({error: true, message: "failed to find MapLocation"});
+						            return;
+					          }
+
+                    sails.log.info("in MapLocation.update() callback " + JSON.stringify(updatedLocation));
+                    sails.log.info("sending socket messages for subject '" + game.id + "-status'");
+                    notifyData = {
+                       player: playerName,
+                       description: {
+                           action: "take",
+                           item: item
+                       },
+                       data: {
+                           game: updatedGame,
+                           location: updatedLocation
+                       }
+                    };
+
+                    sails.io.sockets.emit(game.id + "-status", notifyData);
+                    statusCallback({error: false, data:notifyData});
+					          return;
+                });
+            });
+        }
+
+        if (!found) {
+            var errorMessage = "There is no " + target + ".";
+            sails.log.info(errorMessage);
+            statusCallback({error:true, message:errorMessage});
+            return;
         }
     });
 }
@@ -477,6 +490,7 @@ function handleDrop(command, game, playerName, statusCallback) {
     if (null === playerIndex) {
         sails.log.info("in handleDrop.find() invalid current location.");
         statusCallback({error:true, message:"Invalid current location"});
+        return;
     }
 
     var currentX = parseInt(game.players[playerIndex].location.x);
@@ -488,93 +502,101 @@ function handleDrop(command, game, playerName, statusCallback) {
         if (err) {
             sails.log.info("in handleDrop db err:" + err);
             statusCallback({error:true, message:err});
-        } else {
-            sails.log.info("in handleDrop.find() callback, no error.");
-            if (currentLocation) {
-                sails.log.info("in handleDrop.find() callback " + JSON.stringify(currentLocation));
+            return;
+        }
 
-                // Find the requested item in the inventory.
-                var found = false;
-                for (var i=0; i<game.players[playerIndex].inventory.length; i++) {
-                    // TODO: handle ambiguous object descriptions (e.g. "drop sword" when there are two swords).
-                    if (game.players[playerIndex].inventory[i].type === target) {
-                        found = true;
-                        var item = game.players[playerIndex].inventory[i];
-                        if (undefined === currentLocation.items) {
-                            currentLocation.items = [];
-                        }
-                        currentLocation.items.push(item);
-                        game.players[playerIndex].inventory.splice(i, 1);
+        sails.log.info("in handleDrop.find() callback, no error.");
+        if (!currentLocation) {
+            var errorMessage = "Current location not found";
+            sails.log.info("Current location not found");
+            statusCallback({error:true, message:errorMessage});
+            return;
+        }
 
-                        // TODO: serious limitation - waterline doesn't support transactions so
-                        // if anything below fails the db could be left in an inconsistent state.
-                        // See if I can implement this myself using the .transaction() interface.
-                        Game.update(
-                            {id: game.id},
-                            game).exec(function(err, updatedGame) {
-                            sails.log.info("in Game.update() callback");
-                            if (err) {
-                                sails.log.info("in Game.update() callback, error. " + err);
-                                statusCallback({error:true, message:err});
-                            } else {
-                                sails.log.info("in Game.update() callback, no error.");
-                                if (updatedGame) {
-                                    sails.log.info("in Game.update() callback " + JSON.stringify(updatedGame));
+        sails.log.info("in handleDrop.find() callback " + JSON.stringify(currentLocation));
 
-                                    MapLocation.update(
-                                        {id: currentLocation.id},
-                                        currentLocation).exec(function(err, updatedLocation) {
-                                        sails.log.info("in MapLocation.update() callback");
-                                        if (err) {
-                                            sails.log.info("in MapLocation.update() callback, error. " + err);
-                                            statusCallback({error: true, message: err});
-                                        } else {
-                                            sails.log.info("in MapLocation.update() callback, no error.");
-                                            if (updatedLocation) {
-                                                sails.log.info("in MapLocation.update() callback " + JSON.stringify(updatedLocation));
-                                                sails.log.info("sending socket messages for subject '" + game.id + "-status'");
-                                                notifyData = {
-                                                   player: playerName,
-                                                   description: {
-                                                       action: "drop",
-                                                       item: item,
-                                                   },
-                                                   data: {
-                                                       game: updatedGame,
-                                                       location: updatedLocation
-                                                   }
-                                                };
+        // Find the requested item in the inventory.
+        var found = false;
+        for (var i=0; i<game.players[playerIndex].inventory.length; i++) {
+            // TODO: handle ambiguous object descriptions (e.g. "drop sword" when there are two swords).
+            if (game.players[playerIndex].inventory[i].type !== target) {
+               continue;
+            }
 
-                                                sails.io.sockets.emit(game.id + "-status", notifyData);
-                                                statusCallback({error: false});
-                                            } else {
-                                                sails.log.info("in MapLocation.update() callback, item is null.");
-                                                statusCallback({error: true, message: "failed to find MapLocation"});
-                                            }
-                                        }
-                                    });
-                                } else {
-                                    sails.log.info("in Game.update() callback, item is null.");
-                                    statusCallback({error:true, message:"failed to find game"});
-                                }
-                            }
-                        });
+            found = true;
+            var item = game.players[playerIndex].inventory[i];
+            if (undefined === currentLocation.items) {
+                currentLocation.items = [];
+            }
 
-                        break;
+            currentLocation.items.push(item);
+            game.players[playerIndex].inventory.splice(i, 1);
+
+            // TODO: serious limitation - waterline doesn't support transactions so
+            // if anything below fails the db could be left in an inconsistent state.
+            // See if I can implement this myself using the .transaction() interface.
+            Game.update(
+                {id: game.id},
+                game).exec(function(err, updatedGame) {
+                sails.log.info("in Game.update() callback");
+                if (err) {
+                    sails.log.info("in Game.update() callback, error. " + err);
+                    statusCallback({error:true, message:err});
+                    return;
+                }
+
+                sails.log.info("in Game.update() callback, no error.");
+                if (!updatedGame) {
+                    sails.log.info("in Game.update() callback, item is null.");
+                    statusCallback({error:true, message:"failed to find game"});
+                    return;
+                }
+
+                sails.log.info("in Game.update() callback " + JSON.stringify(updatedGame));
+
+                MapLocation.update(
+                    {id: currentLocation.id},
+                    currentLocation).exec(function(err, updatedLocation) {
+                    sails.log.info("in MapLocation.update() callback");
+                    if (err) {
+                        sails.log.info("in MapLocation.update() callback, error. " + err);
+                        statusCallback({error: true, message: err});
+                        return;
                     }
-                }
 
-                if (!found) {
-                    var errorMessage = "There is no " + target + ".";
-                    sails.log.info(errorMessage);
-                    statusCallback({error:true, message:errorMessage});
-                }
-            }
-            else {
-                var errorMessage = "Current location not found";
-                sails.log.info("Current location not found");
-                statusCallback({error:true, message:errorMessage});
-            }
+                    sails.log.info("in MapLocation.update() callback, no error.");
+                    if (!updatedLocation) {
+                        sails.log.info("in MapLocation.update() callback, item is null.");
+                        statusCallback({error: true, message: "failed to find MapLocation"});
+                        return;
+                    }
+
+                    sails.log.info("in MapLocation.update() callback " + JSON.stringify(updatedLocation));
+                    sails.log.info("sending socket messages for subject '" + game.id + "-status'");
+                    notifyData = {
+                       player: playerName,
+                       description: {
+                           action: "drop",
+                           item: item,
+                       },
+                       data: {
+                           game: updatedGame,
+                           location: updatedLocation
+                       }
+                    };
+
+                    sails.io.sockets.emit(game.id + "-status", notifyData);
+                    statusCallback({error: false});
+                    return;
+                });
+            });
+        }
+
+        if (!found) {
+            var errorMessage = "There is no " + target + ".";
+            sails.log.info(errorMessage);
+            statusCallback({error:true, message:errorMessage});
+            return;
         }
     });
 }
@@ -594,7 +616,7 @@ function handleGive(command, game, playerName, statusCallback) {
     // This means it must be specific: "short sword" rather than "sword".
     var objectName = commandArgs[0].trim();
     var recipientName = commandArgs[1].trim();
-        sails.log.info("GIVE: " + objectName + " to " + recipientName);
+    sails.log.info("GIVE: " + objectName + " to " + recipientName);
 
     // Get the current player location.
     var playerIndex = null;
@@ -621,158 +643,157 @@ function handleGive(command, game, playerName, statusCallback) {
             sails.log.info("in handleGive db err:" + err);
             statusCallback({error:true, message:err});
             return;
-        } else {
-            sails.log.info("in handleGive.find() callback, no error.");
-            if (currentLocation) {
-                sails.log.info("in handleGive.find() callback " + JSON.stringify(currentLocation));
+        }
 
-                // Find the requested item in the inventory.
-                var object = null;
-                for (var i = 0; i < game.players[playerIndex].inventory.length; i++) {
-                    // TODO: handle ambiguous object descriptions (e.g. "give sword..." when there are two swords).
-                    if (game.players[playerIndex].inventory[i].type === objectName) {
-                        object = game.players[playerIndex].inventory[i];
-                        game.players[playerIndex].inventory.splice(i, 1);
-                        break;
-                    }
-                }
+        sails.log.info("in handleGive.find() callback, no error.");
+        if (!currentLocation) {
+            var errorMessage = "Current location not found";
+            sails.log.info("Current location not found");
+            statusCallback({error:true, message:errorMessage});
+            return;
+        }
 
-                if (object === null) {
-                    sails.log.info("in MapLocation.findOne() callback, item not found.");
-                    statusCallback({error:true, message:"You do not have an " + objectName});
-                    return;
-                }
+        sails.log.info("in handleGive.find() callback " + JSON.stringify(currentLocation));
 
-                sails.log.info("Found object: " + JSON.stringify(object));
-
-                // Found the item, now find the recipient.
-                var recipient = null;
-                var recipientIndex = 0;
-                for (var i=0; i<currentLocation.characters.length; i++) {
-                    if (currentLocation.characters[i].type === recipientName) {
-                        recipient = currentLocation.characters[i];
-                        recipientIndex = i;
-                        break;
-                    }
-                }
-
-                if (recipient === null) {
-                    sails.log.info("in Game.update() callback, recipient not found.");
-                    statusCallback({error:true, message:"There is no " + recipientName});
-                    return;
-                }
-
-                sails.log.info("Found recipient: " + JSON.stringify(recipient));
-
-                var path = require('path');
-                var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
-                var handlerPath =  pathroot + recipient.module + "/" + recipient.filename;
-                var module = require(handlerPath);
-
-                // Command handlers are optional.
-                if (module.handlers === undefined) {
-                   sails.log.info("Module: " + handlerPath +
-                                  " does not have a handler for \"give\".");
-                   statusCallback({error:true, message:"You can't give an " + objectName + " to the " + recipientName});
-                   return;
-                }
-
-                var handlerFunc = module.handlers["give"];
-                if (handlerFunc === undefined) {
-                   sails.log.info("Module: " + handlerPath +
-                                  " does not have a handler for \"give\".");
-                   statusCallback({error:true, message:"You can't give an " + objectName + " to the " + recipientName});
-                   return;
-                }
-
-                sails.log.info("calling give()");
-                handlerFunc(recipient, object, game, playerName, function(handlerResp) {
-                   sails.log.info("handlerResp: " + handlerResp);
-                   if (!handlerResp) {
-                       sails.log.info("Give failed - null handlerResp");
-                       statusCallback({error:true, message:"Failed to give an " + objectName + " to the " + recipientName});
-                       return;
-                   }
-
-                   sails.log.info("Valid handlerResp " + JSON.stringify(handlerResp));
-                   if (!handlerResp.description.success) {
-                       sails.log.info("Give failed: " + handlerResp.description.detail);
-                       statusCallback({error:true, message:handlerResp.description.detail});
-                       return;
-                   }
-
-                   currentLocation.characters[recipientIndex] = handlerResp.data.recipient;
-                   // We don't need to send the updated recipient on to the client.
-                   // Instead we'll send the updated game and mapLocation.
-                   handlerResp.data = {};
-
-                   async.waterfall([
-                       function updateGame(validationCallback) {
-                           Game.update(
-                              {id: game.id},
-                               game).exec(function(err, updatedGame) {
-                                 sails.log.info("give() Game.update() callback");
-                                 if (err) {
-                                    sails.log.info("give() Game.update() callback, error. " + err);
-                                    validationCallback("Failed to save the game");
-                                    return;
-                                 } else {
-                                    sails.log.info("give() Game.update() callback, no error.");
-                                    if (updatedGame) {
-                                       sails.log.info("give() Game.update() callback " + JSON.stringify(updatedGame));
-                                       validationCallback(null, updatedGame);
-                                    } else {
-                                       sails.log.info("Navigate to() Game.update() callback, game is null.");
-                                       validationCallback("Failed to save the game");
-                                    }
-                                 }
-                           });
-                       },
-                       function updateMapLocation(updatedGame, validationCallback) {
-                           MapLocation.update(
-                               {id: currentLocation.id},
-                               currentLocation).exec(function(err, updatedLocation) {
-                               sails.log.info("in MapLocation.update() callback");
-                               if (err) {
-                                   sails.log.info("in MapLocation.update() callback, error. " + err);
-                                    validationCallback("Failed to save the maplocation");
-                               } else {
-                                   sails.log.info("in MapLocation.update() callback, no error.");
-                                   if (updatedLocation) {
-                                       sails.log.info("in MapLocation.update() callback " + JSON.stringify(updatedLocation));
-                                       validationCallback(null, updatedGame, updatedLocation);
-                                   } else {
-                                       sails.log.info("in MapLocation.update() callback, item is null.");
-                                       validationCallback("Failed to save the maplocation");
-                                   }
-                               }
-                           });
-                       },
-                   ], function (err, updatedGame, updatedLocation) {
-                       sails.log.info("in give() all done. err:" + err);
-                       sails.log.info("in give() all done. updatedGame:" + JSON.stringify(updatedGame));
-                       sails.log.info("in give() all done. updatedLocation:" + JSON.stringify(updatedLocation));
-                       if (err) {
-                           statusCallback({error: true, data: updatedGame});
-                           return;
-                       }
-
-                       handlerResp.data['game'] = updatedGame;
-                       handlerResp.data['location'] = updatedLocation;
-                       sails.log.info("*** sending resp: " + JSON.stringify(handlerResp));
-                       handlerResp.data = {game:updatedGame, location:updatedLocation};
-                       sails.io.sockets.emit(game.id + "-status", handlerResp);
-
-                       statusCallback({error: false, data:handlerResp});
-                   });
-                });
-            }
-            else {
-                var errorMessage = "Current location not found";
-                sails.log.info("Current location not found");
-                statusCallback({error:true, message:errorMessage});
+        // Find the requested item in the inventory.
+        var object = null;
+        for (var i = 0; i < game.players[playerIndex].inventory.length; i++) {
+            // TODO: handle ambiguous object descriptions (e.g. "give sword..." when there are two swords).
+            if (game.players[playerIndex].inventory[i].type === objectName) {
+                object = game.players[playerIndex].inventory[i];
+                game.players[playerIndex].inventory.splice(i, 1);
+                break;
             }
         }
+
+        if (object === null) {
+            sails.log.info("in MapLocation.findOne() callback, item not found.");
+            statusCallback({error:true, message:"You do not have an " + objectName});
+            return;
+        }
+
+        sails.log.info("Found object: " + JSON.stringify(object));
+
+        // Found the item, now find the recipient.
+        var recipient = null;
+        var recipientIndex = 0;
+        for (var i=0; i<currentLocation.characters.length; i++) {
+            if (currentLocation.characters[i].type === recipientName) {
+                recipient = currentLocation.characters[i];
+                recipientIndex = i;
+                break;
+            }
+        }
+
+        if (recipient === null) {
+            sails.log.info("in Game.update() callback, recipient not found.");
+            statusCallback({error:true, message:"There is no " + recipientName});
+            return;
+        }
+
+        sails.log.info("Found recipient: " + JSON.stringify(recipient));
+
+        var path = require('path');
+        var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
+        var handlerPath =  pathroot + recipient.module + "/" + recipient.filename;
+        var module = require(handlerPath);
+
+        // Command handlers are optional.
+        if (module.handlers === undefined) {
+           sails.log.info("Module: " + handlerPath +
+                          " does not have a handler for \"give\".");
+           statusCallback({error:true, message:"You can't give an " + objectName + " to the " + recipientName});
+           return;
+        }
+
+        var handlerFunc = module.handlers["give"];
+        if (handlerFunc === undefined) {
+           sails.log.info("Module: " + handlerPath +
+                          " does not have a handler for \"give\".");
+           statusCallback({error:true, message:"You can't give an " + objectName + " to the " + recipientName});
+           return;
+        }
+
+        sails.log.info("calling give()");
+        handlerFunc(recipient, object, game, playerName, function(handlerResp) {
+           sails.log.info("handlerResp: " + handlerResp);
+           if (!handlerResp) {
+               sails.log.info("Give failed - null handlerResp");
+               statusCallback({error:true, message:"Failed to give an " + objectName + " to the " + recipientName});
+               return;
+           }
+
+           sails.log.info("Valid handlerResp " + JSON.stringify(handlerResp));
+           if (!handlerResp.description.success) {
+               sails.log.info("Give failed: " + handlerResp.description.detail);
+               statusCallback({error:true, message:handlerResp.description.detail});
+               return;
+           }
+
+           currentLocation.characters[recipientIndex] = handlerResp.data.recipient;
+           // We don't need to send the updated recipient on to the client.
+           // Instead we'll send the updated game and mapLocation.
+           handlerResp.data = {};
+
+           async.waterfall([
+               function updateGame(validationCallback) {
+                   Game.update(
+                      {id: game.id},
+                       game).exec(function(err, updatedGame) {
+                         sails.log.info("give() Game.update() callback");
+                         if (err) {
+                            sails.log.info("give() Game.update() callback, error. " + err);
+                            validationCallback("Failed to save the game");
+                         } else {
+                            sails.log.info("give() Game.update() callback, no error.");
+                            if (updatedGame) {
+                               sails.log.info("give() Game.update() callback " + JSON.stringify(updatedGame));
+                               validationCallback(null, updatedGame);
+                            } else {
+                               sails.log.info("Navigate to() Game.update() callback, game is null.");
+                               validationCallback("Failed to save the game");
+                            }
+                         }
+                   });
+               },
+               function updateMapLocation(updatedGame, validationCallback) {
+                   MapLocation.update(
+                       {id: currentLocation.id},
+                       currentLocation).exec(function(err, updatedLocation) {
+                       sails.log.info("in MapLocation.update() callback");
+                       if (err) {
+                           sails.log.info("in MapLocation.update() callback, error. " + err);
+                            validationCallback("Failed to save the maplocation");
+                       } else {
+                           sails.log.info("in MapLocation.update() callback, no error.");
+                           if (updatedLocation) {
+                               sails.log.info("in MapLocation.update() callback " + JSON.stringify(updatedLocation));
+                               validationCallback(null, updatedGame, updatedLocation);
+                           } else {
+                               sails.log.info("in MapLocation.update() callback, item is null.");
+                               validationCallback("Failed to save the maplocation");
+                           }
+                       }
+                   });
+               },
+           ], function (err, updatedGame, updatedLocation) {
+               sails.log.info("in give() all done. err:" + err);
+               sails.log.info("in give() all done. updatedGame:" + JSON.stringify(updatedGame));
+               sails.log.info("in give() all done. updatedLocation:" + JSON.stringify(updatedLocation));
+               if (err) {
+                   statusCallback({error: true, data: updatedGame});
+                   return;
+               }
+
+               handlerResp.data['game'] = updatedGame;
+               handlerResp.data['location'] = updatedLocation;
+               sails.log.info("*** sending resp: " + JSON.stringify(handlerResp));
+               handlerResp.data = {game:updatedGame, location:updatedLocation};
+               sails.io.sockets.emit(game.id + "-status", handlerResp);
+
+               statusCallback({error: false, data:handlerResp});
+           });
+        });
     });
 }
 
@@ -801,37 +822,39 @@ function checkObjectives(game, playerName) {
       sails.log.info("calling " + objective.type + "() with game: " + JSON.stringify(game));
       handlerFunc(objective, game, playerName, function(handlerResp) {
          sails.log.info("handlerResp: " + handlerResp);
-         if (handlerResp) {
-             sails.log.info("Valid handlerResp");
-             var id = handlerResp.data.objective.id;
-             game.objectives[id] = handlerResp.data.objective;
-
-             Game.update(
-                {id: game.id},
-                 game).exec(function(err, updatedGame) {
-                   sails.log.info("checkObjectives() Game.update() callback");
-                   if (err) {
-                      sails.log.info("checkObjectives() Game.update() callback, error. " + err);
-                      return;
-                   } else {
-                      sails.log.info("checkObjectives() Game.update() callback, no error.");
-                      if (updatedGame) {
-                         sails.log.info("checkObjectives() Game.update() callback " + JSON.stringify(updatedGame));
-                         handlerResp.data['game'] = updatedGame;
-
-                         sails.log.info("*** sending resp: " + JSON.stringify(handlerResp));
-                         sails.io.sockets.emit(
-                            updatedGame[0].id + "-status",
-                            handlerResp);
-
-                         return;
-                      } else {
-                         sails.log.info("checkObjectives() Game.update() callback, item is null.");
-                         return;
-                      }
-                   }
-             });
+         if (!handlerResp) {
+            return;
          }
+
+         sails.log.info("Valid handlerResp");
+         var id = handlerResp.data.objective.id;
+         game.objectives[id] = handlerResp.data.objective;
+
+         Game.update(
+            {id: game.id},
+             game).exec(function(err, updatedGame) {
+               sails.log.info("checkObjectives() Game.update() callback");
+               if (err) {
+                  sails.log.info("checkObjectives() Game.update() callback, error. " + err);
+                  return;
+               }
+
+               sails.log.info("checkObjectives() Game.update() callback, no error.");
+               if (!updatedGame) {
+                  sails.log.info("checkObjectives() Game.update() callback, item is null.");
+                  return;
+               }
+
+               sails.log.info("checkObjectives() Game.update() callback " + JSON.stringify(updatedGame));
+               handlerResp.data['game'] = updatedGame;
+
+               sails.log.info("*** sending resp: " + JSON.stringify(handlerResp));
+               sails.io.sockets.emit(
+                  updatedGame[0].id + "-status",
+                  handlerResp);
+
+               return;
+         });
       });
    }
 }
