@@ -625,19 +625,19 @@ function handleCommand(playerLocation, commandText) {
 
     // If the client has the data then certain commands can be fulfilled locally.
     if (tokens[0] === "help") {
-        handleHelp();
+        handleHelp(tokens);
         return;
-    }
-    else if (tokens[0] === "look") {
+    } else if (tokens[0] === "look") {
         handleLook(playerLocation, tokens);
         return;
-    }
-    else if (tokens[0] === "inventory") {
+    } else if (tokens[0] === "inventory") {
         handleInventory(playerLocation, tokens);
         return;
-    }
-    else if (tokens[0] === "status") {
+    } else if (tokens[0] === "status") {
         handleStatus(playerLocation, tokens);
+        return;
+    } else if (tokens[0] === "describe") {
+        handleDescribe(playerLocation, tokens);
         return;
     }
 
@@ -669,15 +669,33 @@ function handleCommand(playerLocation, commandText) {
     return;
 }
 
-function handleHelp() {
+function handleGenericHelp() {
     displayMessage("Commands:");
-    displayMessage("   help: display list of commands.");
-    displayMessage("   look [direction]: describe the adjacent location in the specified direction, or the current location if no direction specified.");
-    displayMessage("   move direction: move in the specified direction, if possible.");
-    displayMessage("   take item: take the named item. e.g. \"take short sword\".");
-    displayMessage("   drop item: drop the named item. e.g. \"drop short sword\".");
-    displayMessage("   inventory: list the items in your inventory.");
-    displayMessage("   status: show health and game progress.");
+    displayMessage("   help : display list of commands.");
+    displayMessage("   look [direction] : describe the adjacent location in the specified direction, or the current location if no direction specified.");
+    displayMessage("   move direction : move in the specified direction, if possible.");
+    displayMessage("   take item [from character] : take the named item. e.g. \"take short sword\" from the specified character, or from the current location.");
+    displayMessage("   drop item : drop the named item. e.g. \"drop short sword\".");
+    displayMessage("   inventory : list the items in your inventory.");
+    displayMessage("   describe (...) : describe character or item, Use \"help describe\" for more details.");
+    displayMessage("   status : show health and game progress.");
+}
+
+function handleHelpDescribe() {
+    displayMessage("describe:");
+    displayMessage("   describe [location] | [character type [number] | item type [number]] : describe the current location, " +
+                   "or a character or item of the specified type. For example:");
+    displayMessage("      describe dwarf [1] : describe the first dwarf in the current location.");
+    displayMessage("      describe short sword 2 : describe the second short sword in the current location.");
+    displayMessage("      describe location : describe the current location and its surroundings.");
+}
+
+function handleHelp(tokens) {
+   if (tokens.length > 1 && tokens[1] === "describe") {
+      return handleHelpDescribe();
+   }
+
+   handleGenericHelp();
 }
 
 function handleLook(playerLocation, tokens) {
@@ -742,6 +760,229 @@ function handleLook(playerLocation, tokens) {
         displayMessage(describeLocation(newLocation, describeDetailEnum.TERRAIN_ONLY));
         return true;
     }
+}
+
+function handleDescribe(playerLocation, tokens) {
+
+    if (1 === tokens.length) {
+        displayMessage("Describe what?");
+        return false;
+    }
+
+    // The command is in the format
+    // describe [location | item type | character type] with an optional number.
+    // Chop off "describe"
+    tokens.shift();
+
+    if (tokens[0] === "location") {
+       describeLocationAndSorroundings(playerLocation);
+       return;
+    }
+
+    // Was a number specified?
+    var objectNumber = 1;
+    var objectName = null;
+    if (tokens.length > 1) {
+       var parseNumber = parseInt(tokens[tokens.length -1]);
+       if (!isNaN(parseNumber)) {
+          // Remove the number.
+          tokens.splice(-1, 1);
+          objectNumber = parseNumber;
+       }
+    }
+
+    // Whatever is left is the object name
+    objectName = tokens.join(" ");
+
+    // We don't know whether it's an item or character, so try both.
+    if (!describeLocationCharacter(playerLocation, objectName, objectNumber)) {
+       describeLocationItem(playerLocation, objectName, objectNumber);
+    }
+}
+
+// Quite Similar to handleLook(). Can we share some code?
+function describeLocationAndSorroundings(playerLocation) {
+
+    displayMessage(describeMyLocation(playerLocation));
+
+    var directions = ["north", "northeast", "east", "southeast",
+                      "south", "southwest", "west", "northwest"];
+
+    for (var i = 0; i < directions.length; i++) {
+        var deltaX = 0;
+        var deltaY = 0;
+
+        switch(directions[i]) {
+            case "north":
+                deltaY = 1;
+                break;
+            case "northeast":
+                deltaX = 1;
+                deltaY = 1;
+                break;
+            case "east":
+                deltaX = 1;
+                break;
+            case "southeast":
+                deltaX = 1;
+                deltaY = -1;
+                break;
+            case "south":
+                deltaY = -1;
+                break;
+            case "southwest":
+                deltaX = -1;
+                deltaY = -1;
+                break;
+            case "west":
+                deltaX = -1;
+                break;
+            case "northwest":
+                deltaX = -1;
+                deltaY = 1;
+                break;
+            default:
+                var errorMessage = "Unknown direction " + tokens[1];
+                displayMessage(errorMessage);
+                return false;
+        }
+
+        // Does the requested location exist? First get the current player location.
+        var originalX = parseInt(playerLocation.x);
+        var originalY = parseInt(playerLocation.y);
+        var newX = originalX + deltaX;
+        var newY = originalY + deltaY;
+        console.log("searching for location [" + newX + ", " + newY + "].");
+
+        if (!locationExists(newY -1, newX -1)) {
+            continue;
+        }
+
+        var newLocation = maplocationData[newY -1][newX -1];
+        var message = "To the " + directions[i] + " - ";
+        message += describeLocation(newLocation, describeDetailEnum.TERRAIN_ONLY);
+        displayMessage(message);
+    }
+}
+
+function describeLocationCharacter(playerLocation, objectName, objectNumber) {
+    var matchedIndex = null;
+    for (var i = 0; i < playerLocation.characters.length; i++) {
+        if (playerLocation.characters[i].type === objectName) {
+            // Count down the matches. If we reached 0 then we've
+            // matched the specified number of characters.
+            objectNumber--;
+            if (objectNumber > 0) {
+                continue;
+            }
+
+            matchedIndex = i;
+            break;
+        }
+    }
+
+    if (matchedIndex ===  null) {
+       return false;
+    }
+
+    var thisCharacter = playerLocation.characters[matchedIndex];
+    var message = "A " + thisCharacter.type;
+    if (thisCharacter.name) {
+        message += " called \"" + thisCharacter.name + "\"";
+    }
+    displayMessage(message);
+
+    if (thisCharacter.description) {
+        displayMessage(thisCharacter.description);
+    }
+
+    if (thisCharacter.additionalInfo) {
+       displayMessage(thisCharacter.additionalInfo);
+    }
+
+    if (thisCharacter.damage) {
+        displayMessage("Damage: " + thisCharacter.damage);
+    }
+
+    if (thisCharacter.health) {
+        displayMessage("Health: " + thisCharacter.health);
+    }
+
+    if (thisCharacter.drops) {
+        displayMessage(". Drops: " + thisCharacter.drops.join(", "));
+    }
+
+    if (thisCharacter.inventory !== undefined &&
+        thisCharacter.inventory.length > 0) {
+        message = ". Inventory:";
+        for (var j = 0; j < thisCharacter.inventory.length; j++) {
+            // TODO: improve this to share the implementation with
+            // describeLocationItem().
+            message += describeItem(thisCharacter.inventory[j]);
+
+            message += " ";
+        }
+        displayMessage(message);
+    }
+
+    return true;
+}
+
+function describeLocationItem(playerLocation, objectName, objectNumber) {
+    var matchedIndex = null;
+    for (var i = 0; i < playerLocation.items.length; i++) {
+        if (playerLocation.items[i].type === objectName) {
+            // Count down the matches. If we reached 0 then we've
+            // matched the specified number of characters.
+            objectNumber--;
+            if (objectNumber > 0) {
+                continue;
+            }
+
+            matchedIndex = i;
+            break;
+        }
+    }
+
+    if (matchedIndex ===  null) {
+       return false;
+    }
+
+    var thisItem = playerLocation.items[matchedIndex];
+    var message = "A " + thisItem.type;
+    if (thisItem.name) {
+        message += " called \"" + thisItem.name + "\"";
+    }
+    displayMessage(message);
+
+    if (thisItem.description) {
+        displayMessage(thisItem.description);
+    }
+
+    if (thisItem.damage) {
+        displayMessage("Damage: " + thisItem.damage);
+    }
+
+    return true;
+}
+
+// TODO: improve this to share the implementation between
+// describeLocationCharacter() and describeLocationItem().
+function describeItem(item) {
+    var message = "A " + item.type;
+    if (item.name) {
+        message += " called \"" + item.name + "\"";
+    }
+
+    if (item.description) {
+        message += ". " + item.description + ".";
+    }
+
+    if (item.damage) {
+        message += ". Damage: " + thisCharacter.damage;
+    }
+
+    return message;
 }
 
 function locationExists(y, x) {
