@@ -521,7 +521,9 @@ function buildMessageArea() {
 function wordbreak(message) {
     var tmp = message.substring(0, 80);
     var lastSpace = tmp.lastIndexOf(" ");
-    return message.substring(0, lastSpace);
+    var lastColon = tmp.lastIndexOf(":");
+    var lastPeriod = tmp.lastIndexOf(".");
+    return message.substring(0, Math.max(lastSpace, lastColon, lastPeriod) +1);
 }
 
 // Display a message a briefly highlight it in the message table.
@@ -530,13 +532,15 @@ function displayMessage(message) {
     setTimeout(function() { $('.messageRow.newMessage').removeClass('newMessage').addClass('oldMessage'); }, 1000);
 }
 
-function displayMessageImpl(message, continuation) {
+function displayMessageImpl(message) {
     if (message.length > 80) {
         var msgFragment = wordbreak(message);
         displayMessageImpl(msgFragment);
-        while ((message.length - msgFragment.length) > 0) {
-            message = message.substring(msgFragment.length, msgFragment.length + 80);
-            displayMessageImpl(message, true);
+        message = message.substring(msgFragment.length);
+        while (message.length) {
+            var msgFragment = wordbreak(message);
+            displayMessageImpl(msgFragment);
+            message = message.substring(msgFragment.length);
         }
     } else {
         var table = $('#messageTable');
@@ -672,9 +676,11 @@ function handleCommand(playerLocation, commandText) {
 function handleGenericHelp() {
     displayMessage("Commands:");
     displayMessage("   help : display list of commands.");
-    displayMessage("   look [direction] : describe the adjacent location in the specified direction, or the current location if no direction specified.");
+    displayMessage("   look [direction] : describe the adjacent location in the specified direction, or the current location " +
+                       "if no direction specified.");
     displayMessage("   move direction : move in the specified direction, if possible.");
-    displayMessage("   take item [from character] : take the named item. e.g. \"take short sword\" from the specified character, or from the current location.");
+    displayMessage("   take item [from character] : take the named item. e.g. \"take short sword\" from the specified character, " +
+                       "or from the current location.");
     displayMessage("   drop item : drop the named item. e.g. \"drop short sword\".");
     displayMessage("   inventory : list the items in your inventory.");
     displayMessage("   describe (...) : describe character or item, Use \"help describe\" for more details.");
@@ -683,9 +689,9 @@ function handleGenericHelp() {
 
 function handleHelpDescribe() {
     displayMessage("describe:");
-    displayMessage("   describe [location] | [character type [number] | item type [number]] : describe the current location, " +
+    displayMessage("   describe [location] | [character type [number]] | [item type [number]] : describe the current location, " +
                    "or a character or item of the specified type. For example:");
-    displayMessage("      describe dwarf [1] : describe the first dwarf in the current location.");
+    displayMessage("      describe dwarf : describe the first dwarf in the current location.");
     displayMessage("      describe short sword 2 : describe the second short sword in the current location.");
     displayMessage("      describe location : describe the current location and its surroundings.");
 }
