@@ -19,6 +19,7 @@ PaletteItemType = {
 
 // The actual realm you will be editing.
 var realmData;
+var locationData;
 
 // When the page has finished rendering...
 $(document).ready(function() {
@@ -53,10 +54,11 @@ $(document).ready(function() {
                 var target = $(this);
 
                 if (target.is('#wastebasket')) {
-                    moveToWasteBasket(locations, droppedItem);
-                }
-                else {
-                    droppedMapItem(realmId, locations, droppedItem, target);
+                    moveToWasteBasket(droppedItem);
+                } else if (target.is('#inventoryItemList')) {
+                    droppedInventoryItem(droppedItem);
+                } else {
+                    droppedMapItem(realmId, droppedItem, target);
                 }
             }
         });
@@ -140,9 +142,9 @@ $(document).ready(function() {
       }
    });
 
-   var locations = new MapLocationCollection();
+   locationData = new MapLocationCollection();
    // Load the existing data into the collection.
-   locations.fetch({ where: { "realmId": realmId } });
+   locationData.fetch({ where: { "realmId": realmId } });
 
 
    /* Dialogs */
@@ -163,7 +165,7 @@ $(document).ready(function() {
 
         function save() {
             var selectedItem = $('#itemList').find(".propertiesPanelItem.selected");
-            var thisCell = locations.where({
+            var thisCell = locationData.where({
                 x: selectedItem.attr('data-x'), y:selectedItem.attr('data-y')});
 
             var newItem = thisCell[0].attributes.items[selectedItem.attr('data-index')];
@@ -220,7 +222,7 @@ $(document).ready(function() {
 
         function save() {
             var selectedCharacter = $('#characterList').find(".propertiesPanelItem.selected");
-            var thisCell = locations.where({
+            var thisCell = locationData.where({
                 x: selectedCharacter.attr('data-x'), y:selectedCharacter.attr('data-y')});
 
             var newCharacter = thisCell[0].attributes.characters[selectedCharacter.attr('data-index')];
@@ -297,7 +299,7 @@ $(document).ready(function() {
             // Since objectives are now defined by plugins, custom objectives
             // must be validated on the server.
             if (objectiveType === "Start at" || objectiveType === "Navigate to") {
-               var thisCell = locations.where({
+               var thisCell = locationData.where({
                   x: saveParams[0].value, y:saveParams[1].value});
 
                if (thisCell.length === 0) {
@@ -480,11 +482,11 @@ $(document).ready(function() {
             if ((selectedMapCell.length > 0) &&
                 (selectedMapCell.attr('data-x') === item.attributes['x']) &&
                 (selectedMapCell.attr('data-y') === item.attributes['y'])) {
-                populateLocationDetails(locations, item, true);
+                populateLocationDetails(item, true);
             }
         }
     });
-    var mView = new LocationsView({collection: locations});
+    var mView = new LocationsView({collection: locationData});
 
     $(document).on('mouseenter', '.paletteItem', function() {
         if ($(this).prop('id').length == 0)
@@ -527,7 +529,7 @@ $(document).ready(function() {
         if (selectedMapCell.length === 0) {
             $('#currentCell').val($(this).prop('id'));
             $(this).closest('td').css('border-color', 'red');
-            populateMapLocationDetails(locations, $(this), false);
+            populateMapLocationDetails($(this), false);
         }
     });
 
@@ -552,7 +554,7 @@ $(document).ready(function() {
                 mapMode = "edit";
                 $(this).addClass('selected');
                 $('#propertiesPanelTitle').text("Edit location properties");
-                populateMapLocationDetails(locations, $(this), false);
+                populateMapLocationDetails($(this), false);
                 enableLocationEdits();
             }
         } else if ($(this).attr('data-x') === selectedMapCell.attr('data-x') &&
@@ -578,7 +580,7 @@ $(document).ready(function() {
             mapMode = "edit";
             $(this).addClass('selected');
             $('#propertiesPanelTitle').text("Edit location properties");
-            populateMapLocationDetails(locations, $(this), false);
+            populateMapLocationDetails($(this), false);
             enableLocationEdits();
             console.log("3");
         }
@@ -640,9 +642,16 @@ $(document).ready(function() {
         }
         else if ($('#propertiesInnerPanel').tabs('option', 'active') === 2)
         {
-            if ($('#characterList').find(".propertiesPanelItem.selected").length === 0) {
-                console.log("call populateLocationCharacterDetails");
-                populateLocationCharacterDetails($(this));
+            if ($(this).closest('.elementList').is('#inventoryItemList')) {
+                if ($('#inventoryItemList').find(".propertiesPanelItem.selected").length === 0) {
+                    console.log("call populateInventoryItemDetails");
+                    populateInventoryItemDetails($(this));
+                }
+            } else {
+                if ($('#characterList').find(".propertiesPanelItem.selected").length === 0) {
+                    console.log("call populateLocationCharacterDetails");
+                    populateLocationCharacterDetails($(this));
+                }
             }
         }
     });
@@ -656,9 +665,16 @@ $(document).ready(function() {
         }
         else if ($('#propertiesInnerPanel').tabs('option', 'active') === 2)
         {
-            if ($('#characterList').find(".propertiesPanelItem.selected").length === 0) {
-                console.log("call clearLocationCharacterDetails");
-                clearLocationCharacterDetails();
+            if ($(this).closest('.elementList').is('#inventoryItemList')) {
+                if ($('#inventoryItemList').find(".propertiesPanelItem.selected").length === 0) {
+                    console.log("call clearInventoryItemDetails");
+                    clearInventoryItemDetails();
+                }
+            } else {
+                if ($('#characterList').find(".propertiesPanelItem.selected").length === 0) {
+                    console.log("call clearLocationCharacterDetails");
+                    clearLocationCharacterDetails();
+                }
             }
         }
     });
@@ -666,7 +682,7 @@ $(document).ready(function() {
     $(document).on('change', '.locationProperty', function() {
         console.log("locationProperty change");
         var selectedMapCell = $('#mapTable').find(".mapItem.selected");
-        var thisCell = locations.where({
+        var thisCell = locationData.where({
             x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')});
 
         thisCell[0].attributes.name = $('#locationName').val().trim();
@@ -676,7 +692,7 @@ $(document).ready(function() {
     $(document).on('change', '.itemProperty', function() {
         console.log("itemProperty change");
         var selectedItem = $('#itemList').find(".propertiesPanelItem.selected");
-        var thisCell = locations.where({
+        var thisCell = locationData.where({
             x: selectedItem.attr('data-x'), y:selectedItem.attr('data-y')});
 
         var newItem = thisCell[0].attributes.items[selectedItem.attr('data-index')];
@@ -690,7 +706,7 @@ $(document).ready(function() {
     $(document).on('change', '.characterProperty', function() {
         console.log("characterProperty change");
         var selectedCharacter = $('#characterList').find(".propertiesPanelItem.selected");
-        var thisCell = locations.where({
+        var thisCell = locationData.where({
             x: selectedCharacter.attr('data-x'), y:selectedCharacter.attr('data-y')});
 
         var newCharacter = thisCell[0].attributes.characters[selectedCharacter.attr('data-index')];
@@ -814,30 +830,74 @@ function removeMapLocation(collection, x, y)
 }
 
 
-function moveToWasteBasket(locations, droppedItem)
+function moveToWasteBasket(droppedItem)
 {
     console.log("Dropped item onto wastebasket");
     if (droppedItem.is('.mapItem')) {
-        removeMapLocation(locations, droppedItem.attr('data-x'), droppedItem.attr('data-y'));
+        removeMapLocation(droppedItem.attr('data-x'), droppedItem.attr('data-y'));
     }
     else if (droppedItem.is('.propertiesPanelItem')) {
         if ($('#propertiesInnerPanel').tabs('option', 'active') === 1) {
-            removeItemFromLocation(locations, droppedItem);
+            removeItemFromLocation(droppedItem);
         }
         else if ($('#propertiesInnerPanel').tabs('option', 'active') === 2) {
-            removeCharacterFromLocation(locations, droppedItem);
+            removeCharacterFromLocation(droppedItem);
         }
     }
 }
 
 
-function droppedMapItem(realmId, locations, droppedItem, target)
+function droppedInventoryItem(droppedItem)
+{
+    console.log("Dropped inventory item");
+
+    if (droppedItem.is('.paletteItem')) {
+        console.log("dropped paletteItem");
+
+        if (droppedItem.attr('data-category') === 'item') {
+            console.log("Add inventory item");
+            addInventoryItem(droppedItem);
+        } else
+            console.log("dropped unexpected item category: " + droppedItem.attr('data-category'));
+    }
+}
+
+
+function addInventoryItem(droppedItem)
+{
+    var selectedMapCell = $('#mapTable').find(".mapItem.selected");
+    var thisCell = locationData.where({
+        x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')})[0];
+    var selectedCharacter = $('#characterList').find('.propertiesPanelItem.selected');
+    var characterData = thisCell.attributes.characters[selectedCharacter.attr('data-index')];
+
+    if (thisCell.attributes.characters[selectedCharacter.attr('data-index')].inventory === undefined) {
+       thisCell.attributes.characters[selectedCharacter.attr('data-index')].inventory = [];
+    }
+
+    var fullItemDetails = findPaletteItem(itemPaletteData, droppedItem);
+    thisCell.attributes.characters[selectedCharacter.attr('data-index')].inventory.push(
+        {
+            type: droppedItem.attr('data-type'),
+            module: droppedItem.attr('data-module'),
+            filename: droppedItem.attr('data-filename'),
+            name: '',
+            description: fullItemDetails.description,
+            damage: fullItemDetails.damage
+        }
+    );
+
+    thisCell.save();
+}
+
+
+function droppedMapItem(realmId, droppedItem, target)
 {
     console.log("Dropped item onto map");
-    var droppedItemOriginalLocation = locations.where({
+    var droppedItemOriginalLocation = locationData.where({
         x: droppedItem.attr('data-x'), y:droppedItem.attr('data-y')});
 
-    var droppedItemNewLocation = locations.where({
+    var droppedItemNewLocation = locationData.where({
         x: target.attr('data-x'), y:target.attr('data-y')});
 
     if (droppedItemNewLocation.length === 0) {
@@ -846,7 +906,7 @@ function droppedMapItem(realmId, locations, droppedItem, target)
         if ((droppedItem.is('.paletteItem') && droppedItem.attr('data-category') === "environment") ||
             droppedItem.is('.mapItem'))
         {
-            addMapLocation(realmId, locations, droppedItem, droppedItemOriginalLocation, target)
+            addMapLocation(realmId, droppedItem, droppedItemOriginalLocation, target)
         } else {
             console.error("can't drop item category '" +
                 droppedItem.attr('data-category') +
@@ -865,10 +925,10 @@ function droppedMapItem(realmId, locations, droppedItem, target)
         else if (droppedItem.is('.propertiesPanelItem')) {
             console.log("dropped propertiesPanelItem");
             if ($('#propertiesInnerPanel').tabs('option', 'active') === 1) {
-                changeItemLocation(locations, droppedItem, droppedItemNewLocation);
+                changeItemLocation(droppedItem, droppedItemNewLocation);
             }
             else if ($('#propertiesInnerPanel').tabs('option', 'active') === 2) {
-                changeCharacterLocation(locations, droppedItem, droppedItemNewLocation);
+                changeCharacterLocation(droppedItem, droppedItemNewLocation);
             }
         }
         else {
@@ -1045,15 +1105,25 @@ function enableLocationItemEdits()
 
 function populateLocationItemDetails(item)
 {
-    $('#itemIndex').val(item.attr('data-index'));
-    $('#itemName').val(item.attr('data-name'));
-    $('#itemType').text(item.attr('data-type'));
-    $('#itemDescription').text(item.attr('data-description'));
-    $('#itemDamage').text(item.attr('data-damage'));
+    var selectedMapCell = $('#mapTable').find(".mapItem.selected");
+    if (0 === selectedMapCell.length) {
+       console.log("populateLocationItemDetails: no map item selected");
+       return;
+    }
+
+    var thisCell = locationData.where({
+        x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')})[0];
+
+    var itemData = thisCell.attributes.items[item.attr('data-index')];
+
+    $('#itemName').val(itemData.name);
+    $('#itemType').text(itemData.type);
+    $('#itemDescription').text(itemData.description);
+    $('#itemDamage').text(itemData.damage);
 }
 
 
-function clearLocationItemDetails(item)
+function clearLocationItemDetails()
 {
     $('#itemName').val('');
     $('#itemType').text('');
@@ -1077,18 +1147,58 @@ function disableLocationCharacterEdits()
 
 function populateLocationCharacterDetails(character)
 {
-    $('#characterIndex').val(character.attr('data-index'));
-    $('#characterName').val(character.attr('data-name'));
-    $('#characterType').text(character.attr('data-type'));
-    $('#characterDescription').text(character.attr('data-description'));
-    $('#characterAddInfo').text(character.attr('data-additionalInfo'));
-    $('#characterDamage').text(character.attr('data-damage'));
-    $('#characterHealth').text(character.attr('data-health'));
-    $('#characterDrops').text(character.attr('data-drops'));
+    var selectedMapCell = $('#mapTable').find(".mapItem.selected");
+    if (0 === selectedMapCell.length) {
+       console.log("populateLocationCharacterDetails: no map item selected");
+       return;
+    }
+
+    var thisCell = locationData.where({
+        x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')})[0];
+
+    var characterData = thisCell.attributes.characters[character.attr('data-index')];
+
+    // Character data
+    $('#characterName').val(characterData.name);
+    $('#characterType').text(characterData.type);
+    $('#characterDescription').text(characterData.description);
+    $('#characterAddInfo').text(characterData.additionalInfo);
+    $('#characterDamage').text(characterData.damage);
+    $('#characterHealth').text(characterData.health);
+    $('#characterDrops').text(characterData.drops);
+
+    // And its inventory, if it has any.
+    if (characterData.inventory === undefined) {
+       return;
+    }
+
+    displayLocationCharacterInventory(characterData);
 }
 
 
-function clearLocationCharacterDetails(character)
+function populateInventoryItemDetails(inventoryItem)
+{
+    var selectedMapCell = $('#mapTable').find(".mapItem.selected");
+    if (0 === selectedMapCell.length) {
+       console.log("populateLocationItemDetails: no map item selected");
+       return;
+    }
+
+    var thisCell = locationData.where({
+        x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')})[0];
+
+    var currentCharacter = $('#characterList').find('.propertiesPanelItem.selected');
+    var characterData = thisCell.attributes.characters[currentCharacter.attr('data-index')];
+    var itemData = characterData.inventory[inventoryItem.attr('data-index')];
+
+    $('#inventoryItemName').val(itemData.name);
+    $('#inventoryItemType').text(itemData.type);
+    $('#inventoryItemDescription').text(itemData.description);
+    $('#inventoryItemDamage').text(itemData.damage);
+}
+
+
+function clearLocationCharacterDetails()
 {
     $('#characterName').val('');
     $('#characterType').text('');
@@ -1097,20 +1207,29 @@ function clearLocationCharacterDetails(character)
     $('#characterDamage').text('');
     $('#characterHealth').text('');
     $('#characterDrops').text('');
+
+    clearCharacterInventory();
+}
+
+
+function clearInventoryItemDetails() {
+    $('#inventoryItemName').val('');
+    $('#inventoryItemType').text('');
+    $('#inventoryItemDescription').text('');
+    $('#inventoryItemDamage').text('');
 }
 
 
 // Populate the properties window for the specified location.
 // params:
-//   locationCollection: the collection of locations to search.
 //   location: the mapLocation UI cell of interest.
 //   allDetails: true shows all details. False shows only high-level details.
-function populateMapLocationDetails(locationCollection, location, allDetails)
+function populateMapLocationDetails(location, allDetails)
 {
-    var thisCell = locationCollection.where({
+    var thisCell = locationData.where({
         x: location.attr('data-x'), y:location.attr('data-y')});
 
-    populateLocationDetails(locationCollection, thisCell[0], allDetails);
+    populateLocationDetails(thisCell[0], allDetails);
 }
 
 
@@ -1131,7 +1250,7 @@ function enableLocationEdits()
 //   locationCollection: the collection of locations to search.
 //   location: the mapLocation data object of interest.
 //   allDetails: true shows all details. False shows only high-level details.
-function populateLocationDetails(locationCollection, location, allDetails)
+function populateLocationDetails(location, allDetails)
 {
     if (location.attributes.name !== undefined)
         $('#locationName').val(location.attributes.name);
@@ -1173,6 +1292,13 @@ function clearLocationCharacters()
 {
     console.log("clearLocationCharacters found" + $('#characterList').find('.propertiesPanelItem').length)
     $('#characterList').find('.propertiesPanelItem').remove();
+}
+
+
+function clearCharacterInventory()
+{
+    console.log("clearCharacterInventory")
+    $('#inventoryItemList').find('.propertiesPanelItem').remove();
 }
 
 
@@ -1406,13 +1532,6 @@ function displayLocationItems(location)
         var container = $("<div style='display: inline-block; padding: 2px;'></div>");
         var html = "<div class='propertiesPanelItem draggable ui-widget-content' " +
             "data-index='" + itemIndex++ + "' " +
-            "data-name='" + item.name + "' " +  // eg; "the sword of destiny"
-            "data-category='item' " +
-            "data-type='" + item.type + "' " +  // eg; "long sword"
-            "data-description='" + item.description + "' " +  // eg; "useful for killing orcs"
-            "data-damage='" + item.damage + "' " +
-            "data-x='" + location.attributes['x'] + "' " +
-            "data-y='" + location.attributes['y'] + "' " +
             "><img src='" + paletteItem.image + "'/>";
         html += "</div>";
         var locationItem = $(html);
@@ -1429,6 +1548,11 @@ function displayLocationCharacters(location)
 {
     console.log(Date.now() + ' displayLocationCharacters at x:' + location.attributes['x'] + " y: " + location.attributes['y']);
 
+    // This will be triggered by mousing over a maplocation, or by updating the inventory of a
+    // selected character. Work out whether the details for a particular character are
+    // currently being displayed, and re-display the same character after the update.
+    var selectedCharacter = $('#characterList').find(".propertiesPanelItem.selected");
+
     var target = $('#characterList').html("");
     var characterIndex = 0;
     location.attributes.characters.forEach(function(character) {
@@ -1436,16 +1560,6 @@ function displayLocationCharacters(location)
         var container = $("<div style='display: inline-block; padding: 2px;'></div>");
         var html = "<div class='propertiesPanelItem draggable ui-widget-content' " +
             "data-index='" + characterIndex++ + "' " +
-            "data-name='" + character.name + "' " +  // eg; "turnip stealer"
-            "data-category='character' " +
-            "data-type='" + character.type + "' " +  // eg; "iron boar"
-            "data-description='" + character.description + "' " +
-            "data-additionalInfo='" + character.additionalInfo + "' " +
-            "data-health='" + character.health + "' " +
-            "data-damage='" + character.damage + "' " +
-            "data-drops='" + character.drops + "' " +
-            "data-x='" + location.attributes['x'] + "' " +
-            "data-y='" + location.attributes['y'] + "' " +
             "><img src='" + paletteItem.image + "'/>";
         html += "</div>";
         var locationCharacter = $(html);
@@ -1455,6 +1569,46 @@ function displayLocationCharacters(location)
     });
 
     $('#characterName').prop('disabled', true);
+
+    if (selectedCharacter.length === 1) {
+        // The original html element has been replaced above. Locate the new one
+        // by data-index.
+        selectedCharacter = $('#characterList').find(".propertiesPanelItem[data-index='" +
+            selectedCharacter.attr('data-index') + "']");
+        selectedCharacter.css('border-color', 'red');
+        selectedCharacter.addClass('selected');
+
+        // And its inventory, if it has any.
+        var characterData = location.attributes.characters[parseInt(selectedCharacter.attr('data-index'))];
+        if (characterData.inventory === undefined) {
+            return;
+        }
+
+        displayLocationCharacterInventory(characterData);
+    }
+}
+
+
+function displayLocationCharacterInventory(character)
+{
+    console.log(Date.now() + ' displayLocationCharacterInventory');
+
+    var target = $('#inventoryItemList').html("");
+    var itemIndex = 0;
+    character.inventory.forEach(function(item) {
+        var paletteItem = findLocationItem(itemPaletteData, item);
+        var container = $("<div style='display: inline-block; padding: 2px;'></div>");
+        var html = "<div class='propertiesPanelItem draggable ui-widget-content' " +
+            "data-index='" + itemIndex++ + "' " +
+            "><img src='" + paletteItem.image + "'/>";
+        html += "</div>";
+        var inventoryItem = $(html);
+        inventoryItem.draggable({helper: 'clone', revert: 'invalid'});
+        inventoryItem.appendTo(container);
+        container.appendTo(target);
+    });
+
+    $('#inventoryItemName').prop('disabled', true);
 }
 
 
