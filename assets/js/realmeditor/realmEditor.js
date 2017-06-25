@@ -587,6 +587,11 @@ $(document).ready(function() {
     });
 
     $(document).on('mouseup', '.propertiesPanelItem', function() {
+        // Don't treat dropping an item as a regular click.
+        if ($(this).hasClass('ui-draggable-dragging')) {
+           return;
+        }
+
         var listName = 'itemList';
         var populateFunction = populateLocationItemDetails;
         var clearFunction = clearLocationItemDetails;
@@ -594,11 +599,19 @@ $(document).ready(function() {
         var disableEditsFunction = disableLocationItemEdits;
         if ($('#propertiesInnerPanel').tabs('option', 'active') === 2)
         {
-            listName = 'characterList';
-            populateFunction = populateLocationCharacterDetails;
-            clearFunction = clearLocationCharacterDetails;
-            enableEditsFunction = enableLocationCharacterEdits;
-            disableEditsFunction = disableLocationCharacterEdits;
+            if ($(this).closest('.elementList').is('#inventoryItemList')) {
+                listName = 'inventoryItemList';
+                populateFunction = populateInventoryItemDetails;
+                clearFunction = clearInventoryItemDetails;
+                enableEditsFunction = enableInventoryItemEdits;
+                disableEditsFunction = disableInventoryItemEdits;
+            } else {
+                listName = 'characterList';
+                populateFunction = populateLocationCharacterDetails;
+                clearFunction = clearLocationCharacterDetails;
+                enableEditsFunction = enableLocationCharacterEdits;
+                disableEditsFunction = disableLocationCharacterEdits;
+            }
         }
 
         var selectedItem = $('#' + listName).find(".propertiesPanelItem.selected");
@@ -785,7 +798,7 @@ function drawMapGrid(realmWidth, realmHeight)
 }
 
 
-function addMapLocation(realmId, collection, droppedItem, originalLocation, newLocation)
+function addMapLocation(realmId, droppedItem, originalLocation, newLocation)
 {
     var environment = (droppedItem.is('.paletteItem') ?
         droppedItem.attr('data-type') : droppedItem.attr('data-env'));
@@ -804,7 +817,7 @@ function addMapLocation(realmId, collection, droppedItem, originalLocation, newL
     // the old location from the map in a remote UI. Do an add + remove.
     // TODO: add + remove is ok for the game designer but in game mode
     // TODO: we'll need to find a way to handle updates properly.
-    var newObj = collection.create({
+    var newObj = locationData.create({
         realmId: realmId,
         x: newLocation.attr('data-x'),
         y: newLocation.attr('data-y'),
@@ -815,17 +828,17 @@ function addMapLocation(realmId, collection, droppedItem, originalLocation, newL
         characters: copiedCharacters}, {wait: true});
 
     if (droppedItem.is('.mapItem'))
-        removeMapLocation(collection, droppedItem.attr('data-x'), droppedItem.attr('data-y'));
+        removeMapLocation(droppedItem.attr('data-x'), droppedItem.attr('data-y'));
 }
 
 
-function removeMapLocation(collection, x, y)
+function removeMapLocation(x, y)
 {
-    var models = collection.where({x: x, y: y});
+    var models = locationData.where({x: x, y: y});
 
     if (models.length > 0) {
         models[0].destroy();
-        collection.remove(models[0]);
+        locationData.remove(models[0]);
     }
 }
 
@@ -841,7 +854,11 @@ function moveToWasteBasket(droppedItem)
             removeItemFromLocation(droppedItem);
         }
         else if ($('#propertiesInnerPanel').tabs('option', 'active') === 2) {
-            removeCharacterFromLocation(droppedItem);
+            if (droppedItem.closest('div.elementList').is('#characterList')) {
+                removeCharacterFromLocation(droppedItem);
+            } else {
+                removeCharacterInventoryItem(droppedItem);
+            }
         }
     }
 }
@@ -938,19 +955,25 @@ function droppedMapItem(realmId, droppedItem, target)
 }
 
 
-function removeItemFromLocation(collection, droppedItem)
+function removeItemFromLocation(droppedItem)
 {
-    var thisCell = collection.where({
-        x: droppedItem.attr('data-x'), y:droppedItem.attr('data-y')});
+    var selectedMapCell = $('#mapTable').find(".mapItem.selected");
+    if (0 === selectedMapCell.length) {
+       console.log("populateLocationCharacterDetails: no map item selected");
+       return;
+    }
 
-    thisCell[0].attributes.items.splice(droppedItem.attr('data-index'), 1);
-    thisCell[0].save();
+    var thisCell = locationData.where({
+        x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')})[0];
+
+    thisCell.attributes.items.splice(droppedItem.attr('data-index'), 1);
+    thisCell.save();
 }
 
 
-function changeItemLocation(collection, droppedItem, newLocation)
+function changeItemLocation(droppedItem, newLocation)
 {
-    var originalLocation = collection.where({id: $('#propertiesPanel').attr('data-id')});
+    var originalLocation = locationData.where({id: $('#propertiesPanel').attr('data-id')});
     var originalLocationItems = originalLocation[0].attributes['items'];
     var originalLocationItemIndex = droppedItem.attr('data-index');
 
@@ -982,19 +1005,44 @@ function addItemToLocation(droppedItem, location)
 }
 
 
-function removeCharacterFromLocation(collection, droppedItem)
+function removeCharacterFromLocation(droppedItem)
 {
-    var thisCell = collection.where({
-        x: droppedItem.attr('data-x'), y:droppedItem.attr('data-y')});
+    var selectedMapCell = $('#mapTable').find(".mapItem.selected");
+    if (0 === selectedMapCell.length) {
+       console.log("populateLocationCharacterDetails: no map item selected");
+       return;
+    }
 
-    thisCell[0].attributes.characters.splice(droppedItem.attr('data-index'), 1);
-    thisCell[0].save();
+    var thisCell = locationData.where({
+        x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')})[0];
+
+    thisCell.attributes.characters.splice(droppedItem.attr('data-index'), 1);
+    thisCell.save();
 }
 
 
-function changeCharacterLocation(collection, droppedItem, newLocation)
+function removeCharacterInventoryItem(droppedItem) {
+    var selectedMapCell = $('#mapTable').find(".mapItem.selected");
+    if (0 === selectedMapCell.length) {
+       console.log("populateLocationItemDetails: no map item selected");
+       return;
+    }
+
+    var thisCell = locationData.where({
+        x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')})[0];
+
+    var currentCharacter = $('#characterList').find('.propertiesPanelItem.selected');
+    //var characterData = thisCell.attributes.characters[currentCharacter.attr('data-index')];
+    //var itemData = characterData.inventory[droppedItem.attr('data-index')];
+    thisCell.attributes.characters[currentCharacter.attr('data-index')].
+       inventory.splice(droppedItem.attr('data-index'), 1);
+    thisCell.save();
+}
+
+
+function changeCharacterLocation(droppedItem, newLocation)
 {
-    var originalLocation = collection.where({id: $('#propertiesPanel').attr('data-id')});
+    var originalLocation = locationData.where({id: $('#propertiesPanel').attr('data-id')});
     var originalLocationCharacters = originalLocation[0].attributes['characters'];
     var originalLocationCharacterIndex = droppedItem.attr('data-index');
 
@@ -1142,6 +1190,20 @@ function disableLocationCharacterEdits()
 {
     $('#characterName').prop('disabled', true);
     $('#editCharacterProperties').prop('disabled', true).attr('src', 'images/pencil43-disabled.png');
+}
+
+
+function enableInventoryItemEdits()
+{
+    $('#inventoryItemName').prop('disabled', false);
+    $('#editInventoryItemProperties').prop('disabled', false).attr('src', 'images/pencil43.png');
+}
+
+
+function disableInventoryItemEdits()
+{
+    $('#inventoryItemName').prop('disabled', true);
+    $('#editInventoryItemProperties').prop('disabled', true).attr('src', 'images/pencil43-disabled.png');
 }
 
 
