@@ -63,51 +63,6 @@ function loadPluginData(category) {
     return pluginData;
  }
 
- function loadPluginData_old(category) {
-    var pluginData = {category:category, modules:{}};
-
-    var path = require('path');
-    var fs = require('fs');
-    var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
-    var topLevelDirsOrFiles = fs.readdirSync(pathroot);
-    for (var index in topLevelDirsOrFiles) {
-       var topLevelDirOrFile = path.join(pathroot, topLevelDirsOrFiles[index]);
-       var stat = fs.statSync(topLevelDirOrFile);
-       if (stat && stat.isDirectory()) {
-          var nextLevelDirsOrFiles = fs.readdirSync(topLevelDirOrFile);
-          for (var index2 in nextLevelDirsOrFiles) {
-             var nextLevelDirOrFile = path.join(topLevelDirOrFile, nextLevelDirsOrFiles[index2]);
-             var stat = fs.statSync(nextLevelDirOrFile);
-             if (stat && !stat.isDirectory()) {
-                var thisItem = require(nextLevelDirOrFile);
-                if (thisItem.category === pluginData.category && thisItem.attributes) {
-                   var thisFile = {"filename":nextLevelDirsOrFiles[index2], "data":[]};
-
-                   // Support defining more than one environment type in the same file.
-                   // It is recommended to use one file per character though, to stop the
-                   // files becoming too large.
-                   if (Object.prototype.toString.call(thisItem.attributes) === '[object Array]') {
-                      for (var index3 in thisItem.attributes) {
-                         thisFile.data.push(thisItem.attributes[index3]);
-                      }
-                   } else {
-                      thisFile.data.push(thisItem.attributes);
-                   }
-
-                   if (!(topLevelDirsOrFiles[index] in pluginData.modules)) {
-                       pluginData.modules[topLevelDirsOrFiles[index]] = [];
-                   }
-
-                   pluginData.modules[topLevelDirsOrFiles[index]].push(thisFile);
-                }
-             }
-          }
-       }
-    }
-
-    return pluginData;
- }
-
 var MainController = {
 
     index: function (req, res) {

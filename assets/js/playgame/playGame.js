@@ -915,20 +915,23 @@ function describeLocationCharacter(playerLocation, objectName, objectNumber) {
     }
 
     if (thisCharacter.drops) {
-        displayMessage(". Drops: " + thisCharacter.drops.join(", "));
+        if( Object.prototype.toString.call(thisCharacter.drops) === '[object Array]' ) {
+            displayMessage("Drops: " + thisCharacter.drops.join(", "));
+        } else {
+            // If the drops[] array defined in the plugin module only contained a single
+            // entry, it will have been converted to a string when the object was saved.
+            displayMessage("Drops: " + thisCharacter.drops);
+        }
     }
 
     if (thisCharacter.inventory !== undefined &&
         thisCharacter.inventory.length > 0) {
-        message = ". Inventory:";
+        displayMessage("Inventory:");
         for (var j = 0; j < thisCharacter.inventory.length; j++) {
             // TODO: improve this to share the implementation with
             // describeLocationItem().
-            message += describeItem(thisCharacter.inventory[j]);
-
-            message += " ";
+            displayMessage("  " + describeItem(thisCharacter.inventory[j]));
         }
-        displayMessage(message);
     }
 
     return true;
@@ -985,7 +988,7 @@ function describeItem(item) {
     }
 
     if (item.damage) {
-        message += ". Damage: " + thisCharacter.damage;
+        message += ". Damage: " + item.damage;
     }
 
     return message;
