@@ -13,6 +13,25 @@ module.exports = {
     health: 50,
     damage: 15,
     drops: ["feathers"]
+  },
+  handlers: {
+       "take from": function(gryphon, object, game, playerName, callback) {
+          sails.log.info("*** ");
+          sails.log.info("*** in gryphon.take from() " + JSON.stringify(object));
+          sails.log.info("*** ");
+
+          resp = {
+             player: playerName,
+             description: {
+                action: "take from",
+                success: false,
+                message: "The Gryphon will not give you the " + object.type
+             }
+          };
+
+          sails.log.info("in take from() callback value");
+          callback(resp);
+       }
   }
 
 };

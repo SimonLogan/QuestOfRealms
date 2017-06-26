@@ -189,8 +189,13 @@ function processMessages() {
         if (thisMessage.description.action === "move") {
             processMoveNotification(thisMessage);
         }
-        else if (thisMessage.description.action === "take") {
+        else if (thisMessage.description.action === "take" ||
+                 thisMessage.description.action === "take from") {
             processTakeNotification(thisMessage);
+        }
+        else if (thisMessage.description.action === "buy" ||
+                 thisMessage.description.action === "buy from") {
+            processBuyNotification(thisMessage);
         }
         else if (thisMessage.description.action === "drop") {
             processDropNotification(thisMessage);
@@ -209,7 +214,7 @@ function processMoveNotification(message) {
     gameData = message.data.game[0];
 
     if (message.player === gameData.players[0].name) {
-        console.log("You have moved to location [" + message.description.to.x + "," + message.description.to.y + "].");
+        console.log(message.description.message);
         displayMessage(describeMyLocation(maplocationData[message.description.to.y-1][message.description.to.x-1]));
 
         var oldLocation = maplocationData[message.description.from.y-1][message.description.from.x-1];
@@ -233,14 +238,25 @@ function processTakeNotification(message) {
     maplocationData[parseInt(mapLocation.y)-1][parseInt(mapLocation.x)-1] = mapLocation;
 
     if (message.player === gameData.players[0].name) {
-        var status = "You have taken a " + message.description.item.type;
-        if (message.description.item.name) {
-            status = status + " (" + message.description.item.name + ")";
-        }
-        status = status + ".";
+        console.log(message.description.message);
+        displayMessage(message.description.message);
 
-        console.log(status);
-        displayMessage(status);
+        if (shouldDrawMapLocation(mapLocation)) {
+            // Show the player in the new location.
+            drawMaplocation(mapLocation);
+            showPlayerLocation(mapLocation.y, mapLocation.x);
+        }
+    }
+}
+
+function processBuyNotification(message) {
+    gameData = message.data.game[0];
+    mapLocation = message.data.location[0];
+    maplocationData[parseInt(mapLocation.y)-1][parseInt(mapLocation.x)-1] = mapLocation;
+
+    if (message.player === gameData.players[0].name) {
+        console.log(message.description.message);
+        displayMessage(message.description.message);
 
         if (shouldDrawMapLocation(mapLocation)) {
             // Show the player in the new location.
@@ -256,14 +272,8 @@ function processDropNotification(message) {
     maplocationData[parseInt(mapLocation.y)-1][parseInt(mapLocation.x)-1] = mapLocation;
 
     if (message.player === gameData.players[0].name) {
-        var status = "You have dropped a " + message.description.item.type;
-        if (message.description.item.name) {
-            status = status + " (" + message.description.item.name + ")";
-        }
-        status = status + ".";
-
-        console.log(status);
-        displayMessage(status);
+        console.log(message.description.message);
+        displayMessage(message.description.message);
 
         if (shouldDrawMapLocation(mapLocation)) {
             // Show the player in the new location.
@@ -301,8 +311,8 @@ function processGiveNotification(message) {
     maplocationData[parseInt(mapLocation.y)-1][parseInt(mapLocation.x)-1] = mapLocation;
 
     if (message.player === gameData.players[0].name) {
-        console.log(message.description.detail);
-        displayMessage(message.description.detail);
+        console.log(message.description.message);
+        displayMessage(message.description.message);
 
         if (shouldDrawMapLocation(mapLocation)) {
             // Show the player in the new location.
@@ -681,6 +691,8 @@ function handleGenericHelp() {
     displayMessage("   move direction : move in the specified direction, if possible.");
     displayMessage("   take item [from character] : take the named item. e.g. \"take short sword\" from the specified character, " +
                        "or from the current location.");
+    displayMessage("   buy item from character : buy the named item from the specified character.    e.g. \"buy short sword from Giant\"." +
+                       " Try to take the item first and the character will name the price, if it is willing to sell the item.");
     displayMessage("   drop item : drop the named item. e.g. \"drop short sword\".");
     displayMessage("   inventory : list the items in your inventory.");
     displayMessage("   describe (...) : describe character or item, Use \"help describe\" for more details.");

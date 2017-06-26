@@ -27,7 +27,7 @@ module.exports = {
                 description: {
                    action: "give",
                    success: false,
-                   detail: "The night spider doesn't want the " + object.type
+                   message: "The night spider doesn't want the " + object.type
                 },
                 data: {}
              };
@@ -52,7 +52,8 @@ module.exports = {
              description: {
                 action: "give",
                 success: true,
-                detail: "The night spider took the " + object.type
+                message: "The night spider took the " + object.type,
+                item: object
              },
              data: {recipient: nightSpider}
           };

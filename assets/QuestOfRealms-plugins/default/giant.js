@@ -25,7 +25,8 @@ module.exports = {
              description: {
                 action: "give",
                 success: true,
-                detail: "The giant took the " + object.type
+                message: "The giant took the " + object.type,
+                item: object
              }
           };
 
@@ -42,9 +43,63 @@ module.exports = {
              description: {
                 action: "take from",
                 success: false,
-                detail: "The giant will not give you the " + object.type
+                message: "The giant will not give you the " + object.type +
+                        " but will sell it to you for one coin."
              }
           };
+
+          sails.log.info("in take from() callback value");
+          callback(resp);
+       },
+       "buy from": function(giant, object, game, playerName, callback) {
+          sails.log.info("*** ");
+          sails.log.info("*** in giant.buy from() " + JSON.stringify(object));
+          sails.log.info("*** ");
+
+          // Check whether the player can pay.
+          var player = null;
+          for (var i=0; i<game.players.length; i++) {
+             if (game.players[i].name === playerName) {
+                player = game.players[i];
+                break;
+             }
+          }
+
+          // Giants sell all items for 1 coin.
+          var payment = null;
+          if (player.inventory !== undefined) {
+              for (var i=0; i<player.inventory.length; i++) {
+                 if (player.inventory[i].type === "coin") {
+                    payment = player.inventory[i];
+                    break;
+                 }
+              }
+          }
+
+          if (payment) {
+             resp = {
+                 player: playerName,
+                 description: {
+                    action: "buy from",
+                    success: true,
+                    message: "The Giant sold you the " + object.type + ".",
+                    item: object
+                 },
+                 data: {
+                    recipient: giant,
+                    payment: payment
+                 }
+              };
+          } else {
+             resp = {
+                 player: playerName,
+                 description: {
+                    action: "buy from",
+                    success: false,
+                    message: "You do not have a coin to pay for the " + object.type + "."
+                 }
+              };
+          }
 
           sails.log.info("in take from() callback value");
           callback(resp);

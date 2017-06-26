@@ -210,6 +210,15 @@ module.exports = {
                                 }
                             });
                             break;
+                        case "buy":
+                            result = handleBuy(command, game, playerName, function(handlerResult) {
+                                sails.log.info("in gameCommand. handleBuy result = " + JSON.stringify(handlerResult));
+                                sendCommandStatus(handlerResult);
+                                if (handlerResult.hasOwnProperty("data")) {
+                                   checkObjectives(handlerResult.data.data.game[0], playerName);
+                                }
+                            });
+                            break;
                         case "drop":
                             result = handleDrop(command, game, playerName, function(handlerResult) {
                                 sails.log.info("in gameCommand. handleDrop result = " + JSON.stringify(handlerResult));
@@ -373,6 +382,7 @@ function handleMove(command, game, playerName, statusCallback) {
               player: playerName,
               description: {
                  action: "move",
+                 message: "You have moved to location [" + newX + "," + newY + "].",
                  from: {x:originalX, y:originalY},
                  to: {x:newX, y:newY}
               },
@@ -527,6 +537,7 @@ function handleTakeFromLocation(objectName, currentLocation, game, playerName, p
                player: playerName,
                description: {
                    action: "take",
+                   message: "You have taken a " + itemInfo.item.type,
                    item: itemInfo.item
                },
                data: {
@@ -547,7 +558,7 @@ function handleTakeFromNPC(objectName, targetName, currentLocation, game, player
 
     // Find the requested item in the specified target's inventory.
     var characterInfo = findCharacter.findLocationCharacterByType(currentLocation, targetName);
-    if (null === playerInfo) {
+    if (null === characterInfo) {
         var errorMessage = "There is no " + targetName + ".";
         sails.log.info(errorMessage);
         statusCallback({error:true, message:errorMessage});
@@ -638,10 +649,6 @@ function handleTakeFromNPC(objectName, targetName, currentLocation, game, player
        game.players[playerIndex].inventory.push(object);
        currentLocation.characters[recipientIndex] = character;
 
-       // We don't need to send the updated target on to the client.
-       // Instead we'll send the updated game and mapLocation.
-       handlerResp.data = {};
-
        async.waterfall([
            function updateGame(validationCallback) {
                Game.update(
@@ -687,6 +694,228 @@ function handleTakeFromNPC(objectName, targetName, currentLocation, game, player
            sails.log.info("in take from() all done. err:" + err);
            sails.log.info("in take from() all done. updatedGame:" + JSON.stringify(updatedGame));
            sails.log.info("in take from() all done. updatedLocation:" + JSON.stringify(updatedLocation));
+           if (err) {
+               statusCallback({error: true, data: updatedGame});
+               return;
+           }
+
+           handlerResp.data['game'] = updatedGame;
+           handlerResp.data['location'] = updatedLocation;
+           sails.log.info("*** sending resp: " + JSON.stringify(handlerResp));
+           handlerResp.data = {game:updatedGame, location:updatedLocation};
+           sails.io.sockets.emit(game.id + "-status", handlerResp);
+
+           statusCallback({error: false, data:handlerResp});
+       });
+    });
+}
+
+function handleBuy(command, game, playerName, statusCallback) {
+    command = command.replace(/buy[\s+]/i, "");
+    var commandArgs = command.split("from");
+    var objectName = commandArgs[0].trim();
+    var targetName = null;
+
+    // You can only buy from an NPC, so one must be specified.
+    if (commandArgs.length === 1) {
+        sails.log.info("in handleBuy.find() invalid NPC.");
+        statusCallback({error:true, message:"Invalid NPC"});
+		    return;
+    }
+
+    targetName = commandArgs[1].trim();
+    sails.log.info("BUY: " + objectName + " from " + targetName);
+
+    // TODO: for now target is the item type (i.e. "sword", not "the sword of destiny").
+    // This means it must be specific: "short sword" rather than "sword".
+
+    // Get the current player location.
+    var playerInfo = findPlayer.findPlayerByName(game, playerName);
+    if (null === playerInfo) {
+        sails.log.info("in handleBuy.find() invalid player.");
+        statusCallback({error:true, message:"Invalid player"});
+		    return;
+    }
+
+    var currentX = parseInt(playerInfo.player.location.x);
+    var currentY = parseInt(playerInfo.player.location.y);
+
+    // TODO: store the coordinates as int instead of string.
+    MapLocation.findOne({'realmId': game.id, 'x': currentX.toString(), 'y': currentY.toString()}).exec(function(err, currentLocation) {
+        sails.log.info("in handleBuy.find() callback");
+        if (err) {
+            sails.log.info("in handleBuy db err:" + err);
+            statusCallback({error:true, message:err});
+			      return;
+        }
+
+        sails.log.info("in handleBuy.find() callback, no error.");
+        if (!currentLocation) {
+            var errorMessage = "Current location not found";
+            sails.log.info("Current location not found");
+            statusCallback({error:true, message:errorMessage});
+			      return;
+        }
+
+        sails.log.info("in handleBuy.find() callback " + JSON.stringify(currentLocation));
+
+        handleBuyFromNPC(objectName, targetName, currentLocation, game, playerName, playerInfo.playerIndex, statusCallback);
+    });
+}
+
+function handleBuyFromNPC(objectName, targetName, currentLocation, game, playerName, playerIndex, statusCallback) {
+    sails.log.info("In handleBuyFromNPC()");
+
+    // Find the requested item in the specified target's inventory.
+    var characterInfo = findCharacter.findLocationCharacterByType(currentLocation, targetName);
+    if (null === characterInfo) {
+        var errorMessage = "There is no " + targetName + ".";
+        sails.log.info(errorMessage);
+        statusCallback({error:true, message:errorMessage});
+        return;
+    }
+
+    sails.log.info("Found targetName: " + JSON.stringify(targetName));
+
+    if (characterInfo.character.inventory === undefined) {
+        var errorMessage = "The " + targetName + " has no " + objectName + ".";
+        sails.log.info(errorMessage);
+        statusCallback({error:true, message:errorMessage});
+        return;
+    }
+
+    sails.log.info("Checking inventory");
+    var itemFound = false;
+    var object = null;
+    for (var j = 0; j < characterInfo.character.inventory.length; j++) {
+       if (characterInfo.character.inventory[j].type === objectName) {
+            // Assume the buy will be successful. If not, we will
+            // discard this edit.
+		        itemFound = true;
+		        object = characterInfo.character.inventory[j];
+		        characterInfo.character.inventory.splice(j, 1);
+		        sails.log.info("Found item in inventory");
+	     }
+    }
+
+    if (!itemFound) {
+        var errorMessage = "The " + targetName + " has no " + objectName + ".";
+        sails.log.info(errorMessage);
+        statusCallback({error:true, message:errorMessage});
+        return;
+    }
+
+    sails.log.info("Found objectName: " + JSON.stringify(characterInfo.character.inventory[j]));
+    sails.log.info("characterIndex: " + characterInfo.characterIndex);
+
+    // We found the item. See if we can buy it.
+    var path = require('path');
+    var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
+    var handlerPath =  pathroot + characterInfo.character.module + "/" + characterInfo.character.filename;
+    var module = require(handlerPath);
+
+    // Command handlers are optional.
+    if (module.handlers === undefined) {
+       sails.log.info("1 Module: " + handlerPath +
+                      " does not have a handler for \"buy from\".");
+       statusCallback({error:true, message:"The " + targetName + " won't sell you the " + objectName});
+       return;
+    }
+
+    var handlerFunc = module.handlers["buy from"];
+    if (handlerFunc === undefined) {
+       sails.log.info("2 Module: " + handlerPath +
+                      " does not have a handler for \"buy from\".");
+       statusCallback({error:true, message:"The " + targetName + " won't sell you the " + objectName});
+       return;
+    }
+
+    sails.log.info("calling buy from()");
+    handlerFunc(characterInfo.character, object, game, playerName, function(handlerResp) {
+       sails.log.info("handlerResp: " + handlerResp);
+       if (!handlerResp) {
+           sails.log.info("1 Buy from failed - null handlerResp");
+           statusCallback({error:true, message:"The " + targetName + " won't sell you the " + objectName});
+           return;
+       }
+
+       sails.log.info("Valid handlerResp " + JSON.stringify(handlerResp));
+       if (!handlerResp.description.success) {
+           sails.log.info("2 Buy from failed: " + handlerResp.description.detail);
+           statusCallback({error:true, message:handlerResp.description.detail});
+           return;
+       }
+
+       // Buy worked, so update the player and target.
+       // Record who we bought the object from so we can check for
+       // "acquire from" objectives.
+       object.source = {reason:"buy from", from:targetName};
+
+       if (game.players[playerIndex].inventory === undefined) {
+           game.players[playerIndex].inventory = [];
+       }
+       game.players[playerIndex].inventory.push(object);
+
+       //  Now pay!
+       if (handlerResp.data && handlerResp.data.payment && handlerResp.data.payment.type) {
+           for (var i=0; i<game.players[playerIndex].inventory.length; i++) {
+               if (game.players[playerIndex].inventory[i].type === handlerResp.data.payment.type) {
+                  currentLocation.characters[characterInfo.characterIndex].inventory.push(game.players[playerIndex].inventory[i]);
+                  game.players[playerIndex].inventory.splice(i, 1);
+                  break;
+               }
+           }
+       }
+
+       // We don't need to send the updated target on to the client.
+       // Instead we'll send the updated game and mapLocation.
+       handlerResp.data = {};
+
+       async.waterfall([
+           function updateGame(validationCallback) {
+               Game.update(
+                  {id: game.id},
+                   game).exec(function(err, updatedGame) {
+                     sails.log.info("buy from() Game.update() callback");
+                     if (err) {
+                        sails.log.info("buy from() Game.update() callback, error. " + err);
+                        validationCallback("Failed to save the game");
+                     } else {
+                        sails.log.info("buy from() Game.update() callback, no error.");
+                        if (updatedGame) {
+                           sails.log.info("buy from() Game.update() callback " + JSON.stringify(updatedGame));
+                           validationCallback(null, updatedGame);
+                        } else {
+                           sails.log.info("buy from() Game.update() callback, game is null.");
+                           validationCallback("Failed to save the game");
+                        }
+                     }
+               });
+           },
+           function updateMapLocation(updatedGame, validationCallback) {
+               MapLocation.update(
+                   {id: currentLocation.id},
+                   currentLocation).exec(function(err, updatedLocation) {
+                   sails.log.info("in MapLocation.update() callback");
+                   if (err) {
+                       sails.log.info("in MapLocation.update() callback, error. " + err);
+                        validationCallback("Failed to save the maplocation");
+                   } else {
+                       sails.log.info("in MapLocation.update() callback, no error.");
+                       if (updatedLocation) {
+                           sails.log.info("in MapLocation.update() callback " + JSON.stringify(updatedLocation));
+                           validationCallback(null, updatedGame, updatedLocation);
+                       } else {
+                           sails.log.info("in MapLocation.update() callback, item is null.");
+                           validationCallback("Failed to save the maplocation");
+                       }
+                   }
+               });
+           }
+       ], function (err, updatedGame, updatedLocation) {
+           sails.log.info("in buy from() all done. err:" + err);
+           sails.log.info("in buy from() all done. updatedGame:" + JSON.stringify(updatedGame));
+           sails.log.info("in buy from() all done. updatedLocation:" + JSON.stringify(updatedLocation));
            if (err) {
                statusCallback({error: true, data: updatedGame});
                return;
@@ -803,6 +1032,7 @@ function handleDrop(command, game, playerName, statusCallback) {
                        player: playerName,
                        description: {
                            action: "drop",
+                           message: "You have dropped a " + item.type,
                            item: item,
                        },
                        data: {
@@ -892,6 +1122,8 @@ function handleGive(command, game, playerName, statusCallback) {
         for (var i = 0; i < game.players[playerIndex].inventory.length; i++) {
             // TODO: handle ambiguous object descriptions (e.g. "give sword..." when there are two swords).
             if (game.players[playerIndex].inventory[i].type === objectName) {
+                // Update the player inventory now. If the give operation fails we
+                // won't save this change.
                 object = game.players[playerIndex].inventory[i];
                 game.players[playerIndex].inventory.splice(i, 1);
                 break;
