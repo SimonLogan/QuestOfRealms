@@ -206,6 +206,9 @@ function processMessages() {
         else if (thisMessage.description.action === "give") {
             processGiveNotification(thisMessage);
         }
+        else if (thisMessage.description.action === "use") {
+            processUseNotification(thisMessage);
+        }
     }
     console.log("======== finished processMessages() ========");
 }
@@ -319,6 +322,15 @@ function processGiveNotification(message) {
             drawMaplocation(mapLocation);
             showPlayerLocation(mapLocation.y, mapLocation.x);
         }
+    }
+}
+
+function processUseNotification(message) {
+    gameData = message.data.game[0];
+
+    if (message.player === gameData.players[0].name) {
+        console.log(message.description.message);
+        displayMessage(message.description.message);
     }
 }
 
