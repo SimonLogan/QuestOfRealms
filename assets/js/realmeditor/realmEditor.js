@@ -493,6 +493,8 @@ $(document).ready(function() {
             return;
 
         console.log("mouseenter .paletteItem");
+        $(this).closest('div').css('border-color', 'red');
+
         var tabData = {};
         var activeTab = $('#paletteInnerPanel').tabs('option', 'active');
         switch (activeTab) {
@@ -516,6 +518,7 @@ $(document).ready(function() {
 
     $(document).on('mouseleave', '.paletteItem', function() {
         console.log("mouseleave .paletteItem");
+        $(this).closest('div').css('border-color', '');
         clearPaletteDetails();
     });
 
@@ -528,7 +531,7 @@ $(document).ready(function() {
         var selectedMapCell = $('#mapTable').find(".mapItem.selected");
         if (selectedMapCell.length === 0) {
             $('#currentCell').val($(this).prop('id'));
-            $(this).closest('td').css('border-color', 'red');
+            $(this).closest('td').css('background-color', 'red');
             populateMapLocationDetails($(this), false);
         }
     });
@@ -537,7 +540,7 @@ $(document).ready(function() {
         var selectedMapCell = $('#mapTable').find(".mapItem.selected");
         if (selectedMapCell.length === 0) {
             $('#currentCell').val('');
-            $(this).closest('td').css('border-color', '');
+            $(this).closest('td').css('background-color', '');
             clearLocationDetails();
         }
     });
@@ -547,10 +550,10 @@ $(document).ready(function() {
         if (selectedMapCell.length === 0) {
             if ($(this).is('.ui-draggable-dragging')) {
                 // Don't show a red border if dragging a cell.
-                $(this).closest('td').css('border-color', '');
+                $(this).closest('td').css('background-color', '');
             } else {
                 // You clicked in a cell. Activate edit mode.
-                $(this).closest('td').css('border-color', 'red');
+                $(this).closest('td').css('background-color', 'red');
                 mapMode = "edit";
                 $(this).addClass('selected');
                 $('#propertiesPanelTitle').text("Edit location properties");
@@ -560,7 +563,7 @@ $(document).ready(function() {
         } else if ($(this).attr('data-x') === selectedMapCell.attr('data-x') &&
                    $(this).attr('data-y') === selectedMapCell.attr('data-y')) {
             // Click again in the selected cell to cancel edit mode.
-            selectedMapCell.closest('td').css('border-color', '');
+            selectedMapCell.closest('td').css('background-color', '');
             selectedMapCell.removeClass('selected');
             $('#propertiesPanelTitle').text("Location properties");
             disableLocationEdits();
@@ -570,13 +573,13 @@ $(document).ready(function() {
             // First deselect the current edit cell.
             console.log("1");
             $('#currentCell').val('');
-            selectedMapCell.closest('td').css('border-color', '');
+            selectedMapCell.closest('td').css('background-color', '');
             selectedMapCell.removeClass('selected');
             clearLocationDetails();
             console.log("2");
 
             // Then activate the new edit cell.
-            $(this).closest('td').css('border-color', 'red');
+            $(this).closest('td').css('background-color', 'red');
             mapMode = "edit";
             $(this).addClass('selected');
             $('#propertiesPanelTitle').text("Edit location properties");
@@ -617,7 +620,7 @@ $(document).ready(function() {
         var selectedItem = $('#' + listName).find(".propertiesPanelItem.selected");
         if (selectedItem.length === 0) {
             if ($(this).is('.ui-draggable-dragging')) {
-                $(this).closest('td').css('border-color', '');
+                $(this).closest('div').css('border-color', '');
             } else {
                 // Activate edit mode: $(this) is now the selectedItem.
                 $(this).closest('div').css('border-color', 'red');
@@ -625,13 +628,13 @@ $(document).ready(function() {
                 populateFunction($(this));
                 enableEditsFunction();
             }
-        } else if ($(this).attr('data-id') === selectedItem.attr('data-id')) {
+        } else if ($(this).attr('data-index') === selectedItem.attr('data-index')) {
             // Click again in the selected item to cancel edit mode.
             selectedItem.closest('div').css('border-color', '');
             selectedItem.removeClass('selected');
             clearFunction();
             disableEditsFunction();
-        } else if ($(this).attr('data-id') !== selectedItem.attr('data-id')) {
+        } else if ($(this).attr('data-index') !== selectedItem.attr('data-index')) {
             // Click in a different item to edit it.
 
             // First deselect the current edit item.
@@ -647,9 +650,10 @@ $(document).ready(function() {
     });
 
     $(document).on('mouseenter', '.propertiesPanelItem', function() {
+        $(this).closest('div').css('border-color', 'red');
+
         if ($('#propertiesInnerPanel').tabs('option', 'active') === 1) {
             if ($('#itemList').find(".propertiesPanelItem.selected").length === 0) {
-                console.log("call populateLocationItemDetails");
                 populateLocationItemDetails($(this));
             }
         }
@@ -657,12 +661,10 @@ $(document).ready(function() {
         {
             if ($(this).closest('.elementList').is('#inventoryItemList')) {
                 if ($('#inventoryItemList').find(".propertiesPanelItem.selected").length === 0) {
-                    console.log("call populateInventoryItemDetails");
                     populateInventoryItemDetails($(this));
                 }
             } else {
                 if ($('#characterList').find(".propertiesPanelItem.selected").length === 0) {
-                    console.log("call populateLocationCharacterDetails");
                     populateLocationCharacterDetails($(this));
                 }
             }
@@ -670,9 +672,12 @@ $(document).ready(function() {
     });
 
     $(document).on('mouseleave', '.propertiesPanelItem', function() {
+        if (!$(this).hasClass('selected')) {
+            $(this).closest('div').css('border-color', '');
+        }
+
         if ($('#propertiesInnerPanel').tabs('option', 'active') === 1) {
             if ($('#itemList').find(".propertiesPanelItem.selected").length === 0) {
-                console.log("call clearLocationItemDetails");
                 clearLocationItemDetails();
             }
         }
@@ -680,12 +685,10 @@ $(document).ready(function() {
         {
             if ($(this).closest('.elementList').is('#inventoryItemList')) {
                 if ($('#inventoryItemList').find(".propertiesPanelItem.selected").length === 0) {
-                    console.log("call clearInventoryItemDetails");
                     clearInventoryItemDetails();
                 }
             } else {
                 if ($('#characterList').find(".propertiesPanelItem.selected").length === 0) {
-                    console.log("call clearLocationCharacterDetails");
                     clearLocationCharacterDetails();
                 }
             }
@@ -1637,7 +1640,7 @@ function displayLocationCharacters(location)
         // by data-index.
         selectedCharacter = $('#characterList').find(".propertiesPanelItem[data-index='" +
             selectedCharacter.attr('data-index') + "']");
-        selectedCharacter.css('border-color', 'red');
+        selectedCharacter.css('background-color', 'red');
         selectedCharacter.addClass('selected');
 
         // And its inventory, if it has any.
