@@ -571,12 +571,10 @@ $(document).ready(function() {
                    $(this).attr('data-y') !== selectedMapCell.attr('data-y')) {
             // Click in a different cell to edit it.
             // First deselect the current edit cell.
-            console.log("1");
             $('#currentCell').val('');
             selectedMapCell.closest('td').css('background-color', '');
             selectedMapCell.removeClass('selected');
             clearLocationDetails();
-            console.log("2");
 
             // Then activate the new edit cell.
             $(this).closest('td').css('background-color', 'red');
@@ -585,7 +583,6 @@ $(document).ready(function() {
             $('#propertiesPanelTitle').text("Edit location properties");
             populateMapLocationDetails($(this), false);
             enableLocationEdits();
-            console.log("3");
         }
     });
 
@@ -1357,6 +1354,7 @@ function clearLocationCharacters()
 {
     console.log("clearLocationCharacters found" + $('#characterList').find('.propertiesPanelItem').length)
     $('#characterList').find('.propertiesPanelItem').remove();
+    clearCharacterInventory();
 }
 
 
