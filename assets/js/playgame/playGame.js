@@ -25,6 +25,26 @@ var gamesocket;
 var messageQueue = [];
 var busy = true;
 
+// Find a player.
+class playerInfo {
+    constructor(player, playerIndex) {
+        this.player = player;
+        this.playerIndex = playerIndex;
+   }
+}
+
+class findPlayer {
+    static findPlayerByName(game, playerName) {
+        for (var i = 0; i < game.players.length; i++) {
+            if (game.players[i].name === playerName) {
+                return new playerInfo(game.players[i], i);
+            }
+        }
+
+		    return null;
+    }
+}
+
 // When the page has finished rendering...
 $(document).ready(function() {
     // Get the size of the map grid that should be drawn. These values come from the HTML elements
@@ -100,7 +120,7 @@ $(document).ready(function() {
                 processMessages();
 
                 var playerLocation = findPlayerLocation(maplocationData, gameData.players[0].name);
-                displayMessage(describeMyLocation(playerLocation));
+                displayMessageBlock(describeMyLocation(playerLocation));
             });
         });
 
@@ -209,6 +229,9 @@ function processMessages() {
         else if (thisMessage.description.action === "use") {
             processUseNotification(thisMessage);
         }
+        else if (thisMessage.description.action === "fight") {
+            processFightNotification(thisMessage);
+        }
     }
     console.log("======== finished processMessages() ========");
 }
@@ -218,7 +241,7 @@ function processMoveNotification(message) {
 
     if (message.player === gameData.players[0].name) {
         console.log(message.description.message);
-        displayMessage(describeMyLocation(maplocationData[message.description.to.y-1][message.description.to.x-1]));
+        displayMessageBlock(describeMyLocation(maplocationData[message.description.to.y-1][message.description.to.x-1]));
 
         var oldLocation = maplocationData[message.description.from.y-1][message.description.from.x-1];
         if (shouldDrawMapLocation(oldLocation)) {
@@ -242,7 +265,7 @@ function processTakeNotification(message) {
 
     if (message.player === gameData.players[0].name) {
         console.log(message.description.message);
-        displayMessage(message.description.message);
+        displayMessageBlock(message.description.message);
 
         if (shouldDrawMapLocation(mapLocation)) {
             // Show the player in the new location.
@@ -259,7 +282,7 @@ function processBuyNotification(message) {
 
     if (message.player === gameData.players[0].name) {
         console.log(message.description.message);
-        displayMessage(message.description.message);
+        displayMessageBlock(message.description.message);
 
         if (shouldDrawMapLocation(mapLocation)) {
             // Show the player in the new location.
@@ -276,7 +299,7 @@ function processDropNotification(message) {
 
     if (message.player === gameData.players[0].name) {
         console.log(message.description.message);
-        displayMessage(message.description.message);
+        displayMessageBlock(message.description.message);
 
         if (shouldDrawMapLocation(mapLocation)) {
             // Show the player in the new location.
@@ -299,12 +322,12 @@ function processObjectiveCompletedNotification(message) {
 
         for (var i=0; i<gameData.objectives.length; i++) {
            if (gameData.objectives[i].completed === "false") {
+              displayMessage("");
               return;
            }
         }
 
-        displayMessage("All objectives are complete.");
-        alert("All objectives are complete.");
+        displayMessageBlock("All objectives are complete.");
     }
 }
 
@@ -315,7 +338,7 @@ function processGiveNotification(message) {
 
     if (message.player === gameData.players[0].name) {
         console.log(message.description.message);
-        displayMessage(message.description.message);
+        displayMessageBlock(message.description.message);
 
         if (shouldDrawMapLocation(mapLocation)) {
             // Show the player in the new location.
@@ -330,7 +353,24 @@ function processUseNotification(message) {
 
     if (message.player === gameData.players[0].name) {
         console.log(message.description.message);
-        displayMessage(message.description.message);
+        displayMessageBlock(message.description.message);
+    }
+}
+
+function processFightNotification(message) {
+    gameData = message.data.game[0];
+    mapLocation = message.data.location[0];
+    maplocationData[parseInt(mapLocation.y)-1][parseInt(mapLocation.x)-1] = mapLocation;
+
+    if (message.player === gameData.players[0].name) {
+        console.log(message.description.message);
+        displayMessageBlock(message.description.message);
+
+        if (shouldDrawMapLocation(mapLocation)) {
+            // Show the player in the new location.
+            drawMaplocation(mapLocation);
+            showPlayerLocation(mapLocation.y, mapLocation.x);
+        }
     }
 }
 
@@ -548,6 +588,12 @@ function wordbreak(message) {
     return message.substring(0, Math.max(lastSpace, lastColon, lastPeriod) +1);
 }
 
+// Display a message with a blank line underneath.
+function displayMessageBlock(message) {
+    displayMessage(message);
+    displayMessage("");
+}
+
 // Display a message a briefly highlight it in the message table.
 function displayMessage(message) {
     displayMessageImpl(message);
@@ -677,7 +723,7 @@ function handleCommand(playerLocation, commandText) {
         function (data) {
             console.log(data);
             if (data.error) {
-                displayMessage(escapeHtml(data.message));
+                displayMessageBlock(escapeHtml(data.message));
                 return;
             }
 
@@ -709,6 +755,7 @@ function handleGenericHelp() {
     displayMessage("   inventory : list the items in your inventory.");
     displayMessage("   describe (...) : describe character or item, Use \"help describe\" for more details.");
     displayMessage("   status : show health and game progress.");
+    displayMessage("");
 }
 
 function handleHelpDescribe() {
@@ -718,6 +765,7 @@ function handleHelpDescribe() {
     displayMessage("      describe dwarf : describe the first dwarf in the current location.");
     displayMessage("      describe short sword 2 : describe the second short sword in the current location.");
     displayMessage("      describe location : describe the current location and its surroundings.");
+    displayMessage("");
 }
 
 function handleHelp(tokens) {
@@ -731,7 +779,7 @@ function handleHelp(tokens) {
 function handleLook(playerLocation, tokens) {
     // "Look" without a direction refers to the current location.
     if (1 === tokens.length) {
-        displayMessage(describeMyLocation(playerLocation));
+        displayMessageBlock(describeMyLocation(playerLocation));
         return true;
     }
     else {
@@ -769,7 +817,7 @@ function handleLook(playerLocation, tokens) {
                 break;
             default:
                 var errorMessage = "Unknown direction " + tokens[1];
-                displayMessage(errorMessage);
+                displayMessageBlock(errorMessage);
                 return false;
         }
 
@@ -782,12 +830,12 @@ function handleLook(playerLocation, tokens) {
 
         if (!locationExists(newY -1, newX -1)) {
             var errorMessage = "That direction is beyond the edge of the world.";
-            displayMessage(errorMessage);
+            displayMessageBlock(errorMessage);
             return false;
         }
 
         var newLocation = maplocationData[newY -1][newX -1];
-        displayMessage(describeLocation(newLocation, describeDetailEnum.TERRAIN_ONLY));
+        displayMessageBlock(describeLocation(newLocation, describeDetailEnum.TERRAIN_ONLY));
         return true;
     }
 }
@@ -795,7 +843,7 @@ function handleLook(playerLocation, tokens) {
 function handleDescribe(playerLocation, tokens) {
 
     if (1 === tokens.length) {
-        displayMessage("Describe what?");
+        displayMessageBlock("Describe what?");
         return false;
     }
 
@@ -826,7 +874,9 @@ function handleDescribe(playerLocation, tokens) {
 
     // We don't know whether it's an item or character, so try both.
     if (!describeLocationCharacter(playerLocation, objectName, objectNumber)) {
-       describeLocationItem(playerLocation, objectName, objectNumber);
+       if (!describeLocationItem(playerLocation, objectName, objectNumber)) {
+          displayMessageBlock("There is no " + objectName + ".");
+       }
     }
 }
 
@@ -893,16 +943,18 @@ function describeLocationAndSorroundings(playerLocation) {
         message += describeLocation(newLocation, describeDetailEnum.TERRAIN_ONLY);
         displayMessage(message);
     }
+
+    displayMessage("");
 }
 
-function describeLocationCharacter(playerLocation, objectName, objectNumber) {
+function describeLocationCharacter(playerLocation, characterName, characterNumber) {
     var matchedIndex = null;
     for (var i = 0; i < playerLocation.characters.length; i++) {
-        if (playerLocation.characters[i].type === objectName) {
+        if (playerLocation.characters[i].type === characterName) {
             // Count down the matches. If we reached 0 then we've
             // matched the specified number of characters.
-            objectNumber--;
-            if (objectNumber > 0) {
+            characterNumber--;
+            if (characterNumber > 0) {
                 continue;
             }
 
@@ -961,14 +1013,14 @@ function describeLocationCharacter(playerLocation, objectName, objectNumber) {
     return true;
 }
 
-function describeLocationItem(playerLocation, objectName, objectNumber) {
+function describeLocationItem(playerLocation, itemName, itemNumber) {
     var matchedIndex = null;
     for (var i = 0; i < playerLocation.items.length; i++) {
-        if (playerLocation.items[i].type === objectName) {
+        if (playerLocation.items[i].type === itemName) {
             // Count down the matches. If we reached 0 then we've
             // matched the specified number of characters.
-            objectNumber--;
-            if (objectNumber > 0) {
+            itemNumber--;
+            if (itemNumber > 0) {
                 continue;
             }
 
@@ -1041,35 +1093,50 @@ function handleInventory(playerLocation, tokens) {
             }
             message += ", ";
         });
-        displayMessage(message.substring(0, message.lastIndexOf(", ")));
+        displayMessageBlock(message.substring(0, message.lastIndexOf(", ")));
     }
     else {
-        displayMessage("There are no items in your inventory.");
+        displayMessageBlock("There are no items in your inventory.");
     }
 }
 
 function handleStatus(playerLocation, tokens) {
-   // For now the assumption is that you are playing as gameData.players[0].
-   // This will not be true when we support multi-player mode.
+    // For now the assumption is that you are playing as gameData.players[0].
+    // This will not be true when we support multi-player mode.
 
-   var allComplete = true;
+    var playerInfo = findPlayer.findPlayerByName(gameData, gameData.players[0].name);
+    if (null === playerInfo) {
+        console.log("in handleUse.find() invalid player.");
+		    return;
+    }
 
-   if (gameData.objectives.length > 0) {
-       displayMessage("Objective progress:");
-       for (var i=0; i<gameData.objectives.length; i++) {
-           if (gameData.objectives[i].completed === "false") {
-              allComplete = false;
-           }
+    displayMessage("Health: " + playerInfo.player.health);
+    displayMessage("Damage: " + playerInfo.player.damage);
 
-           displayMessage("&nbsp;&nbsp;" +
-                          buildObjectiveDescription(gameData.objectives[i]) + ": " +
-                          (gameData.objectives[i].completed === "true" ? "complete" : "not complete"));
-       }
+    if (playerInfo.player.using !== undefined &&
+        playerInfo.player.using.length == 1) {
+        displayMessage("Using: " + playerInfo.player.using[0].name);
+    }
 
-       if (allComplete) {
-          displayMessage("All objectives are complete.");
-       }
-   }
+    var allComplete = true;
+    if (gameData.objectives.length > 0) {
+        displayMessage("Objective progress:");
+        for (var i=0; i<gameData.objectives.length; i++) {
+            if (gameData.objectives[i].completed === "false") {
+                allComplete = false;
+            }
+
+            displayMessage("&nbsp;&nbsp;" +
+                           buildObjectiveDescription(gameData.objectives[i]) + ": " +
+                           (gameData.objectives[i].completed === "true" ? "complete" : "not complete"));
+        }
+
+        if (allComplete) {
+            displayMessage("All objectives are complete.");
+        }
+    }
+
+    displayMessage("");
 }
 
 // escapeHtml implementation taken from mustache.js

@@ -185,17 +185,17 @@ var QuestRealmController = {
             // Check the pre-requisites.
             function checkRealmExists(validationCallback) {
                 QuestRealm.findOne({id: parentRealmId}).exec(function (err, realm) {
-                    sails.log.info("in QuestRealm.findById() callback");
+                    sails.log.info("checkRealmExists: QuestRealm.findById() callback");
                     if (err) {
                         validationCallback("createTheGame db err:" + err);
                     } else {
-                        sails.log.info("in QuestRealm.findById() callback, no error.");
+                        sails.log.info("checkRealmExists: QuestRealm.findById() callback, no error.");
                         if (realm) {
-                            sails.log.info("in QuestRealm.findById() callback " + JSON.stringify(realm));
+                            sails.log.info("checkRealmExists: QuestRealm.findById() callback " + JSON.stringify(realm));
                             // Everything is ok.
                             validationCallback(null, realm);
                         } else {
-                            sails.log.info("in QuestRealm.findById() callback, realm is null.");
+                            sails.log.info("checkRealmExists: QuestRealm.findById() callback, realm is null.");
                             validationCallback("createTheGame realm not Found");
                         }
                     }
@@ -212,11 +212,12 @@ var QuestRealmController = {
                 }
 
                 if (null === startPoint) {
-                    sails.log.info("in QuestRealm.findById() callback, no \"start at\" objective set.");
-                    validationCallback("checkStartLocation : no \"start at\" objective set");
+                    sails.log.info("checkStartLocation: in QuestRealm.findById() callback, no \"start at\" objective set.");
+                    validationCallback("No \"start at\" objective set");
+                    return;
                 }
 
-                sails.log.info("in checkStartLocation, searching for id: " + parentRealmId +
+                sails.log.info("checkStartLocation: searching for id: " + parentRealmId +
                                " x:" + realm.objectives[i].params[0].value +
                                " y:" + realm.objectives[i].params[1].value);
                 MapLocation.findOne(
@@ -224,17 +225,17 @@ var QuestRealmController = {
                      x: realm.objectives[i].params[0].value,
                      y: realm.objectives[i].params[1].value}).exec(function (err, maplocation) {
 
-                    sails.log.info("in MapLocation.findOne() callback");
+                    sails.log.info("checkStartLocation: in MapLocation.findOne() callback");
                     if (err) {
                         validationCallback("checkStartLocation db err:" + err);
                     } else {
-                        sails.log.info("in MapLocation.findOne() callback, no error.");
+                        sails.log.info("checkStartLocation: in MapLocation.findOne() callback, no error.");
                         if (maplocation) {
-                            sails.log.info("in MapLocation.findOne() callback " + JSON.stringify(maplocation));
+                            sails.log.info("checkStartLocation: in MapLocation.findOne() callback " + JSON.stringify(maplocation));
                             // Everything is ok.
                             validationCallback(null, realm);
                         } else {
-                            sails.log.info("in MapLocation.findOne() callback, maplocation is null.");
+                            sails.log.info("checkStartLocation: in MapLocation.findOne() callback, maplocation is null.");
                             validationCallback("checkStartLocation maplocation not Found");
                         }
                     }
@@ -250,11 +251,12 @@ var QuestRealmController = {
                     {name: playerName},
                     {name: playerName}).exec(function(error, dbPlayer) {
                     if (error) {
-                        sails.log.error("DB Error:" + error);
+                        sails.log.error("findOrCreatePlayer: DB Error:" + error);
                         playerCallback("findOrCreatePlayer db err:" + err);
+                        return;
                     }
 
-                    sails.log.info("found player " + JSON.stringify(dbPlayer));
+                    sails.log.info("findOrCreatePlayer: found player " + JSON.stringify(dbPlayer));
                     playerCallback(null, realm, dbPlayer);
                 });
             },
@@ -272,7 +274,8 @@ var QuestRealmController = {
                     inventory: [],
                     mapDrawMode: "autoVisited",
                     visited: {},
-                    health: 20}];
+                    health: 20,
+                    damage:5}];
                 playerData[0].visited[visitedKey] = true;
 
                 // Generate the game. Exclude the "start at" objective. That was just a
@@ -298,7 +301,7 @@ var QuestRealmController = {
                 Game.create(game).exec(function (error, newGame) {
                     if (error) {
                         sails.log.error("DB Error:" + error);
-                        gameCallback("createTheGame db err:" + error);
+                        gameCallback("createTheGame: db err:" + error);
                     } else {
                         copyMapLocations(newGame, parentRealmId, function() {
                             gameCallback(null, newGame);

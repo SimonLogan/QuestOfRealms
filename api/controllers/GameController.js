@@ -106,6 +106,10 @@ class findCharacter {
     }
 }
 
+// For string template substitution.
+var template = (tpl, args) => tpl.replace(/\${(\w+)}/g, (_, v) => args[v]);
+
+
 module.exports = {
 
     /* Start playing a game */
@@ -241,6 +245,16 @@ module.exports = {
                         case "use":
                             result = handleUse(command, game, playerName, function(handlerResult) {
                                 sails.log.info("in gameCommand. handleUse result = " + JSON.stringify(handlerResult));
+                                sendCommandStatus(handlerResult);
+
+                                if (handlerResult.hasOwnProperty("data")) {
+                                   checkObjectives(handlerResult.data.data.game[0], playerName);
+                                }
+                            });
+                            break;
+                        case "fight":
+                            result = handleFight(command, game, playerName, function(handlerResult) {
+                                sails.log.info("in gameCommand. handleFight result = " + JSON.stringify(handlerResult));
                                 sendCommandStatus(handlerResult);
 
                                 if (handlerResult.hasOwnProperty("data")) {
@@ -1351,6 +1365,449 @@ function handleUse(command, game, playerName, statusCallback) {
         statusCallback({error:true, message:errorMessage});
         return;
     }
+}
+
+function handleFight(command, game, playerName, statusCallback) {
+    command = command.replace(/fight[\s+]/i, "");
+    var commandArgs = command.split("for");
+    var targetName = commandArgs[0].trim();
+    var objectName = null;
+    if (commandArgs.length === 1) {
+       sails.log.info("FIGHT: " + targetName);
+    } else {
+       // "fight NPC for sword"
+       objectName = commandArgs[1].trim();
+       sails.log.info("FIGHT: " + targetName + " for " + objectName);
+    }
+
+    // TODO: for now object is the item type (i.e. "sword", not "the sword of destiny").
+    // This means it must be specific: "short sword" rather than "sword".
+
+    // Get the current player location.
+    var playerInfo = findPlayer.findPlayerByName(game, playerName);
+    if (null === playerInfo) {
+        sails.log.info("in handleFight.find() invalid player.");
+        statusCallback({error:true, message:"Invalid player"});
+		    return;
+    }
+
+    var currentX = parseInt(playerInfo.player.location.x);
+    var currentY = parseInt(playerInfo.player.location.y);
+
+    // TODO: store the coordinates as int instead of string.
+    MapLocation.findOne({'realmId': game.id, 'x': currentX.toString(), 'y': currentY.toString()}).exec(function(err, currentLocation) {
+        sails.log.info("in handleFight.find() callback");
+        if (err) {
+            sails.log.info("in handleFight db err:" + err);
+            statusCallback({error:true, message:err});
+			      return;
+        }
+
+        sails.log.info("in handleFight.find() callback, no error.");
+        if (!currentLocation) {
+            var errorMessage = "Current location not found";
+            sails.log.info("Current location not found");
+            statusCallback({error:true, message:errorMessage});
+			      return;
+        }
+
+        sails.log.info("in handleFight.find() callback " + JSON.stringify(currentLocation));
+
+        if (objectName === null) {
+           handleFightNPC(targetName, currentLocation, game, playerName, playerInfo.playerIndex, statusCallback);
+        } else {
+           handleFightNPCforItem(targetName, objectName, currentLocation, game, playerName, playerInfo.playerIndex, statusCallback);
+        }
+    });
+}
+
+function defaultFightHandler(character, object, game, playerName, callback) {
+   sails.log.info("Default fight handler");
+
+    var playerInfo = findPlayer.findPlayerByName(game, playerName);
+    var playerOrigHealth = playerInfo.player.health;
+    var characterOrigHealth = character.health;
+
+    // Deal the damage
+    sails.log.info("Before fight. player.health: " + playerInfo.player.health +
+                   ", player.damage: " + playerInfo.player.damage +
+                   ", character.health: " + character.health +
+                   ", character damage: " + character.damage);
+
+    // The player can't fight if health is 0.
+    // Note on the format/message split below. If we ever wish to localise the strings,
+    // "You are too weak to fight. The ${character_type} was victorious." is much better
+    // for translators as there is a full sentence to translate, and the embedded named
+    // token gives info about what data it contains. Compare this to the much worse
+    // translate("You are too weak to fight. The ") + character.type + translate(" was victorious.");
+    var format = "You are too weak to fight. The ${character_type} was victorious.";
+    var message = template(format, {character_type: character.type});
+    if (playerInfo.player.health > 0) {
+        playerInfo.player.health = Math.max(playerInfo.player.health - character.damage, 0);
+        character.health = Math.max(character.health - playerInfo.player.damage, 0);
+
+        // The victor is the combatant that does the biggest %age damage to the opponent.
+        var playerDamageDealt = Math.round((playerInfo.player.damage / characterOrigHealth) * 100);
+        var characterDamageDealt = Math.round((character.damage / playerOrigHealth) * 100);
+
+        sails.log.info("After fight. player.health: " + playerInfo.player.health +
+                       ", character.health: " + character.health +
+                       ", player dealt damage: " + playerDamageDealt + "% " +
+                       ", character dealt damage: " + characterDamageDealt + "%");
+
+        var characterDied = false;
+        var playerDied = false;
+        message = "You fought valiantly.";
+        if (character.health === 0 && playerInfo.player.health > 0) {
+            format = "You fought valiantly. The ${character_type} died.";
+            characterDied = true;
+            message = template(format, {character_type: character.type});
+        } else if (character.health > 0 && playerInfo.player.health === 0) {
+            message = "You fought valiantly, but you died.";
+            playerDied = true;
+        } else if (character.health === 0 && playerInfo.player.health === 0) {
+            message = "You fought valiantly, but you both died.";
+        } else {
+            // Neither died. Judge the victor on who dealt the most %age damage, or if damage
+            // was equal, judge based on remaining strength.
+            if ((playerDamageDealt > characterDamageDealt) ||
+                ((playerDamageDealt === characterDamageDealt) &&
+                 (playerInfo.player.health > character.health))) {
+                message = "You fought valiantly and were victorious.";
+            } else if ((characterDamageDealt > playerDamageDealt) ||
+                       ((playerDamageDealt === characterDamageDealt) &&
+                        (character.health > playerInfo.player.health))) {
+                format = "You fought valiantly but unfortunately the ${character_type} was victorious.";
+                message = template(format, {character_type: character.type});
+            } else {
+                // Evenly matched so far, declare a draw.
+                message = "You both fought valiantly, but are evently matched.";
+            }
+        }
+    }
+
+    var resp = {
+       player: playerName,
+          description: {
+             action: "fight",
+             success: true,
+             message: message
+          },
+          data: {
+             player: playerInfo.player,
+             character: character,
+             characterDied: characterDied,
+             playerDied: playerDied
+          }
+       };
+
+       sails.log.info("in fight() callback value");
+       callback(resp);
+}
+
+function handleCharacterDeath(characterIndex, currentLocation, game) {
+   // The character will drop its inventory.
+   var character = currentLocation.characters[characterIndex];
+   if (character.inventory !== undefined) {
+      for (var i = 0; i < character.inventory.length; i++) {
+         currentLocation.items.push(character.inventory[i]);
+      }
+   }
+}
+
+// Fight with no particular objective in mind.
+function handleFightNPC(targetName, currentLocation, game, playerName, playerIndex, statusCallback) {
+    sails.log.info("In handleFightNPC()");
+
+    // If fighting for an object, find the requested item in the specified target's inventory.
+    var characterInfo = findCharacter.findLocationCharacterByType(currentLocation, targetName);
+    if (null === characterInfo) {
+        var errorMessage = "There is no " + targetName + ".";
+        sails.log.info(errorMessage);
+        statusCallback({error:true, message:errorMessage});
+        return;
+    }
+
+    sails.log.info("Found targetName: " + JSON.stringify(targetName));
+    sails.log.info("characterIndex: " + characterInfo.characterIndex);
+
+    var path = require('path');
+    var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
+    var handlerPath =  pathroot + characterInfo.character.module + "/" + characterInfo.character.filename;
+    var module = require(handlerPath);
+
+    // Perform the default fight operation and call the optional handler to modify the
+    // NPC's behaviour.
+    var handlerFunc = defaultFightHandler;
+    if (module.handlers !== undefined && module.handlers["fight"] !== undefined) {
+        handlerFunc = module.handlers["fight"];
+    } else {
+        sails.log.info("1 Module: " + handlerPath +
+                       " does not have a handler for \"fight\".");
+    }
+
+    sails.log.info("calling fight()");
+    handlerFunc(characterInfo.character, null, game, playerName, function(handlerResp) {
+       sails.log.info("handlerResp: " + handlerResp);
+       if (!handlerResp) {
+           sails.log.info("1 fight - null handlerResp");
+           statusCallback({error:true, message:"The " + targetName + " won't give you the " + objectName});
+           return;
+       }
+
+       sails.log.info("Valid handlerResp " + JSON.stringify(handlerResp));
+       if (!handlerResp.description.success) {
+           sails.log.info("2 fight failed: " + handlerResp.description.detail);
+           statusCallback({error:true, message:handlerResp.description.detail});
+           return;
+       }
+
+       // After the fight, update the game.
+       if (handlerResp.data === undefined) {
+           sails.log.info("*** 1 sending resp: " + JSON.stringify(handlerResp));
+           handlerResp.data = {game:game, location:currentLocation};
+           sails.io.sockets.emit(game.id + "-status", handlerResp);
+           statusCallback({error: false, data:handlerResp});
+           return;
+       }
+
+       if (handlerResp.data.player !== undefined) {
+           game.players[playerIndex] = handlerResp.data.player;
+       }
+
+       if (handlerResp.data.character !== undefined) {
+           currentLocation.characters[characterInfo.characterIndex] = handlerResp.data.character;
+       }
+
+       if (handlerResp.data.characterDied) {
+          handleCharacterDeath(characterInfo.characterIndex, currentLocation, game);
+          currentLocation.characters.splice(characterInfo.characterIndex, 1);
+       }
+
+       // TODO: what should happen if the player dies? For now the player can't
+       // actually die, but should you forfeit your inventory?
+
+       // We don't need to send the updated target on to the client.
+       // Instead we'll send the updated game and mapLocation.
+       handlerResp.data = {};
+
+       async.waterfall([
+           function updateGame(validationCallback) {
+               Game.update(
+                  {id: game.id},
+                   game).exec(function(err, updatedGame) {
+                     sails.log.info("fight() Game.update() callback");
+                     if (err) {
+                        sails.log.info("fight() Game.update() callback, error. " + err);
+                        validationCallback("Failed to save the game");
+                     } else {
+                        sails.log.info("fight() Game.update() callback, no error.");
+                        if (updatedGame) {
+                           sails.log.info("fight() Game.update() callback " + JSON.stringify(updatedGame));
+                           validationCallback(null, updatedGame);
+                        } else {
+                           sails.log.info("fight() Game.update() callback, game is null.");
+                           validationCallback("Failed to save the game");
+                        }
+                     }
+               });
+           },
+           function updateMapLocation(updatedGame, validationCallback) {
+               MapLocation.update(
+                   {id: currentLocation.id},
+                   currentLocation).exec(function(err, updatedLocation) {
+                   sails.log.info("in MapLocation.update() callback");
+                   if (err) {
+                       sails.log.info("in MapLocation.update() callback, error. " + err);
+                        validationCallback("Failed to save the maplocation");
+                   } else {
+                       sails.log.info("in MapLocation.update() callback, no error.");
+                       if (updatedLocation) {
+                           sails.log.info("in MapLocation.update() callback " + JSON.stringify(updatedLocation));
+                           validationCallback(null, updatedGame, updatedLocation);
+                       } else {
+                           sails.log.info("in MapLocation.update() callback, item is null.");
+                           validationCallback("Failed to save the maplocation");
+                       }
+                   }
+               });
+           }
+       ], function (err, updatedGame, updatedLocation) {
+           sails.log.info("in fight() all done. err:" + err);
+           sails.log.info("in fight() all done. updatedGame:" + JSON.stringify(updatedGame));
+           sails.log.info("in fight() all done. updatedLocation:" + JSON.stringify(updatedLocation));
+           if (err) {
+               statusCallback({error: true, data: updatedGame});
+               return;
+           }
+
+           //handlerResp.data['game'] = updatedGame;
+           //handlerResp.data['location'] = updatedLocation;
+           sails.log.info("*** sending resp: " + JSON.stringify(handlerResp));
+           handlerResp.data = {game:updatedGame, location:updatedLocation};
+           sails.io.sockets.emit(game.id + "-status", handlerResp);
+
+           statusCallback({error: false, data:handlerResp});
+       });
+    });
+}
+
+// Fight until you beat the NPC and take the object
+function handleFightNPCforItem(targetName, objectName, currentLocation, game, playerName, playerIndex, statusCallback) {
+    sails.log.info("In handleFightNPC()");
+
+    // If fighting for an object, find the requested item in the specified target's inventory.
+    var characterInfo = findCharacter.findLocationCharacterByType(currentLocation, targetName);
+    if (null === characterInfo) {
+        var errorMessage = "There is no " + targetName + ".";
+        sails.log.info(errorMessage);
+        statusCallback({error:true, message:errorMessage});
+        return;
+    }
+
+    sails.log.info("Found targetName: " + JSON.stringify(targetName));
+
+    if (characterInfo.character.inventory === undefined) {
+        var errorMessage = "The " + targetName + " has no " + objectName + ".";
+        sails.log.info(errorMessage);
+        statusCallback({error:true, message:errorMessage});
+        return;
+    }
+
+    sails.log.info("Checking inventory");
+    var itemFound = false;
+    var object = null;
+    for (var j = 0; j < characterInfo.character.inventory.length; j++) {
+       if (characterInfo.character.inventory[j].type === objectName) {
+		        itemFound = true;
+		        object = characterInfo.character.inventory[j];
+		        characterInfo.character.inventory.splice(j, 1);
+		        sails.log.info("Found item in inventory");
+	     }
+    }
+
+    if (!itemFound) {
+        var errorMessage = "The " + targetName + " has no " + objectName + ".";
+        sails.log.info(errorMessage);
+        statusCallback({error:true, message:errorMessage});
+        return;
+    }
+
+    sails.log.info("Found objectName: " + JSON.stringify(characterInfo.character.inventory[j]));
+    sails.log.info("characterIndex: " + characterInfo.characterIndex);
+
+    // We found the item. See if we can take it.
+    var path = require('path');
+    var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
+    var handlerPath =  pathroot + characterInfo.character.module + "/" + characterInfo.character.filename;
+    var module = require(handlerPath);
+
+    // Command handlers are optional.
+    if (module.handlers === undefined) {
+       sails.log.info("1 Module: " + handlerPath +
+                      " does not have a handler for \"take from\".");
+       statusCallback({error:true, message:"The " + targetName + " won't give you the " + objectName});
+       return;
+    }
+
+    var handlerFunc = module.handlers["take from"];
+    if (handlerFunc === undefined) {
+       sails.log.info("2 Module: " + handlerPath +
+                      " does not have a handler for \"take from\".");
+       statusCallback({error:true, message:"The " + targetName + " won't give you the " + objectName});
+       return;
+    }
+
+    sails.log.info("calling take from()");
+    handlerFunc(characterInfo.character, object, game, playerName, function(handlerResp) {
+       sails.log.info("handlerResp: " + handlerResp);
+       if (!handlerResp) {
+           sails.log.info("1 Take from failed - null handlerResp");
+           statusCallback({error:true, message:"The " + targetName + " won't give you the " + objectName});
+           return;
+       }
+
+       sails.log.info("Valid handlerResp " + JSON.stringify(handlerResp));
+       if (!handlerResp.description.success) {
+           sails.log.info("2 Take from failed: " + handlerResp.description.detail);
+           statusCallback({error:true, message:handlerResp.description.detail});
+           return;
+       }
+
+       // We don't need to send the updated target on to the client.
+       // Instead we'll send the updated game and mapLocation.
+       handlerResp.data = {};
+
+       // Take worked, so update the target.
+       // Record who we took the object from so we can check for
+       // "acquire from" objectives.
+       object.source = {reason:"take from", from:targetName};
+
+       if (game.players[playerIndex].inventory === undefined) {
+           game.players[playerIndex].inventory = [];
+       }
+       game.players[playerIndex].inventory.push(object);
+       currentLocation.characters[recipientIndex] = character;
+
+       async.waterfall([
+           function updateGame(validationCallback) {
+               Game.update(
+                  {id: game.id},
+                   game).exec(function(err, updatedGame) {
+                     sails.log.info("take from() Game.update() callback");
+                     if (err) {
+                        sails.log.info("take from() Game.update() callback, error. " + err);
+                        validationCallback("Failed to save the game");
+                     } else {
+                        sails.log.info("take from() Game.update() callback, no error.");
+                        if (updatedGame) {
+                           sails.log.info("take from() Game.update() callback " + JSON.stringify(updatedGame));
+                           validationCallback(null, updatedGame);
+                        } else {
+                           sails.log.info("take from() Game.update() callback, game is null.");
+                           validationCallback("Failed to save the game");
+                        }
+                     }
+               });
+           },
+           function updateMapLocation(updatedGame, validationCallback) {
+               MapLocation.update(
+                   {id: currentLocation.id},
+                   currentLocation).exec(function(err, updatedLocation) {
+                   sails.log.info("in MapLocation.update() callback");
+                   if (err) {
+                       sails.log.info("in MapLocation.update() callback, error. " + err);
+                        validationCallback("Failed to save the maplocation");
+                   } else {
+                       sails.log.info("in MapLocation.update() callback, no error.");
+                       if (updatedLocation) {
+                           sails.log.info("in MapLocation.update() callback " + JSON.stringify(updatedLocation));
+                           validationCallback(null, updatedGame, updatedLocation);
+                       } else {
+                           sails.log.info("in MapLocation.update() callback, item is null.");
+                           validationCallback("Failed to save the maplocation");
+                       }
+                   }
+               });
+           }
+       ], function (err, updatedGame, updatedLocation) {
+           sails.log.info("in take from() all done. err:" + err);
+           sails.log.info("in take from() all done. updatedGame:" + JSON.stringify(updatedGame));
+           sails.log.info("in take from() all done. updatedLocation:" + JSON.stringify(updatedLocation));
+           if (err) {
+               statusCallback({error: true, data: updatedGame});
+               return;
+           }
+
+           handlerResp.data['game'] = updatedGame;
+           handlerResp.data['location'] = updatedLocation;
+           sails.log.info("*** sending resp: " + JSON.stringify(handlerResp));
+           handlerResp.data = {game:updatedGame, location:updatedLocation};
+           sails.io.sockets.emit(game.id + "-status", handlerResp);
+
+           statusCallback({error: false, data:handlerResp});
+       });
+    });
 }
 
 function checkObjectives(game, playerName) {

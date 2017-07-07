@@ -20,7 +20,7 @@ module.exports = {
           sails.log.info("*** in giant.give() " + JSON.stringify(object));
           sails.log.info("*** ");
 
-          resp = {
+          var resp = {
              player: playerName,
              description: {
                 action: "give",
@@ -38,7 +38,7 @@ module.exports = {
           sails.log.info("*** in giant.take from() " + JSON.stringify(object));
           sails.log.info("*** ");
 
-          resp = {
+          var resp = {
              player: playerName,
              description: {
                 action: "take from",
@@ -76,6 +76,7 @@ module.exports = {
               }
           }
 
+          var resp = null;
           if (payment) {
              resp = {
                  player: playerName,
