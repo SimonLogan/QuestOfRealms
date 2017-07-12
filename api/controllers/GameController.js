@@ -1421,90 +1421,6 @@ function handleFight(command, game, playerName, statusCallback) {
     });
 }
 
-function defaultFightHandler(character, object, game, playerName, callback) {
-   sails.log.info("Default fight handler");
-
-    var playerInfo = findPlayer.findPlayerByName(game, playerName);
-    var playerOrigHealth = playerInfo.player.health;
-    var characterOrigHealth = character.health;
-
-    // Deal the damage
-    sails.log.info("Before fight. player.health: " + playerInfo.player.health +
-                   ", player.damage: " + playerInfo.player.damage +
-                   ", character.health: " + character.health +
-                   ", character damage: " + character.damage);
-
-    // The player can't fight if health is 0.
-    // Note on the format/message split below. If we ever wish to localise the strings,
-    // "You are too weak to fight. The ${character_type} was victorious." is much better
-    // for translators as there is a full sentence to translate, and the embedded named
-    // token gives info about what data it contains. Compare this to the much worse
-    // translate("You are too weak to fight. The ") + character.type + translate(" was victorious.");
-    var format = "You are too weak to fight. The ${character_type} was victorious.";
-    var message = template(format, {character_type: character.type});
-    if (playerInfo.player.health > 0) {
-        playerInfo.player.health = Math.max(playerInfo.player.health - character.damage, 0);
-        character.health = Math.max(character.health - playerInfo.player.damage, 0);
-
-        // The victor is the combatant that does the biggest %age damage to the opponent.
-        var playerDamageDealt = Math.round((playerInfo.player.damage / characterOrigHealth) * 100);
-        var characterDamageDealt = Math.round((character.damage / playerOrigHealth) * 100);
-
-        sails.log.info("After fight. player.health: " + playerInfo.player.health +
-                       ", character.health: " + character.health +
-                       ", player dealt damage: " + playerDamageDealt + "% " +
-                       ", character dealt damage: " + characterDamageDealt + "%");
-
-        var characterDied = false;
-        var playerDied = false;
-        message = "You fought valiantly.";
-        if (character.health === 0 && playerInfo.player.health > 0) {
-            format = "You fought valiantly. The ${character_type} died.";
-            characterDied = true;
-            message = template(format, {character_type: character.type});
-        } else if (character.health > 0 && playerInfo.player.health === 0) {
-            message = "You fought valiantly, but you died.";
-            playerDied = true;
-        } else if (character.health === 0 && playerInfo.player.health === 0) {
-            message = "You fought valiantly, but you both died.";
-        } else {
-            // Neither died. Judge the victor on who dealt the most %age damage, or if damage
-            // was equal, judge based on remaining strength.
-            if ((playerDamageDealt > characterDamageDealt) ||
-                ((playerDamageDealt === characterDamageDealt) &&
-                 (playerInfo.player.health > character.health))) {
-                message = "You fought valiantly and were victorious.";
-            } else if ((characterDamageDealt > playerDamageDealt) ||
-                       ((playerDamageDealt === characterDamageDealt) &&
-                        (character.health > playerInfo.player.health))) {
-                format = "You fought valiantly but unfortunately the ${character_type} was victorious.";
-                message = template(format, {character_type: character.type});
-            } else {
-                // Evenly matched so far, declare a draw.
-                message = "You both fought valiantly, but are evently matched.";
-            }
-        }
-    }
-
-    var resp = {
-       player: playerName,
-          description: {
-             action: "fight",
-             success: true,
-             message: message
-          },
-          data: {
-             player: playerInfo.player,
-             character: character,
-             characterDied: characterDied,
-             playerDied: playerDied
-          }
-       };
-
-       sails.log.info("in fight() callback value");
-       callback(resp);
-}
-
 function handleCharacterDeath(characterIndex, currentLocation, game) {
    // The character will drop its inventory.
    var character = currentLocation.characters[characterIndex];
@@ -1533,17 +1449,40 @@ function handleFightNPC(targetName, currentLocation, game, playerName, playerInd
 
     var path = require('path');
     var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
-    var handlerPath =  pathroot + characterInfo.character.module + "/" + characterInfo.character.filename;
-    var module = require(handlerPath);
+    var module = null;
+    var handlerFunc = null;
 
     // Perform the default fight operation and call the optional handler to modify the
     // NPC's behaviour.
-    var handlerFunc = defaultFightHandler;
-    if (module.handlers !== undefined && module.handlers["fight"] !== undefined) {
-        handlerFunc = module.handlers["fight"];
-    } else {
-        sails.log.info("1 Module: " + handlerPath +
-                       " does not have a handler for \"fight\".");
+    var tryHandlers = [
+       pathroot + characterInfo.character.module + "/" + characterInfo.character.filename,
+       pathroot + "default/default-handlers.js"
+    ];
+
+    for (var i = 0; i < tryHandlers.length; i++) {
+        var handlerPath = tryHandlers[i];
+        sails.log.info("tryhandlers[" + i + "] = " + handlerPath);
+        try {
+           module = require(handlerPath);
+        } catch(err) {
+           sails.log.error(JSON.stringify(err));
+           continue;
+        }
+
+        if (module.handlers !== undefined && module.handlers["fight"] !== undefined) {
+            handlerFunc = module.handlers["fight"];
+            sails.log.info("found fight handler");
+            break;
+        } else {
+            sails.log.info("1 Module: " + handlerPath +
+                           " does not have a handler for \"fight\".");
+        }
+    }
+
+    if (!handlerFunc) {
+        sails.log.info("There is no handler for \"fight\" available.");
+        statusCallback({error:true, message:"There is no handler for \"fight\" available"});
+        return;
     }
 
     sails.log.info("calling fight()");
@@ -1809,6 +1748,7 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, game, pl
        });
     });
 }
+
 
 function checkObjectives(game, playerName) {
    sails.log.info("checkObjectives: " + JSON.stringify(game.objectives));
