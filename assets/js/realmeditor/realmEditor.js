@@ -704,23 +704,37 @@ $(document).ready(function() {
 
     $(document).on('change', '.itemProperty', function() {
         console.log("itemProperty change");
-        var selectedItem = $('#itemList').find(".propertiesPanelItem.selected");
-        var thisCell = locationData.where({
-            x: selectedItem.attr('data-x'), y:selectedItem.attr('data-y')});
 
-        var newItem = thisCell[0].attributes.items[selectedItem.attr('data-index')];
-        newItem.name = $('#itemName').val().trim();
-        newItem.description = $('#itemDescription').text();
-        newItem.damage = $('#itemDamage').text();
-        thisCell[0].attributes.items[selectedItem.attr('data-index')] = newItem;
+        var selectedMapCell = $('#mapTable').find(".mapItem.selected");
+        var thisCell = locationData.where({
+            x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')});
+
+        if ($(this).closest('div').parent().parent().find('.elementList').is('#inventoryItemList')) {
+            var selectedCharacterIndex = $('#characterList').find(".propertiesPanelItem.selected").attr('data-index');
+            var selectedItem = $('#inventoryItemList').find(".propertiesPanelItem.selected");
+            var newItem = thisCell[0].attributes.characters[selectedCharacterIndex].inventory[selectedItem.attr('data-index')];
+            newItem.name = $('#inventoryItemName').val().trim();
+            newItem.description = $('#inventoryItemDescription').text();
+            newItem.damage = $('#inventoryItemDamage').text();
+            thisCell[0].attributes.characters[selectedCharacterIndex].inventory[selectedItem.attr('data-index')] = newItem;
+        } else {
+            var selectedItem = $('#itemList').find(".propertiesPanelItem.selected");
+            var newItem = thisCell[0].attributes.items[selectedItem.attr('data-index')];
+            newItem.name = $('#itemName').val().trim();
+            newItem.description = $('#itemDescription').text();
+            newItem.damage = $('#itemDamage').text();
+            thisCell[0].attributes.items[selectedItem.attr('data-index')] = newItem;
+        }
+
         thisCell[0].save();
     });
 
     $(document).on('change', '.characterProperty', function() {
         console.log("characterProperty change");
         var selectedCharacter = $('#characterList').find(".propertiesPanelItem.selected");
+        var selectedMapCell = $('#mapTable').find(".mapItem.selected");
         var thisCell = locationData.where({
-            x: selectedCharacter.attr('data-x'), y:selectedCharacter.attr('data-y')});
+            x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')});
 
         var newCharacter = thisCell[0].attributes.characters[selectedCharacter.attr('data-index')];
         newCharacter.name = $('#characterName').val().trim();
