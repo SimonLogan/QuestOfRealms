@@ -16,6 +16,12 @@ module.exports = {
   },
   handlers: {
        "give": function(nightSpider, object, game, playerName, callback) {
+          /*
+           * The handler doesn't need to update the game. It just needs to
+           * return description.success=true/false to indicate whether the
+           * Night spider took the object.
+           */
+
           sails.log.info("*** ");
           sails.log.info("*** in nightSpider.give() " + JSON.stringify(object));
           sails.log.info("*** ");
@@ -37,25 +43,14 @@ module.exports = {
              return;
           }
 
-          // Update the night spider's inventory.
-          if (nightSpider.inventory === undefined) {
-             nightSpider.inventory = [];
-          }
-
-          // Record who gave the object so we can check for "give" objectives.
-          object.source = {reason:"give", from:playerName};
-
-          nightSpider.inventory.push(object);
-
           resp = {
              player: playerName,
              description: {
                 action: "give",
                 success: true,
-                message: "The night spider took the " + object.type,
-                item: object
+                message: "The night spider took the " + object.type
              },
-             data: {recipient: nightSpider}
+             data: {}
           };
 
           sails.log.info("in give() callback value");

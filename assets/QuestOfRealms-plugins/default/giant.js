@@ -16,6 +16,12 @@ module.exports = {
   },
   handlers: {
        "give": function(giant, object, game, playerName, callback) {
+          /*
+           * The handler doesn't need to update the game. It just needs to
+           * return description.success=true/false to indicate whether the
+           * Giant took the object.
+           */
+
           sails.log.info("*** ");
           sails.log.info("*** in giant.give() " + JSON.stringify(object));
           sails.log.info("*** ");
@@ -25,8 +31,7 @@ module.exports = {
              description: {
                 action: "give",
                 success: true,
-                message: "The giant took the " + object.type,
-                item: object
+                message: "The giant took the " + object.type
              }
           };
 
@@ -34,6 +39,12 @@ module.exports = {
           callback(resp);
        },
        "take from": function(giant, object, game, playerName, callback) {
+          /*
+           * The handler doesn't need to update the game. It just needs to
+           * return description.success=true/false to indicate whether you
+           * can take the object from the Giant.
+           */
+
           sails.log.info("*** ");
           sails.log.info("*** in giant.take from() " + JSON.stringify(object));
           sails.log.info("*** ");
@@ -52,6 +63,12 @@ module.exports = {
           callback(resp);
        },
        "buy from": function(giant, object, game, playerName, callback) {
+          /*
+           * The handler doesn't need to update the game. It just needs to
+           * return description.success=true/false to indicate whether you
+           * were able to buy the object from the Giant.
+           */
+
           sails.log.info("*** ");
           sails.log.info("*** in giant.buy from() " + JSON.stringify(object));
           sails.log.info("*** ");
@@ -83,11 +100,9 @@ module.exports = {
                  description: {
                     action: "buy from",
                     success: true,
-                    message: "The Giant sold you the " + object.type + ".",
-                    item: object
+                    message: "The Giant sold you the " + object.type + "."
                  },
                  data: {
-                    recipient: giant,
                     payment: payment
                  }
               };
