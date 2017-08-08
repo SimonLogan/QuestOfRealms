@@ -646,8 +646,8 @@ function handleTakeFromNPC(objectName, targetName, currentLocation, game, player
 
        sails.log.info("Valid handlerResp " + JSON.stringify(handlerResp));
        if (!handlerResp.description.success) {
-           sails.log.info("2 Take from failed: " + handlerResp.description.message);
-           statusCallback({error:true, message:handlerResp.description.message});
+           sails.log.info("2 Take from failed: " + handlerResp.description.detail);
+           statusCallback({error:true, message:handlerResp.description.detail});
            return;
        }
 
@@ -858,8 +858,8 @@ function handleBuyFromNPC(objectName, targetName, currentLocation, game, playerN
 
        sails.log.info("Valid handlerResp " + JSON.stringify(handlerResp));
        if (!handlerResp.description.success) {
-           sails.log.info("2 Buy from failed: " + handlerResp.description.message);
-           statusCallback({error:true, message:handlerResp.description.message});
+           sails.log.info("2 Buy from failed: " + handlerResp.description.detail);
+           statusCallback({error:true, message:handlerResp.description.detail});
            return;
        }
 
@@ -1204,8 +1204,8 @@ function handleGive(command, game, playerName, statusCallback) {
 
            sails.log.info("Valid handlerResp " + JSON.stringify(handlerResp));
            if (!handlerResp.description.success) {
-               sails.log.info("Give failed: " + handlerResp.description.message);
-               statusCallback({error:true, message:handlerResp.description.message});
+               sails.log.info("Give failed: " + handlerResp.description.detail);
+               statusCallback({error:true, message:handlerResp.description.detail});
                return;
            }
 
@@ -1486,7 +1486,7 @@ function handleFightNPC(targetName, currentLocation, game, playerName, playerInd
     }
 
     sails.log.info("calling fight()");
-    handlerFunc(characterInfo.character, game, playerName, function(handlerResp) {
+    handlerFunc(characterInfo.character, null, game, playerName, function(handlerResp) {
        sails.log.info("handlerResp: " + handlerResp);
        if (!handlerResp) {
            sails.log.info("1 fight - null handlerResp");
@@ -1496,13 +1496,13 @@ function handleFightNPC(targetName, currentLocation, game, playerName, playerInd
 
        sails.log.info("Valid handlerResp " + JSON.stringify(handlerResp));
        if (!handlerResp.description.success) {
-           sails.log.info("2 fight failed: " + handlerResp.description.message);
-           statusCallback({error:true, message:handlerResp.description.message});
+           sails.log.info("2 fight failed: " + handlerResp.description.detail);
+           statusCallback({error:true, message:handlerResp.description.detail});
            return;
        }
 
-       // Don't update the game if there was no response from the handler.
-       if (!handlerResp.hasOwnProperty('data')) {
+       // After the fight, update the game.
+       if (handlerResp.data === undefined) {
            sails.log.info("*** 1 sending resp: " + JSON.stringify(handlerResp));
            handlerResp.data = {game:game, location:currentLocation};
            sails.io.sockets.emit(game.id + "-status", handlerResp);
@@ -1510,20 +1510,13 @@ function handleFightNPC(targetName, currentLocation, game, playerName, playerInd
            return;
        }
 
-       var returnProperties = ['playerHealth', 'characterHealth', 'playerWon',
-                               'playerDied', 'characterDied'];
-       for (var i = 0; i < returnProperties.length; i++) {
-           sails.log.info("Checking return property " + returnProperties[i]);
-           if (!handlerResp.data.hasOwnProperty(returnProperties[i])) {
-               var errorMessage = "Handler response did not contain " + returnProperties[i];
-               sails.log.info(errorMessage);
-               statusCallback({error:true, message:errorMessage});
-               return;
-           }
+       if (handlerResp.data.player !== undefined) {
+           game.players[playerIndex] = handlerResp.data.player;
        }
 
-       game.players[playerIndex].health = handlerResp.data.playerHealth;
-       currentLocation.characters[characterInfo.characterIndex].health = handlerResp.data.characterHealth;
+       if (handlerResp.data.character !== undefined) {
+           currentLocation.characters[characterInfo.characterIndex] = handlerResp.data.character;
+       }
 
        if (handlerResp.data.characterDied) {
           handleCharacterDeath(characterInfo.characterIndex, currentLocation, game);
@@ -1587,6 +1580,8 @@ function handleFightNPC(targetName, currentLocation, game, playerName, playerInd
                return;
            }
 
+           //handlerResp.data['game'] = updatedGame;
+           //handlerResp.data['location'] = updatedLocation;
            sails.log.info("*** sending resp: " + JSON.stringify(handlerResp));
            handlerResp.data = {game:updatedGame, location:updatedLocation};
            sails.io.sockets.emit(game.id + "-status", handlerResp);
@@ -1598,7 +1593,7 @@ function handleFightNPC(targetName, currentLocation, game, playerName, playerInd
 
 // Fight until you beat the NPC and take the object
 function handleFightNPCforItem(targetName, objectName, currentLocation, game, playerName, playerIndex, statusCallback) {
-    sails.log.info("In handleFightNPCforItem()");
+    sails.log.info("In handleFightNPC()");
 
     // If fighting for an object, find the requested item in the specified target's inventory.
     var characterInfo = findCharacter.findLocationCharacterByType(currentLocation, targetName);
@@ -1637,163 +1632,6 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, game, pl
         return;
     }
 
-    var path = require('path');
-    var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
-    var module = null;
-    var handlerFunc = null;
-
-    // Perform the default fight operation and call the optional handler to modify the
-    // NPC's behaviour.
-    var tryHandlers = [
-       pathroot + characterInfo.character.module + "/" + characterInfo.character.filename,
-       pathroot + "default/default-handlers.js"
-    ];
-
-    for (var i = 0; i < tryHandlers.length; i++) {
-        var handlerPath = tryHandlers[i];
-        sails.log.info("tryhandlers[" + i + "] = " + handlerPath);
-        try {
-           module = require(handlerPath);
-        } catch(err) {
-           sails.log.error(JSON.stringify(err));
-           continue;
-        }
-
-        if (module.handlers !== undefined && module.handlers["fight"] !== undefined) {
-            handlerFunc = module.handlers["fight for"];
-            sails.log.info("found fight handler");
-            break;
-        } else {
-            sails.log.info("1 Module: " + handlerPath +
-                           " does not have a handler for \"fight for\".");
-        }
-    }
-
-    if (!handlerFunc) {
-        sails.log.info("There is no handler for \"fight for\" available.");
-        statusCallback({error:true, message:"There is no handler for \"fight for\" available"});
-        return;
-    }
-
-    sails.log.info("calling fight for()");
-    handlerFunc(characterInfo.character, object, game, playerName, function(handlerResp) {
-       sails.log.info("handlerResp: " + handlerResp);
-       if (!handlerResp) {
-           sails.log.info("1 fight for - null handlerResp");
-           statusCallback({error:true, message:"The " + targetName + " won't give you the " + objectName});
-           return;
-       }
-
-       sails.log.info("Valid handlerResp " + JSON.stringify(handlerResp));
-       if (!handlerResp.description.success) {
-           sails.log.info("2 fight for failed: " + handlerResp.description.message);
-           statusCallback({error:true, message:handlerResp.description.message});
-           return;
-       }
-
-       // Don't update the game if there was no response from the handler.
-       if (!handlerResp.hasOwnProperty('data')) {
-           sails.log.info("*** 1 sending resp: " + JSON.stringify(handlerResp));
-           handlerResp.data = {game:game, location:currentLocation};
-           sails.io.sockets.emit(game.id + "-status", handlerResp);
-           statusCallback({error: false, data:handlerResp});
-           return;
-       }
-
-       var returnProperties = ['playerHealth', 'characterHealth', 'playerWon',
-                               'playerDied', 'characterDied'];
-       for (var i = 0; i < returnProperties.length; i++) {
-           sails.log.info("Checking return property " + returnProperties[i]);
-           if (!handlerResp.data.hasOwnProperty(returnProperties[i])) {
-               var errorMessage = "Handler response did not contain " + returnProperties[i];
-               sails.log.info(errorMessage);
-               statusCallback({error:true, message:errorMessage});
-               return;
-           }
-       }
-
-       // Fight worked, so update the target.
-       // Record who we took the object from so we can check for
-       // "acquire from" objectives.
-       object.source = {reason:"take from", from:targetName};
-       if (game.players[playerIndex].inventory === undefined) {
-           game.players[playerIndex].inventory = [];
-       }
-       game.players[playerIndex].inventory.push(object);
-
-       game.players[playerIndex].health = handlerResp.data.playerHealth;
-       currentLocation.characters[characterInfo.characterIndex].health = handlerResp.data.characterHealth;
-
-       if (handlerResp.data.characterDied) {
-          handleCharacterDeath(characterInfo.characterIndex, currentLocation, game);
-          currentLocation.characters.splice(characterInfo.characterIndex, 1);
-       }
-
-       // TODO: what should happen if the player dies? For now the player can't
-       // actually die, but should you forfeit your inventory?
-
-       // We don't need to send the updated target on to the client.
-       // Instead we'll send the updated game and mapLocation.
-       handlerResp.data = {};
-
-       async.waterfall([
-           function updateGame(validationCallback) {
-               Game.update(
-                  {id: game.id},
-                   game).exec(function(err, updatedGame) {
-                     sails.log.info("fight for() Game.update() callback");
-                     if (err) {
-                        sails.log.info("fight for() Game.update() callback, error. " + err);
-                        validationCallback("Failed to save the game");
-                     } else {
-                        sails.log.info("fight for() Game.update() callback, no error.");
-                        if (updatedGame) {
-                           sails.log.info("fight for() Game.update() callback " + JSON.stringify(updatedGame));
-                           validationCallback(null, updatedGame);
-                        } else {
-                           sails.log.info("fight for() Game.update() callback, game is null.");
-                           validationCallback("Failed to save the game");
-                        }
-                     }
-               });
-           },
-           function updateMapLocation(updatedGame, validationCallback) {
-               MapLocation.update(
-                   {id: currentLocation.id},
-                   currentLocation).exec(function(err, updatedLocation) {
-                   sails.log.info("in MapLocation.update() callback");
-                   if (err) {
-                       sails.log.info("in MapLocation.update() callback, error. " + err);
-                        validationCallback("Failed to save the maplocation");
-                   } else {
-                       sails.log.info("in MapLocation.update() callback, no error.");
-                       if (updatedLocation) {
-                           sails.log.info("in MapLocation.update() callback " + JSON.stringify(updatedLocation));
-                           validationCallback(null, updatedGame, updatedLocation);
-                       } else {
-                           sails.log.info("in MapLocation.update() callback, item is null.");
-                           validationCallback("Failed to save the maplocation");
-                       }
-                   }
-               });
-           }
-       ], function (err, updatedGame, updatedLocation) {
-           sails.log.info("in fight for() all done. err:" + err);
-           sails.log.info("in fight for() all done. updatedGame:" + JSON.stringify(updatedGame));
-           sails.log.info("in fight for() all done. updatedLocation:" + JSON.stringify(updatedLocation));
-           if (err) {
-               statusCallback({error: true, data: updatedGame});
-               return;
-           }
-
-           sails.log.info("*** sending resp: " + JSON.stringify(handlerResp));
-           handlerResp.data = {game:updatedGame, location:updatedLocation};
-           sails.io.sockets.emit(game.id + "-status", handlerResp);
-
-           statusCallback({error: false, data:handlerResp});
-       });
-    });
-/*
     sails.log.info("Found objectName: " + JSON.stringify(characterInfo.character.inventory[j]));
     sails.log.info("characterIndex: " + characterInfo.characterIndex);
 
@@ -1830,8 +1668,8 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, game, pl
 
        sails.log.info("Valid handlerResp " + JSON.stringify(handlerResp));
        if (!handlerResp.description.success) {
-           sails.log.info("2 Take from failed: " + handlerResp.description.message);
-           statusCallback({error:true, message:handlerResp.description.message});
+           sails.log.info("2 Take from failed: " + handlerResp.description.detail);
+           statusCallback({error:true, message:handlerResp.description.detail});
            return;
        }
 
@@ -1909,7 +1747,6 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, game, pl
            statusCallback({error: false, data:handlerResp});
        });
     });
- */
 }
 
 
