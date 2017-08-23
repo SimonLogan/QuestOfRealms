@@ -23,7 +23,7 @@ var locationData;
 
 // When the page has finished rendering...
 $(document).ready(function() {
-   // Get the id of the realm we're editing so that we can look it up wity AJAX.
+   // Get the id of the realm we're editing so that we can look it up with AJAX.
    // This value comes from the HTML element with id="realmId".
    // The jQuery selectors $(#XXX) below select the elements by id.
    // The data was placed into this element in the first place by the template parameter
@@ -108,19 +108,16 @@ $(document).ready(function() {
       socket: null,
       // Call this function when a synchronization needs to occur.
       sync: function(method, model, options){
-         var where = {};
-         if (options.where) {
-            where = {
-               where: options.where
-            }
-         }
-
          this.socket = io.connect();
 
          this.socket.on("connect", _.bind(function(){
             // This renders the initial collection and saves updates, but other user sessions
             // do not dynamically update. I can live with this for now.
-            io.socket.request({ url: "/maplocation", method: "get" }, _.bind(function(maplocations){
+            var url = "/maplocation";
+            if (options.where && options.where.hasOwnProperty('realmId')) {
+               url = url + "?realmId=" + options.where['realmId'];
+            }
+            io.socket.request({ url: url, method: "get" }, _.bind(function(maplocations){
                // Populate the collection initially.
                this.set(maplocations);
                console.log("connection");

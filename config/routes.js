@@ -117,6 +117,16 @@ module.exports.routes = {
         action: 'fetchGames'
     },
 
+    '/editGame' : {
+        controller: 'questRealm',
+        action: 'editGame'
+    },
+
+    '/updateGameRealms' : {
+        controller: 'questRealm',
+        action: 'updateGameRealms'
+    },
+
     '/deleteGame' : {
         controller: 'questRealm',
         action: 'deleteGame'
