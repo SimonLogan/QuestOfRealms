@@ -17,6 +17,7 @@
 
 var QuestRealmController = {
 
+    // =============== realm API ===============
     createRealm: function(req, res) {
         var realmName = req.param("name");
         var realmDescription = req.param("description");
@@ -143,6 +144,83 @@ var QuestRealmController = {
         });
     },
 
+    // Check that the specified realm meets the criteria for inclusion in a game:
+    // - it must have a valid "start at" objective.
+    checkRealm: function(req, res) {
+        var realmId = req.param("id");
+        sails.log.info("in checkRealm. id = " + realmId);
+
+        async.waterfall([
+            // Check the pre-requisites.
+            function checkRealmExists(validationCallback) {
+                QuestRealm.findOne({id: realmId}).exec(function (err, realm) {
+                    sails.log.info("checkRealmExists: QuestRealm.findById() callback");
+                    if (err) {
+                        validationCallback("createTheGame db err:" + err);
+                    } else {
+                        sails.log.info("checkRealmExists: QuestRealm.findById() callback, no error.");
+                        if (realm) {
+                            sails.log.info("checkRealmExists: QuestRealm.findById() callback " + JSON.stringify(realm));
+                            // Everything is ok.
+                            validationCallback(null, realm);
+                        } else {
+                            sails.log.info("checkRealmExists: QuestRealm.findById() callback, realm is null.");
+                            validationCallback("checkRealm realm not Found");
+                        }
+                    }
+                });
+            },
+            function checkStartLocation(realm, validationCallback) {
+                // The realm must have at least a "start at" objective before a game can be created.
+                var startPoint = null;
+                for (var i=0; i<realm.objectives.length; i++) {
+                    if (realm.objectives[i].type === "Start at") {
+                        startPoint = realm.objectives[i];
+                        break;
+                    }
+                }
+
+                if (null === startPoint) {
+                    sails.log.info("checkStartLocation: in QuestRealm.findById() callback, no \"start at\" objective set.");
+                    validationCallback("No \"start at\" objective set");
+                    return;
+                }
+
+                sails.log.info("checkStartLocation: searching for id: " + realm.id +
+                               " x:" + realm.objectives[i].params[0].value +
+                               " y:" + realm.objectives[i].params[1].value);
+                MapLocation.findOne(
+                    {realmId: realm.id,
+                     x: realm.objectives[i].params[0].value,
+                     y: realm.objectives[i].params[1].value}).exec(function (err, maplocation) {
+
+                    sails.log.info("checkStartLocation: in MapLocation.findOne() callback");
+                    if (err) {
+                        validationCallback("checkStartLocation db err:" + err);
+                    } else {
+                        sails.log.info("checkStartLocation: in MapLocation.findOne() callback, no error.");
+                        if (maplocation) {
+                            sails.log.info("checkStartLocation: in MapLocation.findOne() callback " + JSON.stringify(maplocation));
+                            // Everything is ok.
+                            validationCallback(null);
+                        } else {
+                            sails.log.info("checkStartLocation: in MapLocation.findOne() callback, maplocation is null.");
+                            validationCallback("checkStartLocation maplocation not Found");
+                        }
+                    }
+                });
+            }
+        ], function (err) {
+            sails.log.info("in createGame() all done. err:" + err);
+            if (err)
+                res.send({error: err});
+            else
+                res.send({});
+        });
+
+    },
+
+    // =============== game API ===============
     createGame: function(req, res) {
         var gameName = req.param("name");
         var gameDescription = req.param("description");

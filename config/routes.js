@@ -102,6 +102,11 @@ module.exports.routes = {
         action: 'fetchRealms'
     },
 
+    '/checkRealm' : {
+        controller: 'questRealm',
+        action: 'checkRealm'
+    },
+
     '/createGame' : {
         controller: 'questRealm',
         action: 'createGame'

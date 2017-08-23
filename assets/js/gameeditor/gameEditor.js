@@ -266,10 +266,25 @@ function addToGame(target) {
        return;
     }
 
-    gameData.realms.push({templateRealmId: templateRealmId});
+    // Check the realm to ensure it is valid for adding to the game.
+    // If not, disable the button so the check doesn't have to be repeated.
+    $.post(
+        '/checkRealm',
+        { id: templateRealmId },
+        function (data) {
+            if (data.hasOwnProperty('error')) {
+               target.prop('disabled', true);
+               target.attr('title', data.error);
+               return;
+            }
 
-    $('#saveContainer').show();
-    displayGameDetails();
+            gameData.realms.push({templateRealmId: templateRealmId});
+            $('#saveContainer').show();
+            displayGameDetails();
+        }
+    ).fail(function(res){
+        alert("Error: " + JSON.parse(res.responseText).error);
+    });
 }
 
 
