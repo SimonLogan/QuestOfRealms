@@ -1,0 +1,25 @@
+<!-- A view partial for realm display and editing -->
+
+<!--div id="realmDesignsPanel" style="display: none;"-->
+<div id="realmDesignsPanel">
+    <h2>Available Realms</h2>
+    <div>Realms are building blocks from which to assemble games.
+         Realms can be re-used in different games, and wired together in different orders.</div>
+    <br>
+    <div id="availableRealmsList"></div>
+</div>
+
+<div id="createRealmDesignPanel" style="margin-top: 20px;">
+    <input type="button" id="showCreateRealmDesignButton" value="New Realm" />
+
+    <div id="realmDesignContainer" style="display: none;">
+        <h2>Add New Realm</h2>
+        <div id="realmDesignForm">
+            <div class="inputRow"><label class="inputLabel" for="realmName">Name:</label><input type="text" id="realmName" /></div>
+            <div class="inputRow"><label class="inputLabel" for="realmDescription">Description:</label><input type="text" id="realmDescription" /></div>
+            <div class="inputRow"><label class="inputLabel" for="realmWidth">Width:</label><input type="number" id="realmWidth" /></div>
+            <div class="inputRow"><label class="inputLabel" for="realmHeight">Height:</label><input type="number" id="realmHeight" /></div>
+            <div class="inputRow"><input type="button" id="createRealmButton" value="Create!" /></div>
+        </div>
+    </div>
+</div>

@@ -1,3 +1,8 @@
+#gameList, #gameInstanceList {
+   margin-top: 20px;
+   margin-bottom: 20px;
+}
+
 table.realmList {
     border: 1px solid #888888;
     border-spacing: 0px;

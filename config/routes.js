@@ -142,6 +142,16 @@ module.exports.routes = {
         action: 'saveGame'
     },
 
+    '/createGameInstance' : {
+        controller: 'questRealm',
+        action: 'createGameInstance'
+    },
+
+    '/fetchGameInstances' : {
+        controller: 'questRealm',
+        action: 'fetchGameInstances'
+    },
+
     '/playGame' : {
         controller: 'game',
         action: 'playGame'

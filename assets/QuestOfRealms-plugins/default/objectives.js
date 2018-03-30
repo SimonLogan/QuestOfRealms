@@ -41,7 +41,7 @@ module.exports = {
     }
   ],
   handlers: {
-       "Navigate to": function(objective, game, playerName, callback) {
+       "Navigate to": function(objective, game, realm, playerName, callback) {
           sails.log.info("in Navigate to()");
 
           sails.log.info("game.players:" + JSON.stringify(game.players));
@@ -51,8 +51,12 @@ module.exports = {
 
              var location = objective.params[0].value + "_" +
                             objective.params[1].value;
-             sails.log.info("Looking for location: " + location);
-             var visited = game.players[i].visited.hasOwnProperty(location);
+             sails.log.info("Looking for realmId: " + realm.id + ", location: " + location);
+             var visited = false;
+             if (game.players[i].visited.hasOwnProperty(realm.id)) {
+                visited = game.players[i].visited[realm.id].hasOwnProperty(location);
+             }
+
              sails.log.info("visited: " + visited);
              if (!visited) {
                 sails.log.info("in Navigate to() callback null");
@@ -76,7 +80,7 @@ module.exports = {
              callback(resp);
           }
        },
-       "Acquire item": function(objective, game, playerName, callback) {
+       "Acquire item": function(objective, game, realm, playerName, callback) {
           sails.log.info("in Acquire item()");
 
           sails.log.info("game.players:" + JSON.stringify(game.players));
@@ -126,7 +130,7 @@ module.exports = {
              callback(resp);
           }
        },
-       "Give item": function(objective, game, playerName, callback) {
+       "Give item": function(objective, game, realm, playerName, callback) {
           sails.log.info("in Give item()");
 
           sails.log.info("game.players:" + JSON.stringify(game.players));
@@ -150,7 +154,7 @@ module.exports = {
           // Find all the characters in the current location, and see if one
           // has the item in question, with a possession reason of "given by"
           // the current player.
-          MapLocation.findOne({'realmId': game.id,
+          MapLocation.findOne({'realmId': realm.id,
                                'x': player.location.x,
                                'y': player.location.y.toString()}).exec(function(err, location) {
               var notifyData = {};
@@ -169,14 +173,15 @@ module.exports = {
 
                       var character;
                       for (var i = 0; i < location.characters.length; i++) {
-                         // We're not cuurently checking character name, so check all
+                         // We're not currently checking character name, so check all
                          // the characters of that type.
+                         sails.log.info("in Give item() recipient " + JSON.stringify(recipient));
                          if (location.characters[i].type === recipient) {
                             character = location.characters[i];
                             sails.log.info("in Give item() found character " + JSON.stringify(character));
-
                             if (character.inventory !== undefined) {
                                for (var j =0; j < character.inventory.length; j++) {
+
                                   var item = character.inventory[j];
                                   sails.log.info("in Give item() character inventory item: " + JSON.stringify(item));
                                   if (item.type === object &&

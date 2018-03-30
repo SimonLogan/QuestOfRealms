@@ -2,7 +2,12 @@
 <script type="text/javascript" src="/js/realmeditor/realmEditor.js"></script>
 
 <h1>Quest of Realms</h1>
-<a href="/editGame?id=<%= realm.gameId %>">Back to game editor</a>
+
+<% if(realm.hasOwnProperty("gameId")){ %>
+   <a href="/editGame?id=<%= realm.gameId %>">Back to game editor</a>
+ <% } else{ %>
+   <a href="/">Back to main page</a>
+<% } %>
 
 <!-- -->
 <h2 id="realmName"></h2>

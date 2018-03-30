@@ -115,7 +115,7 @@ module.exports = {
     /* Start playing a game */
     playGame: function(req, res) {
         var gameId = req.param("id");
-        sails.log.info("in playGame. id = " + gameId);
+        sails.log.info("********************* in playGame. id = " + gameId);
 
         // Find the Game object that has the id value matching the specified gameId.
         // If you want to check this in the db, use
@@ -129,13 +129,10 @@ module.exports = {
                 sails.log.info("in Game.findById() callback, no error.");
                 if (game) {
                     sails.log.info("in Game.findById() callback " + JSON.stringify(game));
-
                     return res.view("questRealm/playGame", {
-                        realm: {
+                        game: {
                             id: game.id,
                             name: game.name,
-                            width: game.width,
-                            height: game.height,
                             playerName: game.players[0].name
                         }
                     });
@@ -151,7 +148,7 @@ module.exports = {
     // can test handling of socket messages that arrive while it's processing
     // the AJAX response.
     dummyCommand: function(req, res) {
-        sails.log.info("in dummyCommand.");
+        sails.log.info("********************* in dummyCommand.");
         sails.log.info("sending 200 response");
         res.send(200);
         sails.log.info("sending socket messages");
@@ -167,8 +164,8 @@ module.exports = {
         var playerName = req.param("player").trim();
         var gameId = req.param("gameId");
 
-        sails.log.info("in gameCommand. command = " + command);
-        sails.log.info("in gameCommand. req = " + req);
+        sails.log.info("********************* in gameCommand. command = " + command);
+        sails.log.info("in gameCommand. command = \"" + command + "\"");
 
         Game.findOne({id: gameId}).exec(function(err, game) {
             sails.log.info("in Game.findById() callback");
@@ -341,7 +338,8 @@ function handleMove(command, game, playerName, statusCallback) {
     sails.log.info("in handleMove.find() searching for location [" + newX + ", " + newY + "].");
 
     // TODO: store the coordinates as int instead of string.
-    MapLocation.findOne({'realmId': game.id, 'x': newX.toString(), 'y': newY.toString()}).exec(function(err, newLocation) {
+    var realmId = game.players[playerInfo.playerIndex].location.realmId;
+    MapLocation.findOne({'realmId': realmId, 'x': newX.toString(), 'y': newY.toString()}).exec(function(err, newLocation) {
         var notifyData = {};
 
         sails.log.info("in handleMove.find() callback");
@@ -390,9 +388,9 @@ function handleMove(command, game, playerName, statusCallback) {
            // This is a dictionary for quick searching. Using a list
            // will scale badly when drawing the whole map on the UI.
            var visitedKey = newX.toString() + "_" + newY.toString();
-           var playerVistitedLocation = (visitedKey in game.players[playerInfo.playerIndex].visited);
+           var playerVistitedLocation = (visitedKey in game.players[playerInfo.playerIndex].visited[realmId]);
            if (!playerVistitedLocation) {
-               game.players[playerInfo.playerIndex].visited[visitedKey] = true;
+               game.players[playerInfo.playerIndex].visited[realmId][visitedKey] = true;
            }
 
            notifyData = {
@@ -427,9 +425,9 @@ function handleMove(command, game, playerName, statusCallback) {
             }
 
             sails.log.info("in Game.update() callback " + JSON.stringify(updatedGame));
-            sails.log.info("sending socket messages for subject '" + game.id + "-status'");
+            sails.log.info("sending socket messages for subject '" + realmId + "-status'");
             notifyData.data = {game: updatedGame};
-            sails.io.sockets.emit(game.id + "-status", notifyData);
+            sails.io.sockets.emit(realmId + "-status", notifyData);
             statusCallback({error:false, data:notifyData});
             return;
         });
@@ -462,9 +460,10 @@ function handleTake(command, game, playerName, statusCallback) {
 
     var currentX = parseInt(playerInfo.player.location.x);
     var currentY = parseInt(playerInfo.player.location.y);
+    var realmId = game.players[playerInfo.playerIndex].location.realmId;
 
     // TODO: store the coordinates as int instead of string.
-    MapLocation.findOne({'realmId': game.id, 'x': currentX.toString(), 'y': currentY.toString()}).exec(function(err, currentLocation) {
+    MapLocation.findOne({'realmId': realmId, 'x': currentX.toString(), 'y': currentY.toString()}).exec(function(err, currentLocation) {
         sails.log.info("in handleTake.find() callback");
         if (err) {
             sails.log.info("in handleTake db err:" + err);
@@ -548,8 +547,9 @@ function handleTakeFromLocation(objectName, currentLocation, game, playerName, p
 				            return;
 			          }
 
+            var realmId = game.players[playerIndex].location.realmId;
             sails.log.info("in MapLocation.update() callback " + JSON.stringify(updatedLocation));
-            sails.log.info("sending socket messages for subject '" + game.id + "-status'");
+            sails.log.info("sending socket messages for subject '" + realmId + "-status'");
             notifyData = {
                player: playerName,
                description: {
@@ -563,7 +563,7 @@ function handleTakeFromLocation(objectName, currentLocation, game, playerName, p
                }
             };
 
-            sails.io.sockets.emit(game.id + "-status", notifyData);
+            sails.io.sockets.emit(realmId + "-status", notifyData);
             statusCallback({error: false, data:notifyData});
 			        return;
         });
@@ -716,11 +716,12 @@ function handleTakeFromNPC(objectName, targetName, currentLocation, game, player
                return;
            }
 
+           var realmId = game.players[playerIndex].location.realmId;
            handlerResp.data['game'] = updatedGame;
            handlerResp.data['location'] = updatedLocation;
            sails.log.info("*** sending resp: " + JSON.stringify(handlerResp));
            handlerResp.data = {game:updatedGame, location:updatedLocation};
-           sails.io.sockets.emit(game.id + "-status", handlerResp);
+           sails.io.sockets.emit(realmId + "-status", handlerResp);
 
            statusCallback({error: false, data:handlerResp});
        });
@@ -756,9 +757,10 @@ function handleBuy(command, game, playerName, statusCallback) {
 
     var currentX = parseInt(playerInfo.player.location.x);
     var currentY = parseInt(playerInfo.player.location.y);
+    var realmId = game.players[playerInfo.playerIndex].location.realmId;
 
     // TODO: store the coordinates as int instead of string.
-    MapLocation.findOne({'realmId': game.id, 'x': currentX.toString(), 'y': currentY.toString()}).exec(function(err, currentLocation) {
+    MapLocation.findOne({'realmId': realmId, 'x': currentX.toString(), 'y': currentY.toString()}).exec(function(err, currentLocation) {
         sails.log.info("in handleBuy.find() callback");
         if (err) {
             sails.log.info("in handleBuy db err:" + err);
@@ -942,7 +944,8 @@ function handleBuyFromNPC(objectName, targetName, currentLocation, game, playerN
            handlerResp.data['location'] = updatedLocation;
            sails.log.info("*** sending resp: " + JSON.stringify(handlerResp));
            handlerResp.data = {game:updatedGame, location:updatedLocation};
-           sails.io.sockets.emit(game.id + "-status", handlerResp);
+           var realmId = game.players[playerIndex].location.realmId;
+           sails.io.sockets.emit(realmId + "-status", handlerResp);
 
            statusCallback({error: false, data:handlerResp});
        });
@@ -966,9 +969,10 @@ function handleDrop(command, game, playerName, statusCallback) {
 
     var currentX = parseInt(playerInfo.player.location.x);
     var currentY = parseInt(playerInfo.player.location.y);
+    var realmId = game.players[playerInfo.playerIndex].location.realmId;
 
     // TODO: store the coordinates as int instead of string.
-    MapLocation.findOne({'realmId': game.id, 'x': currentX.toString(), 'y': currentY.toString()}).exec(function(err, currentLocation) {
+    MapLocation.findOne({'realmId': realmId, 'x': currentX.toString(), 'y': currentY.toString()}).exec(function(err, currentLocation) {
         sails.log.info("in handleDrop.find() callback");
         if (err) {
             sails.log.info("in handleDrop db err:" + err);
@@ -1049,7 +1053,7 @@ function handleDrop(command, game, playerName, statusCallback) {
                     }
 
                     sails.log.info("in MapLocation.update() callback " + JSON.stringify(updatedLocation));
-                    sails.log.info("sending socket messages for subject '" + game.id + "-status'");
+                    sails.log.info("sending socket messages for subject '" + realmId + "-status'");
                     notifyData = {
                        player: playerName,
                        description: {
@@ -1063,7 +1067,7 @@ function handleDrop(command, game, playerName, statusCallback) {
                        }
                     };
 
-                    sails.io.sockets.emit(game.id + "-status", notifyData);
+                    sails.io.sockets.emit(realmId + "-status", notifyData);
                     statusCallback({error: false});
                     return;
                 });
@@ -1106,9 +1110,10 @@ function handleGive(command, game, playerName, statusCallback) {
 
     var currentX = parseInt(game.players[playerInfo.playerIndex].location.x);
     var currentY = parseInt(game.players[playerInfo.playerIndex].location.y);
+    var realmId = game.players[playerInfo.playerIndex].location.realmId;
 
     // TODO: store the coordinates as int instead of string.
-    MapLocation.findOne({'realmId': game.id, 'x': currentX.toString(), 'y': currentY.toString()}).exec(function(err, currentLocation) {
+    MapLocation.findOne({'realmId': realmId, 'x': currentX.toString(), 'y': currentY.toString()}).exec(function(err, currentLocation) {
         sails.log.info("in handleGive.find() callback");
         if (err) {
             sails.log.info("in handleGive db err:" + err);
@@ -1281,7 +1286,7 @@ function handleGive(command, game, playerName, statusCallback) {
                handlerResp.data['location'] = updatedLocation;
                sails.log.info("*** sending resp: " + JSON.stringify(handlerResp));
                handlerResp.data = {game:updatedGame, location:updatedLocation};
-               sails.io.sockets.emit(game.id + "-status", handlerResp);
+               sails.io.sockets.emit(realmId + "-status", handlerResp);
 
                statusCallback({error: false, data:handlerResp});
            });
@@ -1308,7 +1313,7 @@ function handleUse(command, game, playerName, statusCallback) {
     // Find the requested item in the inventory.
     var found = false;
     for (var i=0; i<playerInfo.player.inventory.length; i++) {
-        // TODO: handle ambiguous object descriptions (e.g. "drop sword" when there are two swords).
+        // TODO: handle ambiguous object descriptions (e.g. "use sword" when there are two swords).
         if (playerInfo.player.inventory[i].type !== objectName) {
            continue;
         }
@@ -1334,13 +1339,13 @@ function handleUse(command, game, playerName, statusCallback) {
             sails.log.info("in Game.update() callback, no error.");
             if (!updatedGame) {
                 sails.log.info("in Game.update() callback, item is null.");
-                statusCallback({error:true, message:"failed to find game"});
+                statusCallback({error:true, message: "failed to find game"});
                 return;
             }
 
             sails.log.info("in Game.update() callback " + JSON.stringify(updatedGame));
-
-            sails.log.info("sending socket messages for subject '" + game.id + "-status'");
+            var realmId = game.players[playerInfo.playerIndex].location.realmId;
+            sails.log.info("sending socket messages for subject '" + realmId + "-status'");
             notifyData = {
                player: playerName,
                description: {
@@ -1353,7 +1358,7 @@ function handleUse(command, game, playerName, statusCallback) {
                }
             };
 
-            sails.io.sockets.emit(game.id + "-status", notifyData);
+            sails.io.sockets.emit(realmId + "-status", notifyData);
             statusCallback({error: false});
             return;
         });
@@ -1393,9 +1398,10 @@ function handleFight(command, game, playerName, statusCallback) {
 
     var currentX = parseInt(playerInfo.player.location.x);
     var currentY = parseInt(playerInfo.player.location.y);
+    var realmId = game.players[playerInfo.playerIndex].location.realmId;
 
     // TODO: store the coordinates as int instead of string.
-    MapLocation.findOne({'realmId': game.id, 'x': currentX.toString(), 'y': currentY.toString()}).exec(function(err, currentLocation) {
+    MapLocation.findOne({'realmId': realmId, 'x': currentX.toString(), 'y': currentY.toString()}).exec(function(err, currentLocation) {
         sails.log.info("in handleFight.find() callback");
         if (err) {
             sails.log.info("in handleFight db err:" + err);
@@ -1589,7 +1595,8 @@ function handleFightNPC(targetName, currentLocation, game, playerName, playerInd
 
            sails.log.info("*** sending resp: " + JSON.stringify(handlerResp));
            handlerResp.data = {game:updatedGame, location:updatedLocation};
-           sails.io.sockets.emit(game.id + "-status", handlerResp);
+           var realmId = game.players[playerIndex].location.realmId;
+           sails.io.sockets.emit(realmId + "-status", handlerResp);
 
            statusCallback({error: false, data:handlerResp});
        });
@@ -1788,7 +1795,8 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, game, pl
 
            sails.log.info("*** sending resp: " + JSON.stringify(handlerResp));
            handlerResp.data = {game:updatedGame, location:updatedLocation};
-           sails.io.sockets.emit(game.id + "-status", handlerResp);
+           var realmId = game.players[playerIndex].location.realmId;
+           sails.io.sockets.emit(realmId + "-status", handlerResp);
 
            statusCallback({error: false, data:handlerResp});
        });
@@ -1912,67 +1920,112 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, game, pl
  */
 }
 
+function retrieveRealm(realmId, callback) {
+    QuestRealm.findOne({id: realmId}).exec(function(err, realm) {
+        sails.log.info("retrieveRealm: in QuestRealm.findById() callback");
+        if (err) {
+            sails.log.error("retrieveRealm: in QuestRealm.findById() error:" + err);
+            callback(null);
+        }
+
+        sails.log.info("retrieveRealm: in QuestRealm.findById() callback, no error.");
+        if (!realm) {
+            sails.log.info("retrieveRealm: in QuestRealm.findById() callback, realm is null.");
+            callback(null);
+        }
+
+        sails.log.info("retrieveRealm: in QuestRealm.findById() callback " + JSON.stringify(realm));
+        callback(realm);
+    })
+}
 
 function checkObjectives(game, playerName) {
-   sails.log.info("checkObjectives: " + JSON.stringify(game.objectives));
+   sails.log.info("checkObjectives.");
 
-   for (var i=0; i<game.objectives.length; i++) {
-      if (game.objectives[i].completed === "true") {
-         continue;
-      }
+    var playerInfo = findPlayer.findPlayerByName(game, playerName);
+    if (null === playerInfo) {
+        sails.log.info("in handleUse.find() invalid player.");
+        statusCallback({error:true, message:"Invalid player"});
+		    return;
+    }
 
-      var objective = game.objectives[i];
-      sails.log.info("Evaluating objective " + i + ": " + JSON.stringify(objective));
-      var path = require('path');
-      var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
-      var handlerPath =  pathroot + objective.module + "/" + objective.filename;
-      var module = require(handlerPath);
-      var handlerFunc = module.handlers[objective.type];
-      if (handlerFunc === undefined) {
-         sails.log.info("Module: " + handlerPath +
-                        " does not have a handler for \"" +
-                        objective.type + "\".");
-         return;
-      }
+    var realmId = game.players[playerInfo.playerIndex].location.realmId;
+    sails.log.info("realmId: " + realmId);
 
-      sails.log.info("calling " + objective.type + "() with game: " + JSON.stringify(game));
-      handlerFunc(objective, game, playerName, function(handlerResp) {
-         sails.log.info("handlerResp: " + handlerResp);
-         if (!handlerResp) {
-            return;
-         }
+    retrieveRealm(realmId, function(realm) {
+       sails.log.info("realm: " + JSON.stringify(realm));
 
-         sails.log.info("Valid handlerResp");
-         var id = handlerResp.data.objective.id;
-         game.objectives[id] = handlerResp.data.objective;
+       if (!realm) {
+          sails.log.info("checkObjectives: realm not found.");
+          return;
+       }
 
-         Game.update(
-            {id: game.id},
-             game).exec(function(err, updatedGame) {
-               sails.log.info("checkObjectives() Game.update() callback");
-               if (err) {
-                  sails.log.info("checkObjectives() Game.update() callback, error. " + err);
-                  return;
-               }
+       sails.log.info("Objectives: " + JSON.stringify(realm.objectives));
 
-               sails.log.info("checkObjectives() Game.update() callback, no error.");
-               if (!updatedGame) {
-                  sails.log.info("checkObjectives() Game.update() callback, item is null.");
-                  return;
-               }
+       for (var i=0; i<realm.objectives.length; i++) {
+          if (realm.objectives[i].completed === "true") {
+             continue;
+          }
 
-               sails.log.info("checkObjectives() Game.update() callback " + JSON.stringify(updatedGame));
-               handlerResp.data['game'] = updatedGame;
+          // Special handling for the "Start at" objective.
+          if (realm.objectives[i].type === "Start at") {
+             continue;
+          }
 
-               sails.log.info("*** sending resp: " + JSON.stringify(handlerResp));
-               sails.io.sockets.emit(
-                  updatedGame[0].id + "-status",
-                  handlerResp);
+          var objective = realm.objectives[i];
+          sails.log.info("Evaluating objective " + i + ": " + JSON.stringify(objective));
+          var path = require('path');
+          var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
+          var handlerPath =  pathroot + objective.module + "/" + objective.filename;
+          var module = require(handlerPath);
+          var handlerFunc = module.handlers[objective.type];
+          if (handlerFunc === undefined) {
+             sails.log.info("Module: " + handlerPath +
+                            " does not have a handler for \"" +
+                            objective.type + "\".");
+             continue;
+          }
 
-               return;
-         });
-      });
-   }
+          sails.log.info("Found handlerPath:" + handlerPath);
+          sails.log.info("calling " + objective.type + "() with game: " + JSON.stringify(game));
+          handlerFunc(objective, game, realm, playerName, function(handlerResp) {
+             sails.log.info("handlerResp: " + handlerResp);
+             if (!handlerResp) {
+                return;
+             }
+
+             sails.log.info("Valid handlerResp: " + JSON.stringify(handlerResp));
+             var id = handlerResp.data.objective.id;
+             realm.objectives[id] = handlerResp.data.objective;
+
+             QuestRealm.update(
+                {id: realm.id},
+                 realm).exec(function(err, updatedRealm) {
+                   sails.log.info("checkObjectives() QuestRealm.update() callback");
+                   if (err) {
+                      sails.log.info("checkObjectives() QuestRealm.update() callback, error. " + err);
+                      return;
+                   }
+
+                   sails.log.info("checkObjectives() QuestRealm.update() callback, no error.");
+                   if (!updatedRealm) {
+                      sails.log.info("checkObjectives() QuestRealm.update() callback, item is null.");
+                      return;
+                   }
+
+                   sails.log.info("checkObjectives() QuestRealm.update() callback " + JSON.stringify(updatedRealm));
+                   handlerResp.data['realm'] = updatedRealm;
+
+                   sails.log.info("*** sending resp: " + JSON.stringify(handlerResp));
+                   sails.io.sockets.emit(
+                      updatedRealm[0].id + "-status",
+                      handlerResp);
+
+                   return;
+             });
+          });
+       }
+   });
 }
 
 function handleCommand(commandTokens, game, playerName, statusCallback) {
@@ -1981,10 +2034,3 @@ function handleCommand(commandTokens, game, playerName, statusCallback) {
     statusCallback({error:true, message:errorMessage});
 }
 
-function sendCommandResponse(responseStream, response) {
-    if (!response.error) {
-        responseStream.send(200, response);
-    } else {
-        responseStream.send(500, response);
-    }
-}

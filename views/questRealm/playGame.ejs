@@ -7,9 +7,9 @@
 <a href="/">Back to main page</a>
 
 <!-- -->
-<h2>Play Game <%= realm.name %></h2>
-<h3>Playing as <%= realm.playerName %></h3>
-<input type="hidden" id="realmId" value="<%= realm.id %>" />
+<h2>Play Game <%= game.name %></h2>
+<h3>Playing as <%= game.playerName %></h3>
+<input type="hidden" id="realmId" value="<%= game.id %>" />
 
 <link rel="stylesheet" href="/styles/editRealm.css">
 <link rel="stylesheet" href="/styles/playGame.css">
@@ -17,7 +17,7 @@
 <script src="//code.jquery.com/ui/1.11.1/jquery-ui.js"></script>
 
 <div id="workArea">
-    <input type="hidden" id="playerName" value="<%= realm.playerName %>" />
+    <input type="hidden" id="playerName" value="<%= game.playerName %>" />
     <div id="workPanel" class="displayPanel">
         <%- partial ('mapPartial.ejs') %>
         <div id="drawChoicePanel" style="margin-top:10px">

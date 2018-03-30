@@ -14,6 +14,7 @@ describeDetailEnum = {
 // The game data. This will be retrieved initially and then kept updated
 // via socket messages.
 var gameData;
+var currentRealmData;
 var maplocationData;
 
 // Socket management.
@@ -62,7 +63,7 @@ $(document).ready(function() {
     //            width: realm.width,
     //            height: realm.height
     //       }
-    var realmId = $('#realmId').val(); // Really gameId in this context.
+    var gameId = $('#gameId').val();
 
     // There's no point in having a backbone collection to only ever run "fetch" on it.
     // The client will fetch the data once at the start and then keep it in syn using the
@@ -71,17 +72,39 @@ $(document).ready(function() {
     // Temporarily make it global for debug purposes.
     /*var*/ gamesocket = io.connect();
     gamesocket.on('connect', function socketConnected() {
+        // Load the game and call the function below when it has been retrieved.
+        // You need to use this callback approach because the AJAX call is
+        // asynchronous. This means the code here won't wait for it to complete,
+        // so you have to provide a function that can be called when the data is ready.
+        loadGame(function() {
+            $('#gameName').text("Play Game " + gameData.name);
+            $('#playerName').text("Playing as " + gameData.players[0].name);
 
-        // Listen for socket messages from the server
-        gamesocket.on(realmId + '-status', function messageReceived(message) {
-            messageQueue.push(message);
-            console.log("Push message onto queue: " + JSON.stringify(messageQueue));
-            if (busy) {
-                console.log("Busy, process message later");
-            } else {
-                console.log("Not busy, process message.");
+            loadMaplocations(function() {
+                // Configure the map draw mode panel according to the user's preference.
+                var mapDrawMode = gameData.players[0].mapDrawMode;
+                $('#drawChoice_' + mapDrawMode).prop("checked", true)
+                drawMapGrid(currentRealmData.width, currentRealmData.height, mapDrawMode);
+                buildMessageArea();
+
+                // Listen for socket messages from the server
+                console.log("Lsitening for messages with subject: " + currentRealmData.id + "-status");
+                gamesocket.on(currentRealmData.id + '-status', function messageReceived(message) {
+                    messageQueue.push(message);
+                    console.log("Push message onto queue: " + JSON.stringify(messageQueue));
+                    if (busy) {
+                        console.log("Busy, process message later");
+                    } else {
+                        console.log("Not busy, process message.");
+                        processMessages();
+                    }
+                });
+
+                busy = false;
                 processMessages();
-            }
+                var playerLocation = findPlayerLocation(maplocationData, gameData.players[0].name);
+                displayMessageBlock(describeMyLocation(playerLocation));
+            });
         });
 
         ///////////////////////////////////////////////////////////
@@ -98,31 +121,6 @@ $(document).ready(function() {
         );
         */
         ///////////////////////////////////////////////////////////
-
-
-        // Load the realm and call the function below when it has been retrieved.
-        // You need to use this callback approach because the AJAX call is
-        // asynchronous. This means the code here won't wait for it to complete,
-        // so you have to provide a function that can be called when the data is ready.
-        loadGame(function() {
-            $('#gameName').text("Play Game " + gameData.name);
-            $('#playerName').text("Playing as " + gameData.players[0].name);
-
-            loadMaplocations(function() {
-                // Configure the map draw mode panel according to the user's preference.
-                var mapDrawMode = gameData.players[0].mapDrawMode;
-                $('#drawChoice_' + mapDrawMode).prop("checked", true)
-
-                drawMapGrid(gameData.width, gameData.height, mapDrawMode);
-                buildMessageArea();
-                busy = false;
-
-                processMessages();
-
-                var playerLocation = findPlayerLocation(maplocationData, gameData.players[0].name);
-                displayMessageBlock(describeMyLocation(playerLocation));
-            });
-        });
 
         // DEBUG
         /*
@@ -178,7 +176,7 @@ $(document).ready(function() {
         console.log(selectedOption.target.value);
         gameData.players[0].mapDrawMode = selectedOption.target.value;
         saveGame();
-        drawMapGrid(gameData.width, gameData.height, selectedOption.target.value);
+        drawMapGrid(currentRealmData.width, currentRealmData.height, selectedOption.target.value);
         var playerLocation = findPlayerLocation(maplocationData, gameData.players[0].name);
         showPlayerLocation(playerLocation.y, playerLocation.x);
     })
@@ -309,28 +307,6 @@ function processDropNotification(message) {
     }
 }
 
-function processObjectiveCompletedNotification(message) {
-    gameData = message.data.game[0];
-    var objective = message.data.objective;
-
-    if (message.player === gameData.players[0].name) {
-        var status = "You have completed an objective: " +
-           buildObjectiveDescription(objective) + ".";
-
-        console.log(status);
-        displayMessage(status);
-
-        for (var i=0; i<gameData.objectives.length; i++) {
-           if (gameData.objectives[i].completed === "false") {
-              displayMessage("");
-              return;
-           }
-        }
-
-        displayMessageBlock("All objectives are complete.");
-    }
-}
-
 function processGiveNotification(message) {
     gameData = message.data.game[0];
     mapLocation = message.data.location[0];
@@ -371,6 +347,28 @@ function processFightNotification(message) {
             drawMaplocation(mapLocation);
             showPlayerLocation(mapLocation.y, mapLocation.x);
         }
+    }
+}
+
+function processObjectiveCompletedNotification(message) {
+    currentRealmData = message.data.realm[0];
+    var objective = message.data.objective;
+
+    if (message.player === gameData.players[0].name) {
+        var status = "You have completed an objective: " +
+           buildObjectiveDescription(objective) + ".";
+
+        console.log(status);
+        displayMessage(status);
+
+        for (var i=0; i<currentRealmData.objectives.length; i++) {
+           if (currentRealmData.objectives[i].completed === "false") {
+              displayMessage("");
+              return;
+           }
+        }
+
+        displayMessageBlock("All objectives are complete.");
     }
 }
 
@@ -422,24 +420,43 @@ function saveGame() {
 function loadMaplocations(callback) {
     console.log(Date.now() + ' loadMaplocations');
 
-    $.get(
-        '/maplocation?realmId=' + $('#realmId').val(),
-        function (data) {
-            // Make a sparse array for the map area.
-            maplocationData = new Array(parseInt(gameData.height));
-            $.each(data, function(index, item) {
-                console.log("iter: " + JSON.stringify(item));
-
-                if (maplocationData[parseInt(item.y)-1] === undefined) {
-                    maplocationData[parseInt(item.y)-1] = new Array(parseInt(gameData.width));
+    async.waterfall([
+        function loadCurrentRealm(realmCallback) {
+            $.get(
+                '/questrealm?id=' + gameData.players[0].location.realmId,
+                function (data) {
+                   currentRealmData = data;
+                   realmCallback(null, data);
                 }
-                maplocationData[parseInt(item.y)-1][parseInt(item.x)-1] = item;
+            ).fail(function(res){
+                realmCallback("Error: " + JSON.parse(res.responseText).error);
             });
+        },
+        function loadMapLocations(realmData, maplocationCallback) {
+            $.get(
+                '/maplocation?realmId=' + realmData.id,
+                function (data) {
+                    // Make a sparse array for the map area.
+                    maplocationData = new Array(parseInt(realmData.height));
+                    $.each(data, function(index, item) {
+                        console.log("iter: " + JSON.stringify(item));
 
-            callback();
+                        if (maplocationData[parseInt(item.y)-1] === undefined) {
+                            maplocationData[parseInt(item.y)-1] = new Array(parseInt(realmData.width));
+                        }
+                        maplocationData[parseInt(item.y)-1][parseInt(item.x)-1] = item;
+                    });
+
+                    maplocationCallback();
+                }
+            ).fail(function(res){
+                maplocationCallback("Error: " + JSON.parse(res.responseText).error);
+            });
         }
-    ).fail(function(res){
-        alert("Error: " + JSON.parse(res.responseText).error);
+    ], function (err) {
+        if (!err) {
+           callback();
+        }
     });
 }
 
@@ -550,7 +567,7 @@ function shouldDrawMapLocation(locationData) {
     // quick searching when drawing the map. Using a list
     // will scale badly when drawing the whole map.
     var visitedKey = locationData.x.toString() + "_" + locationData.y.toString();
-    var playerVistitedLocation = (visitedKey in gameData.players[0].visited);
+    var playerVistitedLocation = (visitedKey in gameData.players[0].visited[locationData.realmId]);
     var mapDrawMode = gameData.players[0].mapDrawMode;
     if (("autoAll" == mapDrawMode) || ("autoVisited" == mapDrawMode && playerVistitedLocation)) {
         return true;
@@ -1113,22 +1130,26 @@ function handleStatus(playerLocation, tokens) {
     displayMessage("Health: " + playerInfo.player.health);
     displayMessage("Damage: " + playerInfo.player.damage);
 
-    if (playerInfo.player.using !== undefined &&
-        playerInfo.player.using.length == 1) {
-        displayMessage("Using: " + playerInfo.player.using[0].name);
+    if (playerInfo.player.using !== undefined) {
+        displayMessage("Using: " + playerInfo.player.using.type);
     }
 
     var allComplete = true;
-    if (gameData.objectives.length > 0) {
+    if (currentRealmData.objectives.length > 0) {
         displayMessage("Objective progress:");
-        for (var i=0; i<gameData.objectives.length; i++) {
-            if (gameData.objectives[i].completed === "false") {
+        for (var i=0; i<currentRealmData.objectives.length; i++) {
+            // Special handling for the "Start at" objective. It is automatically completed.
+            if (currentRealmData.objectives[i].type === "Start at") {
+               continue;
+            }
+
+            if (currentRealmData.objectives[i].completed === "false") {
                 allComplete = false;
             }
 
             displayMessage("&nbsp;&nbsp;" +
-                           buildObjectiveDescription(gameData.objectives[i]) + ": " +
-                           (gameData.objectives[i].completed === "true" ? "complete" : "not complete"));
+                           buildObjectiveDescription(currentRealmData.objectives[i]) + ": " +
+                           (currentRealmData.objectives[i].completed === "true" ? "complete" : "not complete"));
         }
 
         if (allComplete) {
